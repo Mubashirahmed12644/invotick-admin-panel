@@ -40,6 +40,11 @@ const navItems = [
     href: "/testing-devices",
     isActive: (pathname: string) => pathname.startsWith("/testing-devices"),
   },
+  {
+    label: "Users Map",
+    href: "/users-map",
+    isActive: (pathname: string) => pathname.startsWith("/users-map"),
+  },
 ] as const;
 
 export default function Sidebar() {

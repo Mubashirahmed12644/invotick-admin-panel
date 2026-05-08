@@ -1,4 +1,14 @@
 export type UUID = string;
+
+export type UserMapLocation = {
+  id: string;
+  username: string;
+  email: string;
+  latitude: number;
+  longitude: number;
+  country?: string | null;
+  city?: string | null;
+};
 export type LocalDate = string;
 export type LocalDateTime = string;
 export type Decimal = number;
@@ -200,9 +210,36 @@ export interface WebpanelUserAnalyticsSummary {
   userProperties: WebpanelUserAnalyticsProperty[];
 }
 
+export interface WebpanelUserIpSummary {
+  address: string | null;
+  country: string | null;
+  countryCode: string | null;
+  region: string | null;
+  city: string | null;
+  zip: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  timezone: string | null;
+  isp: string | null;
+  org: string | null;
+  asn: string | null;
+  isProxy: boolean | null;
+  isVpn: boolean | null;
+  isMobile: boolean | null;
+  isHosting: boolean | null;
+  currency: string | null;
+  callingCode: string | null;
+  language: string | null;
+  lastFetchedAt: LocalDateTime | null;
+}
+
 export interface WebpanelUserWithStatsAndAnalyticsResponse extends WebpanelUserWithStatsResponse {
   analytics: WebpanelUserAnalyticsSummary | null;
+  ip: WebpanelUserIpSummary | null;
 }
+
+export type WebpanelUserStatsAndAnalyticsByUserIdResponse =
+  WebpanelUserWithStatsAndAnalyticsResponse;
 
 export interface WebpanelTestingDeviceResponse {
   deviceId: string;

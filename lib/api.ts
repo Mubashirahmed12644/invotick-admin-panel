@@ -3,11 +3,13 @@ import type {
   ApiResponse,
   AuthResponse,
   LoginRequest,
+  UserMapLocation,
   WebpanelInventoryItemResponse,
   WebpanelInvoiceFullResponse,
   WebpanelInvoiceSummaryResponse,
   WebpanelTestingDeviceLookupResponse,
   WebpanelTestingDeviceResponse,
+  WebpanelUserStatsAndAnalyticsByUserIdResponse,
   WebpanelUserWithStatsAndAnalyticsResponse,
   WebpanelUserWithStatsResponse,
   WebpanelUserStatsResponse,
@@ -183,6 +185,12 @@ export const api = {
     );
   },
 
+  getUserStatsAndAnalytics(userId: string) {
+    return apiRequest<WebpanelUserStatsAndAnalyticsByUserIdResponse>(
+      `/v1/webpanel/statsAndAnalyticsByUserId?userId=${encodeURIComponent(userId)}`,
+    );
+  },
+
   getTestingDevices() {
     return apiRequest<WebpanelTestingDeviceResponse[]>("/v1/webpanel/testing-devices");
   },
@@ -316,5 +324,9 @@ export const api = {
     return apiRequest<SuspiciousIpFullResponse[]>(
       `/v1/ip/suspicious/full?threshold=${threshold}`,
     );
+  },
+
+  getUsersForMap() {
+    return apiRequest<UserMapLocation[]>("/v1/webpanel/getUsersForMap");
   },
 };

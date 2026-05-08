@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\AppTrick\\\\IdeaProjects\\\\invotics-webpanel\" -Force)",
+      "Bash(Select-Object Name, PSIsContainer)",
+      "Bash(Format-Table -AutoSize)",
+      "Bash(npm install *)",
+      "Bash(npx tsc *)",
+      "Bash(findstr /i \"users-map\")",
+      "Bash(Select-String \"users-map\")",
+      "Bash(node -e \"console.log\\(require\\('./node_modules/maplibre-gl/package.json'\\).version\\)\")"
+    ]
+  }
+}

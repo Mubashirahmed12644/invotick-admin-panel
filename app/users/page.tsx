@@ -172,6 +172,7 @@ const USER_SORT_COLUMNS: UserSortColumn[] = [
 
 interface UserTableTotals {
   users: number;
+  distinctRoles: number;
   uniqueCountries: number;
   invoicesAll: number;
   invoices30: number;
@@ -179,6 +180,42 @@ interface UserTableTotals {
   paymentsAll: number;
   expensesAll: number;
   invoiceTotalAll: number;
+  lastActivityCount: number;
+  createdAtCount: number;
+}
+
+interface UserTableCoverageCell {
+  count: number;
+  percentage: number;
+}
+
+interface UserTableCoverage {
+  role: UserTableCoverageCell;
+  country: UserTableCoverageCell;
+  invoicesAll: UserTableCoverageCell;
+  invoices30: UserTableCoverageCell;
+  overdue: UserTableCoverageCell;
+  paymentsAll: UserTableCoverageCell;
+  expensesAll: UserTableCoverageCell;
+  invoiceTotalAll: UserTableCoverageCell;
+  lastActivity: UserTableCoverageCell;
+  createdAt: UserTableCoverageCell;
+}
+
+function createCoverageCell(count: number, total: number): UserTableCoverageCell {
+  return {
+    count,
+    percentage: total > 0 ? (count / total) * 100 : 0,
+  };
+}
+
+function renderCoverage(cell: UserTableCoverageCell) {
+  return (
+    <>
+      <span>{cell.count}</span>
+      <span className="users-table-summary-percentage">{cell.percentage.toFixed(0)}%</span>
+    </>
+  );
 }
 
 export default function UsersPage() {
@@ -285,7 +322,11 @@ export default function UsersPage() {
       const last30Counts = last30.counts;
       const statusCounts = allCounts.invoicesByStatus ?? {};
       const analytics = user.analytics;
-      const countries = uniqueSorted(analytics?.locations.map((location) => location.country) ?? []);
+      const ipCountry = user.ip?.countryCode?.trim() || user.ip?.country?.trim() || null;
+      const countries = uniqueSorted([
+        ...(analytics?.locations.map((location) => location.country) ?? []),
+        ipCountry,
+      ]);
       const cities = uniqueSorted(analytics?.locations.map((location) => location.city) ?? []);
       const platforms = uniqueSorted([
         ...(analytics?.locations.flatMap((location) => location.platforms) ?? []),
@@ -613,10 +654,13 @@ export default function UsersPage() {
         acc.paymentsAll += row.paymentsAll;
         acc.expensesAll += row.expensesAll;
         acc.invoiceTotalAll += row.invoiceTotalAll;
+        if (row.lastActivityAt) acc.lastActivityCount += 1;
+        if (row.createdAt) acc.createdAtCount += 1;
         return acc;
       },
       {
         users: processedRows.length,
+        distinctRoles: new Set(processedRows.map((row) => row.role).filter(Boolean)).size,
         uniqueCountries: new Set(
           processedRows.map((row) => row.primaryCountry).filter(Boolean),
         ).size,
@@ -626,15 +670,65 @@ export default function UsersPage() {
         paymentsAll: 0,
         expensesAll: 0,
         invoiceTotalAll: 0,
+        lastActivityCount: 0,
+        createdAtCount: 0,
       },
     );
 
     totals.users = processedRows.length;
+    totals.distinctRoles = new Set(processedRows.map((row) => row.role).filter(Boolean)).size;
     totals.uniqueCountries = new Set(
       processedRows.map((row) => row.primaryCountry).filter(Boolean),
     ).size;
 
     return totals;
+  }, [processedRows]);
+
+  const tableCoverage = useMemo<UserTableCoverage>(() => {
+    const totalUsers = processedRows.length;
+
+    return {
+      role: createCoverageCell(
+        processedRows.filter((row) => row.role.trim().toUpperCase() === "USER").length,
+        totalUsers,
+      ),
+      country: createCoverageCell(
+        processedRows.filter((row) => Boolean(row.primaryCountry?.trim())).length,
+        totalUsers,
+      ),
+      invoicesAll: createCoverageCell(
+        processedRows.filter((row) => row.invoicesAll > 0).length,
+        totalUsers,
+      ),
+      invoices30: createCoverageCell(
+        processedRows.filter((row) => row.invoices30 > 0).length,
+        totalUsers,
+      ),
+      overdue: createCoverageCell(
+        processedRows.filter((row) => row.overdue > 0).length,
+        totalUsers,
+      ),
+      paymentsAll: createCoverageCell(
+        processedRows.filter((row) => row.paymentsAll > 0).length,
+        totalUsers,
+      ),
+      expensesAll: createCoverageCell(
+        processedRows.filter((row) => row.expensesAll > 0).length,
+        totalUsers,
+      ),
+      invoiceTotalAll: createCoverageCell(
+        processedRows.filter((row) => row.invoiceTotalAll > 0).length,
+        totalUsers,
+      ),
+      lastActivity: createCoverageCell(
+        processedRows.filter((row) => Boolean(row.lastActivityAt)).length,
+        totalUsers,
+      ),
+      createdAt: createCoverageCell(
+        processedRows.filter((row) => Boolean(row.createdAt)).length,
+        totalUsers,
+      ),
+    };
   }, [processedRows]);
 
   const activeFilterCount = useMemo(() => {
@@ -1351,18 +1445,97 @@ export default function UsersPage() {
                       );
                     })}
                   </div>
-                  <div className="users-table-summary">
-                    <span className="users-table-summary-cell">Users: {tableTotals.users}</span>
-                    <span className="users-table-summary-cell">-</span>
-                    <span className="users-table-summary-cell">Countries: {tableTotals.uniqueCountries}</span>
-                    <span className="users-table-summary-cell users-table-summary-cell-right">{tableTotals.invoicesAll}</span>
-                    <span className="users-table-summary-cell users-table-summary-cell-right">{tableTotals.invoices30}</span>
-                    <span className="users-table-summary-cell users-table-summary-cell-right">{tableTotals.overdue}</span>
-                    <span className="users-table-summary-cell users-table-summary-cell-right">{tableTotals.paymentsAll}</span>
-                    <span className="users-table-summary-cell users-table-summary-cell-right">{tableTotals.expensesAll}</span>
-                    <span className="users-table-summary-cell users-table-summary-cell-right">{formatCurrency(tableTotals.invoiceTotalAll, "USD")}</span>
-                    <span className="users-table-summary-cell">-</span>
-                    <span className="users-table-summary-cell">-</span>
+                  <div className="users-table-summary users-table-summary-primary">
+                    <span className="users-table-summary-cell">
+                      <span className="users-table-summary-label">Total</span>
+                      <span className="users-table-summary-value">{tableTotals.users}</span>
+                    </span>
+                    <span className="users-table-summary-cell">
+                      <span className="users-table-summary-label">Distinct</span>
+                      <span className="users-table-summary-value">{tableTotals.distinctRoles}</span>
+                    </span>
+                    <span className="users-table-summary-cell">
+                      <span className="users-table-summary-label">Distinct</span>
+                      <span className="users-table-summary-value">{tableTotals.uniqueCountries}</span>
+                    </span>
+                    <span className="users-table-summary-cell users-table-summary-cell-right">
+                      <span className="users-table-summary-label">Total</span>
+                      <span className="users-table-summary-value">{tableTotals.invoicesAll}</span>
+                    </span>
+                    <span className="users-table-summary-cell users-table-summary-cell-right">
+                      <span className="users-table-summary-label">Total</span>
+                      <span className="users-table-summary-value">{tableTotals.invoices30}</span>
+                    </span>
+                    <span className="users-table-summary-cell users-table-summary-cell-right">
+                      <span className="users-table-summary-label">Total</span>
+                      <span className="users-table-summary-value">{tableTotals.overdue}</span>
+                    </span>
+                    <span className="users-table-summary-cell users-table-summary-cell-right">
+                      <span className="users-table-summary-label">Total</span>
+                      <span className="users-table-summary-value">{tableTotals.paymentsAll}</span>
+                    </span>
+                    <span className="users-table-summary-cell users-table-summary-cell-right">
+                      <span className="users-table-summary-label">Total</span>
+                      <span className="users-table-summary-value">{tableTotals.expensesAll}</span>
+                    </span>
+                    <span className="users-table-summary-cell users-table-summary-cell-right">
+                      <span className="users-table-summary-label">Total</span>
+                      <span className="users-table-summary-value">{formatCurrency(tableTotals.invoiceTotalAll, "USD")}</span>
+                    </span>
+                    <span className="users-table-summary-cell">
+                      <span className="users-table-summary-label">Available</span>
+                      <span className="users-table-summary-value">{tableTotals.lastActivityCount}</span>
+                    </span>
+                    <span className="users-table-summary-cell">
+                      <span className="users-table-summary-label">Available</span>
+                      <span className="users-table-summary-value">{tableTotals.createdAtCount}</span>
+                    </span>
+                  </div>
+                  <div className="users-table-summary users-table-summary-secondary">
+                    <span className="users-table-summary-cell">
+                      <span className="users-table-summary-label">Coverage</span>
+                      <span className="users-table-summary-value">{renderCoverage(createCoverageCell(tableTotals.users, tableTotals.users))}</span>
+                    </span>
+                    <span className="users-table-summary-cell">
+                      <span className="users-table-summary-label">User</span>
+                      <span className="users-table-summary-value">{renderCoverage(tableCoverage.role)}</span>
+                    </span>
+                    <span className="users-table-summary-cell">
+                      <span className="users-table-summary-label">Non-Null</span>
+                      <span className="users-table-summary-value">{renderCoverage(tableCoverage.country)}</span>
+                    </span>
+                    <span className="users-table-summary-cell users-table-summary-cell-right">
+                      <span className="users-table-summary-label">&gt; 0</span>
+                      <span className="users-table-summary-value">{renderCoverage(tableCoverage.invoicesAll)}</span>
+                    </span>
+                    <span className="users-table-summary-cell users-table-summary-cell-right">
+                      <span className="users-table-summary-label">&gt; 0</span>
+                      <span className="users-table-summary-value">{renderCoverage(tableCoverage.invoices30)}</span>
+                    </span>
+                    <span className="users-table-summary-cell users-table-summary-cell-right">
+                      <span className="users-table-summary-label">&gt; 0</span>
+                      <span className="users-table-summary-value">{renderCoverage(tableCoverage.overdue)}</span>
+                    </span>
+                    <span className="users-table-summary-cell users-table-summary-cell-right">
+                      <span className="users-table-summary-label">&gt; 0</span>
+                      <span className="users-table-summary-value">{renderCoverage(tableCoverage.paymentsAll)}</span>
+                    </span>
+                    <span className="users-table-summary-cell users-table-summary-cell-right">
+                      <span className="users-table-summary-label">&gt; 0</span>
+                      <span className="users-table-summary-value">{renderCoverage(tableCoverage.expensesAll)}</span>
+                    </span>
+                    <span className="users-table-summary-cell users-table-summary-cell-right">
+                      <span className="users-table-summary-label">&gt; 0</span>
+                      <span className="users-table-summary-value">{renderCoverage(tableCoverage.invoiceTotalAll)}</span>
+                    </span>
+                    <span className="users-table-summary-cell">
+                      <span className="users-table-summary-label">Non-Null</span>
+                      <span className="users-table-summary-value">{renderCoverage(tableCoverage.lastActivity)}</span>
+                    </span>
+                    <span className="users-table-summary-cell">
+                      <span className="users-table-summary-label">Non-Null</span>
+                      <span className="users-table-summary-value">{renderCoverage(tableCoverage.createdAt)}</span>
+                    </span>
                   </div>
                 </div>
                 <div className="users-table-body">
