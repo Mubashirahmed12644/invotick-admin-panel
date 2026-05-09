@@ -1,4 +1,4 @@
-import puppeteer from "puppeteer";
+import puppeteer from "puppeteer-core";
 import { saveInvoicePreviewPayload } from "@/lib/invoice-preview-payload-store";
 import { INVOICE_PREVIEW_ASSET_TOKEN_COOKIE } from "@/lib/invoice-preview-asset-cookie";
 import type { InvoicePreviewDocument } from "@/features/invoice-preview/types/invoice-preview.types";
@@ -24,17 +24,35 @@ interface PdfRequestBody {
   assetBearerToken?: string;
 }
 
+async function getBrowserLaunchOptions() {
+  const isServerless = process.env.VERCEL === "1" || process.env.NODE_ENV === "production";
+
+  if (isServerless) {
+    const chromium = (await import("@sparticuz/chromium")).default;
+    return {
+      args: chromium.args,
+      executablePath: await chromium.executablePath(),
+      headless: true as const,
+    };
+  }
+
+  // Local dev: use puppeteer's own bundled Chrome
+  const localPuppeteer = (await import("puppeteer")).default;
+  return {
+    executablePath: localPuppeteer.executablePath(),
+    headless: true as const,
+    args: ["--no-sandbox", "--disable-setuid-sandbox"],
+  };
+}
+
 async function getBrowser(): Promise<BrowserInstance> {
   if (globalPdfBrowser.__invoicePdfBrowser?.connected) {
     return globalPdfBrowser.__invoicePdfBrowser;
   }
 
   if (!globalPdfBrowser.__invoicePdfBrowserPromise) {
-    globalPdfBrowser.__invoicePdfBrowserPromise = puppeteer
-      .launch({
-        headless: true,
-        args: ["--no-sandbox", "--disable-setuid-sandbox"],
-      })
+    globalPdfBrowser.__invoicePdfBrowserPromise = getBrowserLaunchOptions()
+      .then((options) => puppeteer.launch(options))
       .then((browser) => {
         globalPdfBrowser.__invoicePdfBrowser = browser;
         browser.on("disconnected", () => {
