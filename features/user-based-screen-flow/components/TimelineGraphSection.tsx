@@ -9,6 +9,7 @@ interface TimelineGraphSectionProps {
   graph: TimelineGraphResult;
   zoom: number;
   onSelectPoint: (point: EventPoint) => void;
+  selectedPoint?: EventPoint | null;
   showLegend?: boolean;
 }
 

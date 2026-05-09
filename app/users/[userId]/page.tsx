@@ -537,7 +537,7 @@ export default function UserDetailPage() {
                           {formatInt(derived.stats.last30Days.counts[entity.key])}
                         </small>
                       </strong>
-                      <small>{formatRelativeTimeCompact(derived.stats.allTime.lastUpdatedAt[entity.key])}</small>
+                      <small>{formatRelativeTimeCompact((derived.stats.allTime.lastUpdatedAt as unknown as Record<string, string | null>)[entity.key])}</small>
                     </article>
                   ))}
                 </div>

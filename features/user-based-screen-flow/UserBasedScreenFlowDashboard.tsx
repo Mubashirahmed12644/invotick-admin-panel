@@ -104,7 +104,7 @@ export function UserBasedScreenFlowDashboard() {
     const prepared = getTimelineRequest(filters);
 
     if ("error" in prepared) {
-      setValidationError(prepared.error);
+      setValidationError(prepared.error ?? "");
       return;
     }
 
