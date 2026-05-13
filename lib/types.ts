@@ -325,8 +325,14 @@ export interface WebpanelInvoiceSummaryResponse {
   status: InvoiceStatus;
   isSynced: boolean;
   isDeleted: boolean;
+  publicCode: string | null;
   createdAt: LocalDateTime | null;
   updatedAt: LocalDateTime | null;
+}
+
+export interface PublicInvoiceRedirectResponse {
+  userId: UUID;
+  invoiceId: UUID;
 }
 
 export interface WebpanelInventoryItemResponse {
@@ -349,18 +355,37 @@ export interface WebpanelInventoryItemResponse {
 
 export interface InvoiceItemResponse {
   id: UUID;
+  userId: UUID;
+  invoiceId: UUID | null;
   inventoryItemId: UUID;
+  taxId: UUID | null;
+  unitTypeId: UUID | null;
+  itemCategoryId: UUID | null;
   name: string;
   description: string | null;
   quantity: Decimal;
   unitPrice: Decimal;
   netPrice: Decimal;
-  discount: Decimal | null;
+  discountValue: Decimal | null;
+  discountAmount: Decimal;
   discountType: string | null;
+  taxRate: Decimal | null;
+  taxAmount: Decimal | null;
+  taxType: string | null;
+  subtotal: Decimal | null;
+  total: Decimal | null;
+  isDeleted: boolean;
+  deletedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  version: number;
+  lastModifyBy: UUID | null;
 }
 
 export interface InvoiceDetailResponse {
   id: UUID;
+  userId: UUID;
+  businessId: UUID | null;
   invoiceNumber: string;
   poNumber: string | null;
   invoiceDate: LocalDate;
@@ -373,6 +398,9 @@ export interface InvoiceDetailResponse {
   status: InvoiceStatus;
   discountType: string | null;
   discountValue: Decimal;
+  description: string | null;
+  taxRate: Decimal | null;
+  taxType: string | null;
   notes: string | null;
   currency: string;
   language: string | null;
@@ -383,6 +411,11 @@ export interface InvoiceDetailResponse {
   dateSent: LocalDateTime | null;
   createdAt: LocalDateTime;
   updatedAt: LocalDateTime;
+  isSynced: boolean;
+  isDeleted: boolean;
+  dateDeleted: string | null;
+  version: number;
+  lastModifyBy: UUID | null;
   clientId: UUID;
   taxId: UUID | null;
   termsId: UUID | null;
@@ -445,13 +478,19 @@ export interface BusinessResponse {
 
 export interface TaxResponse {
   id: UUID;
+  userId: UUID;
   businessId: UUID;
   name: string;
   rate: Decimal;
+  type: string | null;
+  description: string | null;
   isDeleted: boolean;
+  isSystemDefault: boolean;
   createdAt: LocalDateTime;
   updatedAt: LocalDateTime;
   deletedAt: LocalDateTime | null;
+  version: number;
+  lastModifyBy: UUID | null;
 }
 
 export interface TermsResponse {
@@ -467,17 +506,25 @@ export interface TermsResponse {
 
 export interface PaymentInstructionResponse {
   id: UUID;
+  userId: UUID;
   businessId: UUID;
   fieldsJson: string;
+  description: string | null;
+  method: string | null;
   isDeleted: boolean;
+  isSystemDefault: boolean;
   createdAt: LocalDateTime;
   updatedAt: LocalDateTime;
   deletedAt: LocalDateTime | null;
+  version: number;
+  lastModifyBy: UUID | null;
 }
 
 export interface TemplateResponse {
   id: UUID;
+  userId: UUID;
   businessId: UUID;
+  parentTemplate: UUID | null;
   templateName: string;
   templateImage: string | null;
   templateStyle: number;
@@ -487,10 +534,33 @@ export interface TemplateResponse {
   headerAlpha: number;
   backgroundOpacity: number;
   description: string | null;
+  showBusinessLogo: boolean;
+  showInvoiceMeta: boolean;
+  showTitle: boolean;
+  showSender: boolean;
+  senderSoftWrapText: boolean;
+  showReceiver: boolean;
+  receiverSoftWrapText: boolean;
+  showPayment: boolean;
+  showNotes: boolean;
+  showSignature: boolean;
+  showStamp: boolean;
+  showTerms: boolean;
+  showTotal: boolean;
+  showItemsTable: boolean;
+  itemTableHeaderAlignment: string | null;
+  itemTableBodyAlignment: string | null;
+  signatureOffset: string | null;
+  stampOffset: string | null;
+  signatureScale: string | null;
+  stampScale: string | null;
   isDeleted: boolean;
+  isSystemDefault: boolean;
   createdAt: LocalDateTime;
   updatedAt: LocalDateTime;
   deletedAt: LocalDateTime | null;
+  version: number;
+  lastModifyBy: UUID | null;
   headerId: UUID | null;
   backgroundId: UUID | null;
   signatureId: UUID | null;

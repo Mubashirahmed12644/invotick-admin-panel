@@ -250,7 +250,7 @@ export default function UsersPage() {
   const [noTemplatesOnly, setNoTemplatesOnly] = useState(false);
   const [noTaxesOnly, setNoTaxesOnly] = useState(false);
   const [noPaymentInstructionsOnly, setNoPaymentInstructionsOnly] = useState(false);
-  const [excludeTestingDevices, setExcludeTestingDevices] = useState(false);
+  const [excludeTestingDevices, setExcludeTestingDevices] = useState(true);
 
   const [sortKey, setSortKey] = useState<SortKey>("lastActivity");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
@@ -836,7 +836,7 @@ export default function UsersPage() {
     setNoTemplatesOnly(false);
     setNoTaxesOnly(false);
     setNoPaymentInstructionsOnly(false);
-    setExcludeTestingDevices(false);
+    setExcludeTestingDevices(true);
     setSortKey("lastActivity");
     setSortDirection("desc");
     setPageSize(200);

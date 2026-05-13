@@ -99,6 +99,10 @@ const generatedLineItems: InvoicePreviewLineItem[] = Array.from({ length: ITEM_C
   const unitPrice = template.unitPrice + (index % 4) * 2;
   const discountPercent = template.discountPercent;
   const netPrice = round2(unitPrice * (1 - discountPercent / 100));
+  const discountAmount = round2(unitPrice * quantity * discountPercent / 100);
+  const subtotal = round2(unitPrice * quantity - discountAmount);
+  const taxAmount = round2(subtotal * 8.5 / 100);
+  const total = round2(subtotal + taxAmount);
   const idSuffix = String(index).padStart(3, "0");
 
   return {
@@ -110,11 +114,15 @@ const generatedLineItems: InvoicePreviewLineItem[] = Array.from({ length: ITEM_C
     name: template.name,
     unitPrice: round2(unitPrice),
     netPrice,
+    discountValue: discountPercent > 0 ? discountPercent : null,
+    discountAmount,
+    discountType: discountPercent > 0 ? ("PERCENTAGE" as const) : null,
+    taxAmount,
+    subtotal,
+    total,
     description: template.description,
     categoryId: template.categoryId,
     unitTypeId: ITEM_UNIT_ID,
-    discountValue: discountPercent > 0 ? discountPercent : null,
-    discountType: discountPercent > 0 ? "PERCENTAGE" : null,
     taxId: ITEM_TAX_ID,
     dateCreated: "2026-03-12T10:30:00Z",
     dateUpdated: "2026-03-12T10:30:00Z",
@@ -166,6 +174,7 @@ export const dummyInvoice: InvoicePreviewDocument = {
     invoiceStatus: "SENT",
     discountType: "PERCENTAGE",
     discountValue: discountPercent,
+    description: null,
     taxId: TAX_ID,
     termsId: "220e8400-e29b-41d4-a716-446655440000",
     paymentMethodId: "110e8400-e29b-41d4-a716-446655440000",
@@ -189,7 +198,7 @@ export const dummyInvoice: InvoicePreviewDocument = {
     id: BUSINESS_ID,
     name: "Acme Digital Solutions LLC",
     shortName: "Acme",
-    logoUrl: "/logo.svg",
+    logoUrl: "/logo.png",
     licenseNumber: "LLC-12345",
     businessNumber: "BN-67890",
     category: "Technology Services",
@@ -295,6 +304,9 @@ export const dummyInvoice: InvoicePreviewDocument = {
     showReceiver: true,
     receiverSoftWrapText: false,
     showPayment: true,
+    showNotes: true,
+    showSignature: true,
+    showStamp: true,
     showTerms: true,
     showTotal: true,
     showItemTable: true,

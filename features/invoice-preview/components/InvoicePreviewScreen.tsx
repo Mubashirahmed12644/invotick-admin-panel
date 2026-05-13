@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import InvoiceItemsTable from "@/features/invoice-preview/components/InvoiceItemsTable";
 import InvoicePage from "@/features/invoice-preview/components/InvoicePage";
+import TemplateVisibilityPanel from "@/features/invoice-preview/components/TemplateVisibilityPanel";
 import styles from "@/features/invoice-preview/styles/invoice-preview.module.css";
 import type { InvoicePreviewDocument, InvoicePreviewLineItem } from "@/features/invoice-preview/types/invoice-preview.types";
 
@@ -53,7 +54,11 @@ const FALLBACK_CALIBRATION_ITEM: InvoicePreviewLineItem = {
   categoryId: null,
   unitTypeId: null,
   discountValue: null,
+  discountAmount: 0,
   discountType: null,
+  taxAmount: null,
+  subtotal: null,
+  total: 100,
   taxId: null,
   dateCreated: null,
   dateUpdated: null,
@@ -273,6 +278,21 @@ function paginateItems(
   return pages;
 }
 
+interface VisibilityState {
+  showBusinessLogo: boolean;
+  showInvoiceMeta: boolean;
+  showTitle: boolean;
+  showSender: boolean;
+  showReceiver: boolean;
+  showPayment: boolean;
+  showNotes: boolean;
+  showSignature: boolean;
+  showStamp: boolean;
+  showTerms: boolean;
+  showTotal: boolean;
+  showItemTable: boolean;
+}
+
 export default function InvoicePreviewScreen({
   data,
   pdfMode = false,
@@ -286,7 +306,54 @@ export default function InvoicePreviewScreen({
   const [isDownloading, setIsDownloading] = useState(false);
   const [paginationMeasurements, setPaginationMeasurements] =
     useState<PaginationMeasurements | null>(null);
-  const hasTerms = Boolean(data.template.showTerms && data.terms?.description?.trim());
+  const [visibility, setVisibility] = useState<VisibilityState>(() => {
+    const visibilityState = {
+      showBusinessLogo: data.template?.showBusinessLogo ?? true,
+      showInvoiceMeta: data.template?.showInvoiceMeta ?? true,
+      showTitle: data.template?.showTitle ?? true,
+      showSender: data.template?.showSender ?? true,
+      showReceiver: data.template?.showReceiver ?? true,
+      showPayment: data.template?.showPayment ?? true,
+      showNotes: data.template?.showNotes ?? true,
+      showSignature: data.template?.showSignature ?? true,
+      showStamp: data.template?.showStamp ?? true,
+      showTerms: data.template?.showTerms ?? true,
+      showTotal: data.template?.showTotal ?? true,
+      showItemTable: data.template?.showItemTable ?? true,
+    };
+
+    console.log("=== INVOICE PREVIEW API RESPONSE ===");
+    console.log("Full API Data:", data);
+    console.log("Template Object:", data.template);
+    console.log("Template Properties (RAW):", {
+      showBusinessLogo: data.template?.showBusinessLogo,
+      showInvoiceMeta: data.template?.showInvoiceMeta,
+      showTitle: data.template?.showTitle,
+      showSender: data.template?.showSender,
+      showReceiver: data.template?.showReceiver,
+      showPayment: data.template?.showPayment,
+      showNotes: data.template?.showNotes,
+      showSignature: data.template?.showSignature,
+      showStamp: data.template?.showStamp,
+      showTerms: data.template?.showTerms,
+      showTotal: data.template?.showTotal,
+      showItemTable: data.template?.showItemTable,
+    });
+    console.log("Visibility State:", visibilityState);
+    console.log("Line Items Count:", data.lineItems?.length || 0);
+    console.log("Invoice Number:", data.invoice?.invoiceNumber);
+    console.log("Template ID:", data.template?.id);
+    console.log("Template Name:", data.template?.templateName);
+    console.log("===================================");
+
+    return visibilityState;
+  });
+
+  const handleToggleVisibility = useCallback((key: keyof VisibilityState, value: boolean) => {
+    setVisibility((prev) => ({ ...prev, [key]: value }));
+  }, []);
+
+  const hasTerms = Boolean(visibility.showTerms && data.terms?.description?.trim());
   const calibrationItem = useMemo(
     () => data.lineItems[0] ?? FALLBACK_CALIBRATION_ITEM,
     [data.lineItems],
@@ -296,19 +363,19 @@ export default function InvoicePreviewScreen({
     () =>
       paginateItems(
         data.lineItems,
-        data.template.showItemTable,
+        visibility.showItemTable,
         hasTerms,
         paginationMeasurements,
       ),
-    [data.lineItems, data.template.showItemTable, hasTerms, paginationMeasurements],
+    [data.lineItems, visibility.showItemTable, hasTerms, paginationMeasurements],
   );
 
   const paginationReady = useMemo(() => {
-    if (!data.template.showItemTable || data.lineItems.length === 0) {
+    if (!visibility.showItemTable || data.lineItems.length === 0) {
       return true;
     }
     return paginationMeasurements !== null;
-  }, [data.lineItems.length, data.template.showItemTable, paginationMeasurements]);
+  }, [data.lineItems.length, visibility.showItemTable, paginationMeasurements]);
 
   const handleDownloadPdf = useCallback(async () => {
     if (typeof window === "undefined") return;
@@ -427,23 +494,57 @@ export default function InvoicePreviewScreen({
         const isLastPage = index === itemPages.length - 1;
         const serialStart =
           itemPages.slice(0, index).reduce((count, pageItems) => count + pageItems.length, 0) + 1;
+
+        const showHeader = isFirstPage && (visibility.showTitle || visibility.showInvoiceMeta || visibility.showBusinessLogo);
+        const showSenderReceiver = isFirstPage && (visibility.showSender || visibility.showReceiver || visibility.showInvoiceMeta);
+        const showTotals = isLastPage && visibility.showTotal;
+        const showTermsBottom = isLastPage && visibility.showTerms;
+        const showOverlays = isLastPage && (visibility.showSignature || visibility.showStamp);
+
+        if (index === 0) {
+          console.log("=== PAGE RENDERING INFO ===");
+          console.log("Visibility Flags:", visibility);
+          console.log("Page Index:", index, "| isFirstPage:", isFirstPage, "| isLastPage:", isLastPage);
+          console.log("Rendered Sections:", {
+            showHeader,
+            showSenderReceiver,
+            showTotals,
+            showTermsBottom,
+            showOverlays,
+            showItemTable: visibility.showItemTable,
+          });
+          console.log("Items on page:", items.length);
+          console.log("===========================");
+        }
+
         return (
           <InvoicePage
             key={`${isSinglePageMode ? "pdf" : "screen"}-invoice-page-${index + 1}`}
             data={data}
             items={items}
             serialStart={serialStart}
-            showHeader={isFirstPage}
-            showSenderReceiver={isFirstPage}
-            showTotals={isLastPage}
-            showTermsBottom={isLastPage}
-            showOverlays={isLastPage}
+            showHeader={showHeader}
+            showSenderReceiver={showSenderReceiver}
+            showTotals={showTotals}
+            showTermsBottom={showTermsBottom}
+            showOverlays={showOverlays}
+            showItemTable={visibility.showItemTable}
+            showTitle={visibility.showTitle}
+            showBusinessLogo={visibility.showBusinessLogo}
+            showInvoiceMeta={visibility.showInvoiceMeta}
+            showSender={visibility.showSender}
+            showReceiver={visibility.showReceiver}
+            showPayment={visibility.showPayment}
+            showNotes={visibility.showNotes}
+            showTerms={visibility.showTerms}
+            showSignature={visibility.showSignature}
+            showStamp={visibility.showStamp}
             assetAuthKey={assetAuthKey}
             minRows={MIN_ITEM_ROWS}
           />
         );
       }),
-    [assetAuthKey, data, itemPages],
+    [assetAuthKey, data, itemPages, visibility],
   );
 
   return (
@@ -469,14 +570,21 @@ export default function InvoicePreviewScreen({
       ) : null}
 
       {!pdfMode ? (
-        <div className={styles.paperViewport} ref={viewportRef}>
-          <div className={styles.paperScaleHeight} style={{ height: `${scaledHeight}px` }}>
-            <div
-              className={styles.paperScaleWrap}
-              style={{ transform: `scale(${effectiveScale})` }}
-            >
-              <div className={styles.pagesStack}>{renderPages(false)}</div>
+        <div className={styles.screenContent}>
+          <div className={styles.invoiceContainer}>
+            <div className={styles.paperViewport} ref={viewportRef}>
+              <div className={styles.paperScaleHeight} style={{ height: `${scaledHeight}px` }}>
+                <div
+                  className={styles.paperScaleWrap}
+                  style={{ transform: `scale(${effectiveScale})` }}
+                >
+                  <div className={styles.pagesStack}>{renderPages(false)}</div>
+                </div>
+              </div>
             </div>
+          </div>
+          <div className={styles.sidebarContainer}>
+            <TemplateVisibilityPanel visibility={visibility} onToggle={handleToggleVisibility} />
           </div>
         </div>
       ) : (
@@ -507,6 +615,10 @@ export default function InvoicePreviewScreen({
             showTotals
             showTermsBottom={hasTerms}
             showOverlays={false}
+            showItemTable
+            showTitle
+            showBusinessLogo
+            showInvoiceMeta
             assetAuthKey={assetAuthKey}
             minRows={MIN_ITEM_ROWS}
           />
@@ -521,6 +633,10 @@ export default function InvoicePreviewScreen({
             showTotals={false}
             showTermsBottom={false}
             showOverlays={false}
+            showItemTable
+            showTitle
+            showBusinessLogo
+            showInvoiceMeta
             assetAuthKey={assetAuthKey}
             minRows={MIN_ITEM_ROWS}
           />
@@ -535,6 +651,10 @@ export default function InvoicePreviewScreen({
             showTotals={false}
             showTermsBottom={false}
             showOverlays={false}
+            showItemTable
+            showTitle
+            showBusinessLogo
+            showInvoiceMeta
             assetAuthKey={assetAuthKey}
             minRows={MIN_ITEM_ROWS}
           />
@@ -549,6 +669,10 @@ export default function InvoicePreviewScreen({
             showTotals
             showTermsBottom={hasTerms}
             showOverlays={false}
+            showItemTable
+            showTitle
+            showBusinessLogo
+            showInvoiceMeta
             assetAuthKey={assetAuthKey}
             minRows={MIN_ITEM_ROWS}
           />

@@ -10,7 +10,7 @@ interface LogoProps {
 export default function Logo({ href = "/users", width = 148, height = 36 }: LogoProps) {
   return (
     <Link href={href} className="logo-link" aria-label="Invotics Webpanel">
-      <Image src="/logo.svg" alt="Invotics logo" width={width} height={height} priority />
+      <Image src="/logo.png" alt="Invotics logo" width={width} height={height} priority />
     </Link>
   );
 }

@@ -670,7 +670,7 @@ export default function InvoiceView({ data, assetAuthKey = null }: InvoiceViewPr
                           <td>{fallbackText(item.description)}</td>
                           <td>{fallbackNumber(item.quantity, 0)}</td>
                           <td>{formatCurrency(item.unitPrice, currency)}</td>
-                          <td>{formatCurrency(item.discount, currency)}</td>
+                          <td>{formatCurrency(item.discountValue, currency)}</td>
                           <td>{fallbackText(item.discountType)}</td>
                           <td style={{ color: "#4338ca", fontWeight: 600 }}>{formatCurrency(item.netPrice, currency)}</td>
                           <td style={{ fontSize: "11px", color: "#94a3b8" }}>{fallbackText(item.inventoryItemId)}</td>

@@ -34,6 +34,7 @@ export interface InvoicePreviewInvoice {
   invoiceStatus: InvoiceStatus;
   discountType: DiscountType;
   discountValue: number;
+  description: string | null;
   taxId: string | null;
   termsId: string | null;
   paymentMethodId: string | null;
@@ -74,11 +75,15 @@ export interface InvoicePreviewLineItem {
   name: string;
   unitPrice: number;
   netPrice: number;
+  discountValue: number | null;
+  discountAmount: number;
+  discountType: DiscountType | null;
+  taxAmount: number | null;
+  subtotal: number | null;
+  total: number | null;
   description: string | null;
   categoryId: string | null;
   unitTypeId: string | null;
-  discountValue: number | null;
-  discountType: DiscountType | null;
   taxId: string | null;
   dateCreated: string | null;
   dateUpdated: string | null;
@@ -194,6 +199,9 @@ export interface InvoicePreviewTemplate {
   showReceiver: boolean;
   receiverSoftWrapText: boolean;
   showPayment: boolean;
+  showNotes: boolean;
+  showSignature: boolean;
+  showStamp: boolean;
   showTerms: boolean;
   showTotal: boolean;
   showItemTable: boolean;

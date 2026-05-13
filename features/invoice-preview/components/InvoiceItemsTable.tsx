@@ -14,6 +14,7 @@ interface InvoiceItemsTableProps {
   translations: InvoicePreviewTranslations;
   minRows?: number;
   serialStart?: number;
+  shouldRender?: boolean;
 }
 
 function toRgba(hexColor: string, alpha: number): string {
@@ -59,7 +60,8 @@ function getHeaderTextColor(hexColor: string): "#000000" | "#FFFFFF" {
   return yiq >= 150 ? "#000000" : "#FFFFFF";
 }
 
-function formatAmount(value: number, currency: InvoicePreviewCurrency): string {
+function formatAmount(value: number | null | undefined, currency: InvoicePreviewCurrency): string {
+  if (value === null || value === undefined) return " ";
   try {
     return new Intl.NumberFormat("en-US", {
       style: "currency",
@@ -69,83 +71,6 @@ function formatAmount(value: number, currency: InvoicePreviewCurrency): string {
   } catch {
     return `${value.toFixed(2)} ${currency.code}`;
   }
-}
-
-function formatPlainDecimal(value: number): string {
-  return value.toFixed(2);
-}
-
-function roundTo(value: number, decimals: number): number {
-  const safeDecimals = Number.isFinite(decimals) ? Math.max(0, decimals) : 2;
-  const factor = 10 ** safeDecimals;
-  return Math.round((value + Number.EPSILON) * factor) / factor;
-}
-
-function toFiniteNumber(value: number | string | null | undefined, fallback = 0): number {
-  if (typeof value === "number") {
-    return Number.isFinite(value) ? value : fallback;
-  }
-
-  if (typeof value === "string" && value.trim()) {
-    const parsed = Number(value);
-    return Number.isFinite(parsed) ? parsed : fallback;
-  }
-
-  return fallback;
-}
-
-function calculateLineAmount(
-  item: InvoicePreviewLineItem,
-  currency: InvoicePreviewCurrency,
-): number {
-  const quantity = toFiniteNumber(item.quantity);
-  const unitPrice = toFiniteNumber(item.unitPrice);
-  const rawDiscount = toFiniteNumber(item.discountValue);
-  let unitDiscountAmount = 0;
-  if (rawDiscount > 0) {
-    unitDiscountAmount =
-      item.discountType === "PERCENTAGE"
-        ? (unitPrice * rawDiscount) / 100
-        : rawDiscount;
-  }
-
-  const discountedUnitPrice = Math.max(0, unitPrice - unitDiscountAmount);
-  const rawTaxRate = item.tax?.rate as number | string | null | undefined;
-  const taxRate = toFiniteNumber(rawTaxRate);
-  const taxPerUnit = (discountedUnitPrice * taxRate) / 100;
-  const finalPerUnit = discountedUnitPrice + taxPerUnit;
-  const lineAmount = roundTo(finalPerUnit * quantity, currency.decimals);
-
-  return lineAmount;
-}
-
-function formatDiscountDisplay(
-  item: InvoicePreviewLineItem | null,
-  currency: InvoicePreviewCurrency,
-): string {
-  if (!item) return "";
-
-  const discountValue = toFiniteNumber(item.discountValue);
-  if (discountValue <= 0) {
-    return "0.00";
-  }
-
-  if (item.discountType === "PERCENTAGE") {
-    return `${formatPlainDecimal(discountValue)}%`;
-  }
-
-  if (item.discountType === "FLAT") {
-    return formatAmount(discountValue, currency);
-  }
-
-  return formatPlainDecimal(discountValue);
-}
-
-function formatTaxDisplay(item: InvoicePreviewLineItem | null): string {
-  if (!item) return "";
-
-  const taxRate = toFiniteNumber(item.tax?.rate);
-  return `${formatPlainDecimal(taxRate)}%`;
 }
 
 function renderCellValue(value: string | number | null | undefined): string {
@@ -167,8 +92,9 @@ export default function InvoiceItemsTable({
   translations,
   minRows = 0,
   serialStart = 1,
+  shouldRender = true,
 }: InvoiceItemsTableProps) {
-  if (!template.showItemTable) return null;
+  if (!shouldRender) return null;
   if (items.length === 0) return null;
 
   const displayRows: Array<InvoicePreviewLineItem | null> = [...items];
@@ -176,8 +102,8 @@ export default function InvoiceItemsTable({
     displayRows.push(null);
   }
 
-  const headerAlign = "left" as const;
-  const bodyAlign = "left" as const;
+  const headerAlign = (template.itemTableHeaderAlignment?.toLowerCase() || "left") as "left" | "center" | "right";
+  const bodyAlign = (template.itemTableBodyAlignment?.toLowerCase() || "left") as "left" | "center" | "right";
   const amountAlign = "right" as const;
   const primaryColor = template.color || "#DC2626";
   const headerTextColor = getHeaderTextColor(primaryColor);
@@ -233,15 +159,13 @@ export default function InvoiceItemsTable({
                 <CellText value={item ? formatAmount(item.unitPrice, currency) : ""} />
               </td>
               <td style={{ textAlign: bodyAlign }}>
-                <CellText value={formatDiscountDisplay(item, currency)} />
+                <CellText value={item ? formatAmount(item.discountAmount, currency) : ""} />
               </td>
               <td style={{ textAlign: bodyAlign }}>
-                <CellText value={formatTaxDisplay(item)} />
+                <CellText value={item ? formatAmount(item.taxAmount, currency) : ""} />
               </td>
               <td style={{ textAlign: amountAlign }}>
-                <CellText
-                  value={item ? formatAmount(calculateLineAmount(item, currency), currency) : ""}
-                />
+                <CellText value={item ? formatAmount(item.total, currency) : ""} />
               </td>
             </tr>
           ))}

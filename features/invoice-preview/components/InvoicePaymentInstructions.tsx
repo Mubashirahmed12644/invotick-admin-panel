@@ -9,14 +9,16 @@ interface InvoicePaymentInstructionsProps {
   paymentInstruction: InvoicePreviewPaymentInstruction | null;
   template: InvoicePreviewTemplate;
   translations: InvoicePreviewTranslations;
+  shouldRender?: boolean;
 }
 
 export default function InvoicePaymentInstructions({
   paymentInstruction,
   template,
   translations,
+  shouldRender = true,
 }: InvoicePaymentInstructionsProps) {
-  if (!template.showPayment || !paymentInstruction) return null;
+  if (!shouldRender || !paymentInstruction) return null;
 
   const fields = Object.entries(paymentInstruction.fields);
   if (fields.length === 0) return null;

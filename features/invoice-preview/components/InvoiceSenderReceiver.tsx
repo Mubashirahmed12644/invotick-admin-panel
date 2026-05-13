@@ -14,6 +14,9 @@ interface InvoiceSenderReceiverProps {
   invoice: InvoicePreviewInvoice;
   template: InvoicePreviewTemplate;
   translations: InvoicePreviewTranslations;
+  showSender?: boolean;
+  showReceiver?: boolean;
+  showInvoiceMeta?: boolean;
 }
 
 function renderContactLines(fields: Array<string | null | undefined>): string[] {
@@ -28,6 +31,9 @@ export default function InvoiceSenderReceiver({
   invoice,
   template,
   translations,
+  showSender = true,
+  showReceiver = true,
+  showInvoiceMeta = true,
 }: InvoiceSenderReceiverProps) {
   const senderLocationLine = renderContactLines([
     business.city,
@@ -65,7 +71,7 @@ export default function InvoiceSenderReceiver({
 
   return (
     <section className={styles.rowThree}>
-      {template.showSender ? (
+      {showSender ? (
         <article className={styles.block}>
           <h3 className={styles.blockHeader}>{translations.senderHeader}</h3>
           {senderLines.map((line) => (
@@ -76,7 +82,7 @@ export default function InvoiceSenderReceiver({
         <div />
       )}
 
-      {template.showReceiver ? (
+      {showReceiver ? (
         <article className={styles.block}>
           <h3 className={styles.blockHeader}>{translations.receiverHeader}</h3>
           {receiverLines.length > 0 ? (
@@ -91,7 +97,7 @@ export default function InvoiceSenderReceiver({
         <div />
       )}
 
-      {template.showInvoiceMeta ? (
+      {showInvoiceMeta ? (
         <article className={`${styles.block} ${styles.metaBlock}`}>
           <h3 className={styles.blockHeader}>{translations.metaHeader}</h3>
           <p className={styles.blockText}>

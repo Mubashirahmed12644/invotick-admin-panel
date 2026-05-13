@@ -4,6 +4,7 @@ import type {
   InvoicePreviewDocument,
   InvoicePreviewOffset,
   InvoiceStatus,
+  TableAlignment,
 } from "@/features/invoice-preview/types/invoice-preview.types";
 
 const DEFAULT_TRANSLATIONS = {
@@ -41,6 +42,12 @@ function toNumber(value: number | string | null | undefined, fallback = 0): numb
   }
 
   return fallback;
+}
+
+function normalizeTableAlignment(value: string | null | undefined): TableAlignment {
+  if (value?.toLowerCase() === "center") return "Center";
+  if (value?.toLowerCase() === "right") return "Right";
+  return "Left";
 }
 
 function normalizeDiscountType(value: string | null | undefined): DiscountType {
@@ -148,24 +155,28 @@ export function mapWebpanelInvoiceToPreviewDocument(
 
   const lineItems = invoice.items.map((item, index) => ({
     id: item.id,
-    invoiceId: invoice.id,
+    invoiceId: item.invoiceId ?? invoice.id,
     productId: item.inventoryItemId,
     position: index + 1,
     quantity: toNumber(item.quantity),
     name: item.name,
     unitPrice: toNumber(item.unitPrice),
     netPrice: toNumber(item.netPrice),
-    description: item.description,
-    categoryId: null,
-    unitTypeId: null,
-    discountValue: item.discount !== null ? toNumber(item.discount) : null,
+    discountValue: item.discountValue !== null ? toNumber(item.discountValue) : null,
+    discountAmount: toNumber(item.discountAmount),
     discountType: item.discountType ? normalizeDiscountType(item.discountType) : null,
-    taxId: invoice.taxId,
-    dateCreated: null,
-    dateUpdated: null,
-    dateDeleted: null,
-    isDeleted: false,
-    isSynced: true,
+    taxAmount: item.taxAmount !== null && item.taxAmount !== undefined ? toNumber(item.taxAmount) : null,
+    subtotal: item.subtotal !== null && item.subtotal !== undefined ? toNumber(item.subtotal) : null,
+    total: item.total !== null && item.total !== undefined ? toNumber(item.total) : null,
+    description: item.description,
+    categoryId: item.itemCategoryId ?? null,
+    unitTypeId: item.unitTypeId ?? null,
+    taxId: item.taxId ?? invoice.taxId,
+    dateCreated: item.createdAt ?? null,
+    dateUpdated: item.updatedAt ?? null,
+    dateDeleted: item.deletedAt ?? null,
+    isDeleted: item.isDeleted,
+    isSynced: invoice.isSynced,
     tax: data.tax
       ? {
           id: data.tax.id,
@@ -193,6 +204,7 @@ export function mapWebpanelInvoiceToPreviewDocument(
       invoiceStatus: normalizeInvoiceStatus(invoice.status),
       discountType: normalizeDiscountType(invoice.discountType),
       discountValue: toNumber(invoice.discountValue),
+      description: invoice.description ?? null,
       taxId: invoice.taxId,
       termsId: invoice.termsId,
       paymentMethodId: invoice.paymentInstructionId,
@@ -208,9 +220,9 @@ export function mapWebpanelInvoiceToPreviewDocument(
       dateCreated: invoice.createdAt,
       dateUpdated: invoice.updatedAt,
       dateSent: invoice.dateSent,
-      dateDeleted: null,
-      isDeleted: false,
-      isSynced: true,
+      dateDeleted: invoice.dateDeleted ?? null,
+      isDeleted: invoice.isDeleted,
+      isSynced: invoice.isSynced,
     },
     business: {
       id: data.business.id || client.businessId || data.template?.businessId || "00000000-0000-0000-0000-000000000000",
@@ -259,8 +271,8 @@ export function mapWebpanelInvoiceToPreviewDocument(
           businessId: data.tax.businessId,
           name: data.tax.name,
           rate: toNumber(data.tax.rate),
-          description: null,
-          isSystemDefault: false,
+          description: data.tax.description ?? null,
+          isSystemDefault: data.tax.isSystemDefault,
           amount: taxAmount,
         }
       : null,
@@ -286,7 +298,7 @@ export function mapWebpanelInvoiceToPreviewDocument(
     paymentInstruction: data.paymentInstruction
       ? {
           id: data.paymentInstruction.id,
-          method: "Payment Method",
+          method: data.paymentInstruction.method || "Payment Instructions",
           fields: parsePaymentFields(data.paymentInstruction.fieldsJson),
         }
       : null,
@@ -301,22 +313,25 @@ export function mapWebpanelInvoiceToPreviewDocument(
       id: data.template?.id || "00000000-0000-0000-0001-000000000001",
       templateStyle: data.template?.templateStyle ?? 1,
       templateName: data.template?.templateName || "Classic Professional",
-      isSystemDefault: !Boolean(data.template?.isCustom),
+      isSystemDefault: data.template?.isSystemDefault ?? !Boolean(data.template?.isCustom),
       isCustom: Boolean(data.template?.isCustom),
       color: data.template?.color || "#DC2626",
-      showBusinessLogo: true,
-      showInvoiceMeta: true,
-      showTitle: true,
-      showSender: true,
-      senderSoftWrapText: false,
-      showReceiver: true,
-      receiverSoftWrapText: false,
-      showPayment: true,
-      showTerms: true,
-      showTotal: true,
-      showItemTable: true,
-      itemTableHeaderAlignment: "Left",
-      itemTableBodyAlignment: "Left",
+      showBusinessLogo: data.template?.showBusinessLogo ?? true,
+      showInvoiceMeta: data.template?.showInvoiceMeta ?? true,
+      showTitle: data.template?.showTitle ?? true,
+      showSender: data.template?.showSender ?? true,
+      senderSoftWrapText: data.template?.senderSoftWrapText ?? false,
+      showReceiver: data.template?.showReceiver ?? true,
+      receiverSoftWrapText: data.template?.receiverSoftWrapText ?? false,
+      showPayment: data.template?.showPayment ?? true,
+      showNotes: data.template?.showNotes ?? true,
+      showSignature: data.template?.showSignature ?? true,
+      showStamp: data.template?.showStamp ?? true,
+      showTerms: data.template?.showTerms ?? true,
+      showTotal: data.template?.showTotal ?? true,
+      showItemTable: data.template?.showItemsTable ?? true,
+      itemTableHeaderAlignment: normalizeTableAlignment(data.template?.itemTableHeaderAlignment),
+      itemTableBodyAlignment: normalizeTableAlignment(data.template?.itemTableBodyAlignment),
       headerBackground: {
         type:
           data.header?.backgroundType === "COLOR" ||

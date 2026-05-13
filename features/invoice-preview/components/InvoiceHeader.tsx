@@ -13,6 +13,8 @@ interface InvoiceHeaderProps {
   template: InvoicePreviewTemplate;
   translations: InvoicePreviewTranslations;
   assetAuthKey?: string | null;
+  showBusinessLogo?: boolean;
+  showTitle?: boolean;
 }
 
 type HeaderTitleTone = "black" | "white";
@@ -170,6 +172,8 @@ export default function InvoiceHeader({
   template,
   translations,
   assetAuthKey = null,
+  showBusinessLogo = true,
+  showTitle = true,
 }: InvoiceHeaderProps) {
   void invoice;
   const logo = resolveInvoiceAsset(business.logoUrl, assetAuthKey);
@@ -228,7 +232,7 @@ export default function InvoiceHeader({
   return (
     <section className={styles.header} style={headerStyle.style}>
       <div>
-        {template.showBusinessLogo ? (
+        {showBusinessLogo ? (
           logo.kind === "resolved" && logo.requestUrl && !logoFailed ? (
             <img
               src={logo.requestUrl}
@@ -241,7 +245,7 @@ export default function InvoiceHeader({
           ) : null
         ) : null}
       </div>
-      {template.showTitle ? (
+      {showTitle ? (
         <h1 className={styles.headerTitle} style={{ color: titleColor }}>
           {translations.title}
         </h1>

@@ -8,7 +8,26 @@
       "Bash(npx tsc *)",
       "Bash(findstr /i \"users-map\")",
       "Bash(Select-String \"users-map\")",
-      "Bash(node -e \"console.log\\(require\\('./node_modules/maplibre-gl/package.json'\\).version\\)\")"
+      "Bash(node -e \"console.log\\(require\\('./node_modules/maplibre-gl/package.json'\\).version\\)\")",
+      "Bash(npm run *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(node -e \"const p = require\\('./package.json'\\); const deps = {...p.dependencies, ...p.devDependencies}; const qr = Object.keys\\(deps\\).filter\\(k => k.includes\\('qr'\\)\\); console.log\\(qr.length ? qr : 'none'\\); console.log\\('total deps:', Object.keys\\(deps\\).length\\);\")",
+      "Bash(node -e \"console.log\\(require\\('./node_modules/qrcode.react/package.json'\\).version\\)\")",
+      "Bash(node -e \"const m = require\\('./node_modules/qrcode.react'\\); console.log\\(Object.keys\\(m\\)\\)\")",
+      "Bash(mkdir \"c:\\\\Users\\\\AppTrick\\\\IdeaProjects\\\\invotics-webpanel\\\\app\\\\i\\\\[publicCode]\" 2>&1)",
+      "Bash(New-Item -ItemType Directory -Path \"c:\\\\Users\\\\AppTrick\\\\IdeaProjects\\\\invotics-webpanel\\\\app\\\\i\\\\[publicCode]\" -Force)",
+      "PowerShell(Remove-Item \"c:\\\\Users\\\\AppTrick\\\\IdeaProjects\\\\invotics-webpanel\\\\.next\" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue)",
+      "PowerShell(npx --prefix \"c:\\\\Users\\\\AppTrick\\\\IdeaProjects\\\\invotics-webpanel\" tsc --noEmit 2>&1)",
+      "PowerShell(Get-Process node -ErrorAction SilentlyContinue)",
+      "PowerShell(Stop-Process -Force -ErrorAction SilentlyContinue)",
+      "Bash(Start-Sleep -Seconds 10)",
+      "Bash(Get-Process node *)",
+      "Bash(Select-Object -Property ProcessName, Id, Handles)"
+    ],
+    "additionalDirectories": [
+      "c:\\Users\\AppTrick\\IdeaProjects\\invotics-webpanel\\app\\i"
     ]
   }
 }

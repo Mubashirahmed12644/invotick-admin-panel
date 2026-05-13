@@ -12,6 +12,7 @@ interface InvoiceTotalsProps {
   currency: InvoicePreviewCurrency;
   template: InvoicePreviewTemplate;
   translations: InvoicePreviewTranslations;
+  shouldRender?: boolean;
 }
 
 function formatAmount(value: number, currency: InvoicePreviewCurrency): string {
@@ -26,8 +27,8 @@ function formatAmount(value: number, currency: InvoicePreviewCurrency): string {
   }
 }
 
-export default function InvoiceTotals({ totals, currency, template, translations }: InvoiceTotalsProps) {
-  if (!template.showTotal) return null;
+export default function InvoiceTotals({ totals, currency, template, translations, shouldRender = true }: InvoiceTotalsProps) {
+  if (!shouldRender) return null;
 
   const primaryColorVars = {
     "--invoice-table-primary": template.color || "#DC2626",

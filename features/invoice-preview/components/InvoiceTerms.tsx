@@ -9,10 +9,11 @@ interface InvoiceTermsProps {
   terms: InvoicePreviewTerms | null;
   template: InvoicePreviewTemplate;
   translations: InvoicePreviewTranslations;
+  shouldRender?: boolean;
 }
 
-export default function InvoiceTerms({ terms, template, translations }: InvoiceTermsProps) {
-  if (!template.showTerms || !terms?.description?.trim()) return null;
+export default function InvoiceTerms({ terms, template, translations, shouldRender = true }: InvoiceTermsProps) {
+  if (!shouldRender || !terms?.description?.trim()) return null;
 
   return (
     <section className={styles.terms}>
