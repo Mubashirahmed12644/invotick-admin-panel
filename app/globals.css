@@ -156,7 +156,7 @@ p {
 }
 
 .content-wrap {
-  width: min(1200px, 100% - 2.25rem);
+  width: min(1600px, 100% - 1rem);
   margin: 0 auto;
   padding: 1.5rem 0 2.2rem;
   display: grid;
@@ -499,9 +499,9 @@ p {
 .users-table-head,
 .users-table-summary,
 .users-table-row {
-  min-width: 1160px;
+  min-width: 1300px;
   display: grid;
-  grid-template-columns: 1.7fr 0.9fr 0.9fr 0.72fr 0.72fr 0.68fr 0.72fr 0.72fr 1.02fr 1.02fr 0.92fr;
+  grid-template-columns: 1.7fr 0.9fr 0.9fr 0.72fr 0.72fr 0.68fr 0.72fr 0.72fr 1.02fr 1.02fr 0.92fr 0.9fr;
   gap: 0.55rem;
   align-items: center;
 }

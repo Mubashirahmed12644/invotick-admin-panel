@@ -12,7 +12,7 @@ export default function InvoiceFooter({ invoiceId }: InvoiceFooterProps) {
   const appUrl = `${BASE_URL}/${invoiceId}`;
 
   return (
-    <div className={styles.invoiceFooterWrap}>
+    <div className={styles.invoiceFooterWrap} data-invoice-footer="true">
       <div className={styles.invoiceFooter}>
         <div className={styles.invoiceFooterLeft}>
           <img

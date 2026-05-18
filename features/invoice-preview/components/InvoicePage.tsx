@@ -147,7 +147,11 @@ export default function InvoicePage({
           />
 
           {showInlineSummary ? (
-            <div className={styles.inlineSummaryRow}>
+            <div
+              className={styles.inlineSummaryRow}
+              data-invoice-summary-row="true"
+              style={!showHeader && !showSenderReceiver && !showItemTable ? { marginTop: "20px" } : undefined}
+            >
               <div className={styles.inlineSummaryPayment}>
                 <InvoicePaymentInstructions
                   paymentInstruction={data.paymentInstruction}
@@ -171,60 +175,63 @@ export default function InvoicePage({
           {!showBottomRow && !showInlineSummary ? <div className={styles.itemsBottomSpacer} data-invoice-items-spacer="true" /> : null}
         </div>
 
-        {showBottomRow ? <div className={styles.bottomSectionDivider} /> : null}
+        <div style={{ position: "absolute", bottom: 0, left: 0, right: 0 }}>
+          {showBottomRow ? <div className={styles.bottomSectionDivider} /> : null}
 
-        {showBottomRow ? (
-          <section className={styles.termsBottom}>
-            {/* Col 1: Terms & Conditions */}
-            <div className={styles.termsBottomLeft}>
-              {hasTerms ? (
-                <InvoiceTerms
-                  terms={data.terms}
-                  template={data.template}
-                  translations={data.translations}
-                  shouldRender={showTerms}
-                />
-              ) : null}
-            </div>
-
-            {/* Col 2: Signature | Stamp */}
-            <div className={styles.termsBottomRight}>
-              {/* Signature */}
-              <div className={styles.termsBottomSigCol}>
-                {showSignature && showOverlays ? (
-                  signatureImage.kind === "resolved" && signatureImage.requestUrl && !signatureImageFailed ? (
-                    <img
-                      src={signatureImage.requestUrl}
-                      alt={data.signature?.name || "Signature"}
-                      className={styles.termsBottomAssetImg}
-                      onError={markSignatureImageFailed}
-                    />
-                  ) : (signatureImageFailed || signatureImage.kind === "unsynced") ? (
-                    <span className={styles.termsBottomUnsyncedAsset}>Signature not synced</span>
-                  ) : null
+          {showBottomRow ? (
+            <section
+              className={styles.termsBottom}
+              style={!showInlineSummary ? { marginTop: "20px" } : undefined}
+            >
+              {/* Col 1: Terms & Conditions */}
+              <div className={styles.termsBottomLeft}>
+                {hasTerms ? (
+                  <InvoiceTerms
+                    terms={data.terms}
+                    template={data.template}
+                    translations={data.translations}
+                    shouldRender={showTerms}
+                  />
                 ) : null}
               </div>
 
-              {/* Stamp */}
-              <div className={styles.termsBottomStampCol}>
-                {showStamp && showOverlays ? (
-                  stampImage.kind === "resolved" && stampImage.requestUrl && !stampImageFailed ? (
-                    <img
-                      src={stampImage.requestUrl}
-                      alt={data.stamp?.name || "Stamp"}
-                      className={styles.termsBottomAssetImg}
-                      onError={markStampImageFailed}
-                    />
-                  ) : (stampImageFailed || stampImage.kind === "unsynced") ? (
-                    <span className={styles.termsBottomUnsyncedAsset}>Stamp not synced</span>
-                  ) : null
-                ) : null}
-              </div>
-            </div>
-          </section>
-        ) : null}
+              {/* Col 2: Signature | Stamp */}
+              <div className={styles.termsBottomRight}>
+                <div className={styles.termsBottomSigCol}>
+                  {showSignature && showOverlays ? (
+                    signatureImage.kind === "resolved" && signatureImage.requestUrl && !signatureImageFailed ? (
+                      <img
+                        src={signatureImage.requestUrl}
+                        alt={data.signature?.name || "Signature"}
+                        className={styles.termsBottomAssetImg}
+                        onError={markSignatureImageFailed}
+                      />
+                    ) : (signatureImageFailed || signatureImage.kind === "unsynced") ? (
+                      <span className={styles.termsBottomUnsyncedAsset}>Signature not synced</span>
+                    ) : null
+                  ) : null}
+                </div>
 
-        <InvoiceFooter invoiceId={data.invoice.id} />
+                <div className={styles.termsBottomStampCol}>
+                  {showStamp && showOverlays ? (
+                    stampImage.kind === "resolved" && stampImage.requestUrl && !stampImageFailed ? (
+                      <img
+                        src={stampImage.requestUrl}
+                        alt={data.stamp?.name || "Stamp"}
+                        className={styles.termsBottomAssetImg}
+                        onError={markStampImageFailed}
+                      />
+                    ) : (stampImageFailed || stampImage.kind === "unsynced") ? (
+                      <span className={styles.termsBottomUnsyncedAsset}>Stamp not synced</span>
+                    ) : null
+                  ) : null}
+                </div>
+              </div>
+            </section>
+          ) : null}
+
+          <InvoiceFooter invoiceId={data.invoice.id} />
+        </div>
       </div>
     </article>
   );

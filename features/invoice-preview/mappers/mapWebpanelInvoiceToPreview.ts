@@ -165,9 +165,11 @@ export function mapWebpanelInvoiceToPreviewDocument(
     discountValue: item.discountValue !== null ? toNumber(item.discountValue) : null,
     discountAmount: toNumber(item.discountAmount),
     discountType: item.discountType ? normalizeDiscountType(item.discountType) : null,
-    taxAmount: item.taxAmount !== null && item.taxAmount !== undefined ? toNumber(item.taxAmount) : null,
+    taxAmount: toNumber(item.taxAmount),
     subtotal: item.subtotal !== null && item.subtotal !== undefined ? toNumber(item.subtotal) : null,
-    total: item.total !== null && item.total !== undefined ? toNumber(item.total) : null,
+    total: item.total !== null && item.total !== undefined
+      ? toNumber(item.total)
+      : toNumber(item.netPrice) * toNumber(item.quantity),
     description: item.description,
     categoryId: item.itemCategoryId ?? null,
     unitTypeId: item.unitTypeId ?? null,

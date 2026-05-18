@@ -39,6 +39,7 @@ interface RowBudgets {
 
 interface PaginationMeasurements extends TableMeasurements {
   budgets: RowBudgets;
+  summaryRowHeight: number;
 }
 
 const FALLBACK_CALIBRATION_ITEM: InvoicePreviewLineItem = {
@@ -90,6 +91,7 @@ function measurementsEqual(
   if (!almostEqual(current.budgets.first, next.budgets.first)) return false;
   if (!almostEqual(current.budgets.middle, next.budgets.middle)) return false;
   if (!almostEqual(current.budgets.last, next.budgets.last)) return false;
+  if (!almostEqual(current.summaryRowHeight, next.summaryRowHeight)) return false;
 
   if (current.rowHeights.length !== next.rowHeights.length) return false;
   for (let index = 0; index < current.rowHeights.length; index += 1) {
@@ -112,35 +114,18 @@ function outerHeightWithMargins(element: HTMLElement): number {
 
 function getTableMaxHeightForPage(pageElement: HTMLElement): number | null {
   const pageRect = pageElement.getBoundingClientRect();
-  const pageStyle = window.getComputedStyle(pageElement);
-  const borderTop = parsePx(pageStyle.borderTopWidth);
-  const borderBottom = parsePx(pageStyle.borderBottomWidth);
-  const pageInnerHeight = pageRect.height - borderTop - borderBottom;
+  const borderTop = parsePx(window.getComputedStyle(pageElement).borderTopWidth);
 
+  const footer = pageElement.querySelector('[data-invoice-footer="true"]') as HTMLElement | null;
   const itemsWrap = pageElement.querySelector('[data-invoice-items-wrap="true"]') as HTMLElement | null;
-  if (!itemsWrap) {
-    return null;
-  }
+  if (!footer || !itemsWrap) return null;
 
+  const footerTop = footer.getBoundingClientRect().top - pageRect.top - borderTop;
   const itemsTop = itemsWrap.getBoundingClientRect().top - pageRect.top - borderTop;
+  const availableHeight = footerTop - itemsTop - 10;
 
-  let reservedAfterItems = 0;
-  const totalsWrap = pageElement.querySelector('[data-invoice-totals-wrap="true"]') as HTMLElement | null;
-
-  if (totalsWrap) {
-    reservedAfterItems += outerHeightWithMargins(totalsWrap);
-    const content = pageElement.querySelector('[data-invoice-content="true"]') as HTMLElement | null;
-    if (content) {
-      reservedAfterItems += parsePx(window.getComputedStyle(content).paddingBottom);
-    }
-  } else {
-    const itemsSpacer = pageElement.querySelector('[data-invoice-items-spacer="true"]') as HTMLElement | null;
-    reservedAfterItems += itemsSpacer?.getBoundingClientRect().height ?? ITEMS_ONLY_BOTTOM_GAP;
-  }
-
-  const maxTableHeight = pageInnerHeight - itemsTop - reservedAfterItems - LAYOUT_EPSILON;
   const minimumTableHeight = TABLE_HEADER_HEIGHT + TABLE_ROW_HEIGHT + ITEMS_WRAP_BORDER;
-  return Math.max(minimumTableHeight, maxTableHeight);
+  return Math.max(minimumTableHeight, availableHeight);
 }
 
 function toRowBudget(maxTableHeight: number, headerHeight: number): number {
@@ -202,6 +187,14 @@ function measureLayoutBudgets(
   return { single, first, middle, last };
 }
 
+function measureSummaryRowHeight(layoutMeasureRoot: HTMLElement): number {
+  const lastCalib = layoutMeasureRoot.querySelector('[data-calibration-kind="last"]') as HTMLElement | null;
+  if (!lastCalib) return 0;
+  const summaryRow = lastCalib.querySelector('[data-invoice-summary-row="true"]') as HTMLElement | null;
+  if (!summaryRow) return 0;
+  return outerHeightWithMargins(summaryRow);
+}
+
 function fallbackBudgets(hasTerms: boolean, headerHeight: number): RowBudgets {
   const first = toRowBudget(A4_HEIGHT - 194 - ITEMS_ONLY_BOTTOM_GAP, headerHeight);
   const middle = toRowBudget(A4_HEIGHT - 14 - ITEMS_ONLY_BOTTOM_GAP, headerHeight);
@@ -235,7 +228,7 @@ function paginateItems(
 
   const sumHeights = (start: number, end: number): number => prefixSums[end]! - prefixSums[start]!;
 
-  if (sumHeights(0, items.length) <= budgets.single) {
+  if (sumHeights(0, items.length) <= budgets.first) {
     return [items];
   }
 
@@ -267,7 +260,7 @@ function paginateItems(
 
   const remainingHeight = (start: number): number => sumHeights(start, items.length);
 
-  while (remainingHeight(cursor) > budgets.last && cursor < items.length - 1) {
+  while (remainingHeight(cursor) > budgets.middle && cursor < items.length - 1) {
     const middleSliceEnd = takeUntilBudget(cursor, budgets.middle);
     pages.push(items.slice(cursor, middleSliceEnd));
     cursor = middleSliceEnd;
@@ -377,6 +370,23 @@ export default function InvoicePreviewScreen({
     return paginationMeasurements !== null;
   }, [data.lineItems.length, visibility.showItemTable, paginationMeasurements]);
 
+  const summaryFitsOnLastPage = useMemo(() => {
+    if (!visibility.showTotal) return false;
+    if (!paginationMeasurements || paginationMeasurements.summaryRowHeight <= 0) return true;
+
+    const { rowHeights, headerHeight, budgets, summaryRowHeight } = paginationMeasurements;
+    const lastPageItems = itemPages[itemPages.length - 1] ?? [];
+    const itemsBefore = itemPages.slice(0, -1).reduce((c, p) => c + p.length, 0);
+
+    const lastPageRowsHeight = lastPageItems.reduce((sum, _, i) => {
+      return sum + (rowHeights[itemsBefore + i] ?? TABLE_ROW_HEIGHT);
+    }, 0);
+
+    const budget = itemPages.length === 1 ? budgets.first : budgets.middle;
+    const remaining = budget - lastPageRowsHeight - headerHeight - ITEMS_WRAP_BORDER;
+    return summaryRowHeight <= remaining;
+  }, [itemPages, paginationMeasurements, visibility.showTotal]);
+
   const handleDownloadPdf = useCallback(async () => {
     if (typeof window === "undefined") return;
     if (isDownloading) return;
@@ -460,10 +470,12 @@ export default function InvoicePreviewScreen({
       );
 
       const budgets = measureLayoutBudgets(layoutElement, normalizedHeaderHeight);
+      const rawSummaryHeight = measureSummaryRowHeight(layoutElement);
       const nextMeasurements: PaginationMeasurements = {
         headerHeight: normalizedHeaderHeight,
         rowHeights: normalizedRowHeights,
         budgets: budgets ?? fallbackBudgets(hasTerms, normalizedHeaderHeight),
+        summaryRowHeight: rawSummaryHeight * measurementScale,
       };
 
       setPaginationMeasurements((previous) =>
@@ -481,41 +493,30 @@ export default function InvoicePreviewScreen({
 
   const effectiveScale = pdfMode ? 1 : scale;
 
+  const totalPageCount = useMemo(
+    () => itemPages.length + (visibility.showTotal && !summaryFitsOnLastPage ? 1 : 0),
+    [itemPages.length, summaryFitsOnLastPage, visibility.showTotal],
+  );
+
   const scaledHeight = useMemo(() => {
-    const pageCount = itemPages.length;
-    const totalBaseHeight = (A4_HEIGHT * pageCount) + (PAGE_GAP * Math.max(0, pageCount - 1));
+    const totalBaseHeight = (A4_HEIGHT * totalPageCount) + (PAGE_GAP * Math.max(0, totalPageCount - 1));
     return totalBaseHeight * effectiveScale;
-  }, [effectiveScale, itemPages.length]);
+  }, [effectiveScale, totalPageCount]);
 
   const renderPages = useCallback(
-    (isSinglePageMode: boolean) =>
-      itemPages.map((items, index) => {
+    (isSinglePageMode: boolean) => {
+      const pages = itemPages.map((items, index) => {
         const isFirstPage = index === 0;
-        const isLastPage = index === itemPages.length - 1;
+        const isLastItemsPage = index === itemPages.length - 1;
+        const isVisuallyLastPage = isLastItemsPage && summaryFitsOnLastPage;
         const serialStart =
           itemPages.slice(0, index).reduce((count, pageItems) => count + pageItems.length, 0) + 1;
 
         const showHeader = isFirstPage && (visibility.showTitle || visibility.showInvoiceMeta || visibility.showBusinessLogo);
         const showSenderReceiver = isFirstPage && (visibility.showSender || visibility.showReceiver || visibility.showInvoiceMeta);
-        const showTotals = isLastPage && visibility.showTotal;
-        const showTermsBottom = isLastPage && visibility.showTerms;
-        const showOverlays = isLastPage && (visibility.showSignature || visibility.showStamp);
-
-        if (index === 0) {
-          console.log("=== PAGE RENDERING INFO ===");
-          console.log("Visibility Flags:", visibility);
-          console.log("Page Index:", index, "| isFirstPage:", isFirstPage, "| isLastPage:", isLastPage);
-          console.log("Rendered Sections:", {
-            showHeader,
-            showSenderReceiver,
-            showTotals,
-            showTermsBottom,
-            showOverlays,
-            showItemTable: visibility.showItemTable,
-          });
-          console.log("Items on page:", items.length);
-          console.log("===========================");
-        }
+        const showTotals = isLastItemsPage && summaryFitsOnLastPage && visibility.showTotal;
+        const showTermsBottom = isVisuallyLastPage && visibility.showTerms;
+        const showOverlays = isVisuallyLastPage && (visibility.showSignature || visibility.showStamp);
 
         return (
           <InvoicePage
@@ -543,15 +544,48 @@ export default function InvoicePreviewScreen({
             minRows={MIN_ITEM_ROWS}
           />
         );
-      }),
-    [assetAuthKey, data, itemPages, visibility],
+      });
+
+      if (visibility.showTotal && !summaryFitsOnLastPage) {
+        const serialStart = itemPages.reduce((c, p) => c + p.length, 0) + 1;
+        pages.push(
+          <InvoicePage
+            key={`${isSinglePageMode ? "pdf" : "screen"}-invoice-page-totals`}
+            data={data}
+            items={[]}
+            serialStart={serialStart}
+            showHeader={false}
+            showSenderReceiver={false}
+            showTotals
+            showTermsBottom={hasTerms}
+            showOverlays={visibility.showSignature || visibility.showStamp}
+            showItemTable={false}
+            showTitle={false}
+            showBusinessLogo={false}
+            showInvoiceMeta={false}
+            showSender={false}
+            showReceiver={false}
+            showPayment={visibility.showPayment}
+            showNotes={visibility.showNotes}
+            showTerms={visibility.showTerms}
+            showSignature={visibility.showSignature}
+            showStamp={visibility.showStamp}
+            assetAuthKey={assetAuthKey}
+            minRows={0}
+          />,
+        );
+      }
+
+      return pages;
+    },
+    [assetAuthKey, data, hasTerms, itemPages, summaryFitsOnLastPage, visibility],
   );
 
   return (
     <section
       className={`${styles.screen} invoice-print-root`}
       data-invoice-pagination-ready={paginationReady ? "1" : "0"}
-      data-invoice-page-count={String(itemPages.length)}
+      data-invoice-page-count={String(totalPageCount)}
     >
       {!pdfMode ? (
         <div className={styles.toolbar}>

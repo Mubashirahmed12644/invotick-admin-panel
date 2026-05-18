@@ -13,6 +13,7 @@ interface UserCardProps {
     invoiceTotalAll: number;
     lastActivityAt: string | null;
     createdAt: string | null;
+    appVersions: string[];
   };
   onClick: () => void;
 }
@@ -75,6 +76,9 @@ export default function UserCard({ row, onClick }: UserCardProps) {
       <span className="users-cell">{formatCurrency(row.invoiceTotalAll, "USD")}</span>
       <span className="users-cell">{formatDateTime(row.lastActivityAt)}</span>
       <span className="users-cell">{formatDate(row.createdAt)}</span>
+      <span className="users-cell" title={row.appVersions.join(", ")}>
+        {row.appVersions.length > 0 ? row.appVersions[row.appVersions.length - 1] : "-"}
+      </span>
     </button>
   );
 }

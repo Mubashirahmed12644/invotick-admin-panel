@@ -508,10 +508,7 @@
 }
 
 .invoiceFooterWrap {
-  position: absolute;
-  bottom: 18px;
-  left: 18px;
-  right: 18px;
+  margin: 0 18px 18px;
   z-index: 5;
 }
 

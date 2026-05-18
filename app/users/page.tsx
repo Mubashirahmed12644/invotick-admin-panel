@@ -28,7 +28,8 @@ type SortKey =
   | "overdue"
   | "paymentsAll"
   | "expensesAll"
-  | "invoiceTotalAll";
+  | "invoiceTotalAll"
+  | "appVersion";
 
 type SortDirection = "asc" | "desc";
 type ActivityFilter = "ALL" | "ACTIVE_30D" | "INACTIVE_30D";
@@ -168,6 +169,7 @@ const USER_SORT_COLUMNS: UserSortColumn[] = [
   { key: "invoiceTotalAll", label: "Invo-Total" },
   { key: "lastActivity", label: "Last-Activity" },
   { key: "createdAt", label: "Created" },
+  { key: "appVersion", label: "App-Version" },
 ];
 
 interface UserTableTotals {
@@ -559,6 +561,11 @@ export default function UsersPage() {
           return (a.expensesAll - b.expensesAll) * direction;
         case "invoiceTotalAll":
           return (a.invoiceTotalAll - b.invoiceTotalAll) * direction;
+        case "appVersion": {
+          const aV = a.appVersions[a.appVersions.length - 1] ?? "";
+          const bV = b.appVersions[b.appVersions.length - 1] ?? "";
+          return aV.localeCompare(bV, undefined, { numeric: true, sensitivity: "base" }) * direction;
+        }
         default:
           return 0;
       }
@@ -1490,6 +1497,10 @@ export default function UsersPage() {
                       <span className="users-table-summary-label">Available</span>
                       <span className="users-table-summary-value">{tableTotals.createdAtCount}</span>
                     </span>
+                    <span className="users-table-summary-cell">
+                      <span className="users-table-summary-label">With Data</span>
+                      <span className="users-table-summary-value">{processedRows.filter((row) => row.appVersions.length > 0).length}</span>
+                    </span>
                   </div>
                   <div className="users-table-summary users-table-summary-secondary">
                     <span className="users-table-summary-cell">
@@ -1536,6 +1547,10 @@ export default function UsersPage() {
                       <span className="users-table-summary-label">Non-Null</span>
                       <span className="users-table-summary-value">{renderCoverage(tableCoverage.createdAt)}</span>
                     </span>
+                    <span className="users-table-summary-cell">
+                      <span className="users-table-summary-label">&gt; 0</span>
+                      <span className="users-table-summary-value">{renderCoverage(createCoverageCell(processedRows.filter((row) => row.appVersions.length > 0).length, processedRows.length))}</span>
+                    </span>
                   </div>
                 </div>
                 <div className="users-table-body">
@@ -1554,6 +1569,7 @@ export default function UsersPage() {
                         invoiceTotalAll: row.invoiceTotalAll,
                         lastActivityAt: row.lastActivityAt,
                         createdAt: row.createdAt,
+                        appVersions: row.appVersions,
                       }}
                       onClick={() => router.push(`/users/${row.id}`)}
                     />
