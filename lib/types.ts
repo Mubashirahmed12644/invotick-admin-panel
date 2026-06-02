@@ -36,6 +36,8 @@ export interface AuthResponse {
   accessToken: string;
   user: AuthUser;
   message?: string;
+  preferences?: Record<string, unknown>;
+  state?: Record<string, unknown>;
 }
 
 export interface LoginRequest {
