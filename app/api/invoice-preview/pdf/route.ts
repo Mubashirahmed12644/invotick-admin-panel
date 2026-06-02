@@ -1,10 +1,10 @@
 import puppeteer from "puppeteer-core";
-import { saveInvoicePreviewPayload } from "@/lib/invoice-preview-payload-store";
 import { INVOICE_PREVIEW_ASSET_TOKEN_COOKIE } from "@/lib/invoice-preview-asset-cookie";
 import type { InvoicePreviewDocument } from "@/features/invoice-preview/types/invoice-preview.types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 type BrowserInstance = Awaited<ReturnType<typeof puppeteer.launch>>;
 
@@ -33,6 +33,7 @@ async function getBrowserLaunchOptions() {
       args: chromium.args,
       executablePath: await chromium.executablePath(),
       headless: true as const,
+      ignoreHTTPSErrors: true,
     };
   }
 
@@ -42,6 +43,7 @@ async function getBrowserLaunchOptions() {
     executablePath: localPuppeteer.executablePath(),
     headless: true as const,
     args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    ignoreHTTPSErrors: true,
   };
 }
 
@@ -66,9 +68,6 @@ async function getBrowser(): Promise<BrowserInstance> {
   return globalPdfBrowser.__invoicePdfBrowserPromise;
 }
 
-// Warm the browser once per server process to reduce first-request latency.
-void getBrowser();
-
 async function generatePdfResponse(
   request: Request,
   options?: {
@@ -82,20 +81,16 @@ async function generatePdfResponse(
 
   try {
     const requestUrl = new URL(request.url);
-    const payloadKey = options?.data ? saveInvoicePreviewPayload(options.data) : null;
-    const renderPath = payloadKey
-      ? `/invoice-preview?pdf=1&payloadKey=${encodeURIComponent(payloadKey)}${
-          options?.assetAuthKey ? `&assetAuthKey=${encodeURIComponent(options.assetAuthKey)}` : ""
-        }`
-      : `/invoice-preview?pdf=1${
-          options?.assetAuthKey ? `&assetAuthKey=${encodeURIComponent(options.assetAuthKey)}` : ""
-        }`;
+    const renderPath = `/invoice-preview?pdf=1${
+      options?.assetAuthKey ? `&assetAuthKey=${encodeURIComponent(options.assetAuthKey)}` : ""
+    }`;
     const renderUrl = new URL(renderPath, requestUrl.origin).toString();
     const queryFileName = requestUrl.searchParams.get("filename");
     const fileName = sanitizeFileName(options?.fileName || queryFileName || "invoice-preview");
 
     const browser = await getBrowser();
     page = await browser.newPage();
+
     if (options?.assetBearerToken) {
       await page.setCookie({
         name: INVOICE_PREVIEW_ASSET_TOKEN_COOKIE,
@@ -104,17 +99,28 @@ async function generatePdfResponse(
         path: "/",
       });
     }
-    page.setDefaultNavigationTimeout(10000);
-    page.setDefaultTimeout(5000);
+
+    // Inject the invoice payload before the page loads so the client component
+    // can read it from window — this avoids relying on the in-memory store being
+    // accessible from the same Lambda instance.
+    if (options?.data) {
+      const serialized = JSON.stringify(options.data);
+      await page.evaluateOnNewDocument((payloadJson: string) => {
+        (window as unknown as Record<string, unknown>)["__INVOICE_PDF_DATA__"] = payloadJson;
+      }, serialized);
+    }
+
+    page.setDefaultNavigationTimeout(30000);
+    page.setDefaultTimeout(15000);
     await page.setViewport({ width: 794, height: 1123, deviceScaleFactor: 1 });
     await page.emulateMediaType("print");
-    await page.goto(renderUrl, { waitUntil: "domcontentloaded", timeout: 10000 });
-    await page.waitForSelector('[data-invoice-page="true"]', { timeout: 5000 });
+    await page.goto(renderUrl, { waitUntil: "load", timeout: 30000 });
+    await page.waitForSelector('[data-invoice-page="true"]', { timeout: 10000 });
 
     // Wait for client-side pagination measurements to settle before PDF capture.
     await page.waitForFunction(
       () => Boolean(document.querySelector('[data-invoice-pagination-ready="1"]')),
-      { timeout: 12000 },
+      { timeout: 20000 },
     );
 
     await page.evaluate(async () => {
@@ -145,10 +151,9 @@ async function generatePdfResponse(
       }
 
       if ("fonts" in document) {
-        await withTimeout(document.fonts.ready, 2500);
+        await withTimeout(document.fonts.ready, 3000);
       }
 
-      // Wait for image assets, but do not block indefinitely.
       await Promise.all(
         Array.from(document.querySelectorAll("img")).map((image) => {
           if (image.complete) return Promise.resolve<void>(undefined);
@@ -157,7 +162,7 @@ async function generatePdfResponse(
               image.addEventListener("load", () => resolve(), { once: true });
               image.addEventListener("error", () => resolve(), { once: true });
             }),
-            2500,
+            3000,
           ).then(() => undefined);
         }),
       );

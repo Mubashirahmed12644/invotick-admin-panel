@@ -168,7 +168,7 @@ export function isUnauthorizedError(error: unknown): boolean {
 
 export const api = {
   login(payload: LoginRequest) {
-    return apiRequest<AuthResponse>("/v1/auth/login", {
+    return apiRequest<AuthResponse>("/v2/auth/admin-login", {
       method: "POST",
       body: JSON.stringify(payload),
       requiresAuth: false,

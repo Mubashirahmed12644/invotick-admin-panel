@@ -32,9 +32,8 @@ export default function LoginPage() {
 
     try {
       const data = await api.login({
-        email,
-        password,
-        notificationToken: null,
+        adminEmail: email,
+        adminPassword: password,
       });
 
       setAccessToken(data.accessToken);

@@ -1,5 +1,5 @@
 import InvoicePreviewClientPage from "@/app/invoice-preview/InvoicePreviewClientPage";
-import { dummyInvoice, InvoicePreviewScreen } from "@/features/invoice-preview";
+import InvoicePreviewPdfClient from "@/app/invoice-preview/InvoicePreviewPdfClient";
 import { consumeInvoicePreviewPayload } from "@/lib/invoice-preview-payload-store";
 
 interface InvoicePreviewPageProps {
@@ -11,18 +11,21 @@ export default async function InvoicePreviewPage({ searchParams }: InvoicePrevie
   const pdfParam = resolvedSearchParams.pdf;
   const payloadKeyParam = resolvedSearchParams.payloadKey;
   const assetAuthKeyParam = resolvedSearchParams.assetAuthKey;
+
   const pdfMode =
     typeof pdfParam === "string"
       ? pdfParam === "1"
       : Array.isArray(pdfParam)
         ? pdfParam.includes("1")
         : false;
+
   const payloadKey =
     typeof payloadKeyParam === "string"
       ? payloadKeyParam
       : Array.isArray(payloadKeyParam)
         ? payloadKeyParam[0] || null
         : null;
+
   const assetAuthKey =
     typeof assetAuthKeyParam === "string"
       ? assetAuthKeyParam
@@ -31,10 +34,13 @@ export default async function InvoicePreviewPage({ searchParams }: InvoicePrevie
         : null;
 
   if (pdfMode) {
-    const payloadData = consumeInvoicePreviewPayload(payloadKey);
+    // Try server-side payload store (works on local dev and same-Lambda requests).
+    // The client component also checks window.__INVOICE_PDF_DATA__ injected by
+    // Puppeteer via evaluateOnNewDocument, which is the reliable path on Vercel.
+    const serverData = consumeInvoicePreviewPayload(payloadKey);
     return (
       <main className="invoice-pdf-page">
-        <InvoicePreviewScreen data={payloadData || dummyInvoice} pdfMode assetAuthKey={assetAuthKey} />
+        <InvoicePreviewPdfClient serverData={serverData} assetAuthKey={assetAuthKey} />
       </main>
     );
   }

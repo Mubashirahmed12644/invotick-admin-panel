@@ -39,9 +39,8 @@ export interface AuthResponse {
 }
 
 export interface LoginRequest {
-  email: string;
-  password: string;
-  notificationToken: string | null;
+  adminEmail: string;
+  adminPassword: string;
 }
 
 export interface WebpanelUserActivityStats {

@@ -299,48 +299,20 @@ export default function InvoicePreviewScreen({
   const [isDownloading, setIsDownloading] = useState(false);
   const [paginationMeasurements, setPaginationMeasurements] =
     useState<PaginationMeasurements | null>(null);
-  const [visibility, setVisibility] = useState<VisibilityState>(() => {
-    const visibilityState = {
-      showBusinessLogo: data.template?.showBusinessLogo ?? true,
-      showInvoiceMeta: data.template?.showInvoiceMeta ?? true,
-      showTitle: data.template?.showTitle ?? true,
-      showSender: data.template?.showSender ?? true,
-      showReceiver: data.template?.showReceiver ?? true,
-      showPayment: data.template?.showPayment ?? true,
-      showNotes: data.template?.showNotes ?? true,
-      showSignature: data.template?.showSignature ?? true,
-      showStamp: data.template?.showStamp ?? true,
-      showTerms: data.template?.showTerms ?? true,
-      showTotal: data.template?.showTotal ?? true,
-      showItemTable: data.template?.showItemTable ?? true,
-    };
-
-    console.log("=== INVOICE PREVIEW API RESPONSE ===");
-    console.log("Full API Data:", data);
-    console.log("Template Object:", data.template);
-    console.log("Template Properties (RAW):", {
-      showBusinessLogo: data.template?.showBusinessLogo,
-      showInvoiceMeta: data.template?.showInvoiceMeta,
-      showTitle: data.template?.showTitle,
-      showSender: data.template?.showSender,
-      showReceiver: data.template?.showReceiver,
-      showPayment: data.template?.showPayment,
-      showNotes: data.template?.showNotes,
-      showSignature: data.template?.showSignature,
-      showStamp: data.template?.showStamp,
-      showTerms: data.template?.showTerms,
-      showTotal: data.template?.showTotal,
-      showItemTable: data.template?.showItemTable,
-    });
-    console.log("Visibility State:", visibilityState);
-    console.log("Line Items Count:", data.lineItems?.length || 0);
-    console.log("Invoice Number:", data.invoice?.invoiceNumber);
-    console.log("Template ID:", data.template?.id);
-    console.log("Template Name:", data.template?.templateName);
-    console.log("===================================");
-
-    return visibilityState;
-  });
+  const [visibility, setVisibility] = useState<VisibilityState>(() => ({
+    showBusinessLogo: data.template?.showBusinessLogo ?? true,
+    showInvoiceMeta: data.template?.showInvoiceMeta ?? true,
+    showTitle: data.template?.showTitle ?? true,
+    showSender: data.template?.showSender ?? true,
+    showReceiver: data.template?.showReceiver ?? true,
+    showPayment: data.template?.showPayment ?? true,
+    showNotes: data.template?.showNotes ?? true,
+    showSignature: data.template?.showSignature ?? true,
+    showStamp: data.template?.showStamp ?? true,
+    showTerms: data.template?.showTerms ?? true,
+    showTotal: data.template?.showTotal ?? true,
+    showItemTable: data.template?.showItemTable ?? true,
+  }));
 
   const handleToggleVisibility = useCallback((key: keyof VisibilityState, value: boolean) => {
     setVisibility((prev) => ({ ...prev, [key]: value }));
@@ -470,12 +442,14 @@ export default function InvoicePreviewScreen({
       );
 
       const budgets = measureLayoutBudgets(layoutElement, normalizedHeaderHeight);
+      // rawSummaryHeight is measured from inside .pageInner which already carries the
+      // print transform (scale 4/3 in PDF mode), so no further scaling is needed.
       const rawSummaryHeight = measureSummaryRowHeight(layoutElement);
       const nextMeasurements: PaginationMeasurements = {
         headerHeight: normalizedHeaderHeight,
         rowHeights: normalizedRowHeights,
         budgets: budgets ?? fallbackBudgets(hasTerms, normalizedHeaderHeight),
-        summaryRowHeight: rawSummaryHeight * measurementScale,
+        summaryRowHeight: rawSummaryHeight,
       };
 
       setPaginationMeasurements((previous) =>
