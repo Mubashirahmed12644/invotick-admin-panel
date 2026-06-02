@@ -41,8 +41,8 @@ export interface AuthResponse {
 }
 
 export interface LoginRequest {
-  adminEmail: string;
-  adminPassword: string;
+  email: string;
+  password: string;
 }
 
 export interface WebpanelUserActivityStats {
