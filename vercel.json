@@ -2,7 +2,7 @@
   "functions": {
     "app/api/invoice-preview/pdf/route.ts": {
       "maxDuration": 60,
-      "memory": 3009
+      "memory": 1024
     }
   }
 }
