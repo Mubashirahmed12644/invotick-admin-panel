@@ -641,3 +641,54 @@ export interface WebpanelInvoiceFullResponse {
   signature: SignatureResponse | null;
   stamp: StampResponse | null;
 }
+
+// ── Funnel Analysis ────────────────────────────────────────────────────────
+
+export type FunnelMode = "STRICT" | "ORDERED" | "ANY_ORDER";
+export type FunnelBy = "SCREEN" | "EVENT";
+
+export interface FunnelQueryRequest {
+  steps: string[];
+  funnelBy?: FunnelBy;
+  mode?: FunnelMode;
+  from?: string;
+  to?: string;
+  maxStepDurationMinutes?: number;
+  platform?: string;
+  appVersion?: string;
+  osVersion?: string;
+  country?: string;
+  city?: string;
+}
+
+export interface FunnelFilters {
+  from: string;
+  to: string;
+  mode: FunnelMode;
+  funnelBy: FunnelBy;
+  maxStepDurationMinutes: number | null;
+  platform: string | null;
+  appVersion: string | null;
+  osVersion: string | null;
+  country: string | null;
+  city: string | null;
+}
+
+export interface FunnelStepResult {
+  step: number;
+  name: string;
+  sessions: number;
+  users: number;
+  dropOffSessions: number;
+  dropOffUsers: number;
+  conversionFromFirst: number;
+  conversionFromPrevious: number;
+  avgSecondsFromPreviousStep: number | null;
+}
+
+export interface FunnelQueryResponse {
+  totalSessions: number;
+  totalUsers: number;
+  filters: FunnelFilters;
+  steps: FunnelStepResult[];
+}

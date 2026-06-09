@@ -14,6 +14,9 @@ import type {
   WebpanelUserWithStatsResponse,
   WebpanelUserStatsResponse,
   AppFlowTimelineResponse,
+  FunnelBy,
+  FunnelQueryRequest,
+  FunnelQueryResponse,
 } from "@/lib/types";
 import type {
   IpStatsResponse,
@@ -329,5 +332,20 @@ export const api = {
 
   getUsersForMap() {
     return apiRequest<UserMapLocation[]>("/v1/webpanel/getUsersForMap");
+  },
+
+  getFunnelNames(params?: { type?: FunnelBy; search?: string }) {
+    const query = new URLSearchParams();
+    if (params?.type) query.set("type", params.type);
+    if (params?.search) query.set("search", params.search);
+    const qs = query.toString();
+    return apiRequest<string[]>(`/v2/admin/analytics/funnel/names${qs ? `?${qs}` : ""}`);
+  },
+
+  queryFunnel(request: FunnelQueryRequest) {
+    return apiRequest<FunnelQueryResponse>("/v2/admin/analytics/funnel/query", {
+      method: "POST",
+      body: JSON.stringify(request),
+    });
   },
 };
