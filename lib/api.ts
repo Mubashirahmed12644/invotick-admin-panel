@@ -24,7 +24,13 @@ import type {
   SuspiciousIpFullResponse,
 } from "@/features/ip-stats/types";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ?? "";
+// In the browser, call same-origin "/backend" (proxied to the backend by the
+// next.config rewrite) so the panel works even where the backend origin isn't
+// directly reachable. Server-side keeps calling the backend origin directly.
+const API_BASE_URL =
+  typeof window !== "undefined"
+    ? "/backend"
+    : (process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ?? "");
 const IS_NGROK_BASE_URL = /https?:\/\/[^/]*ngrok[^/]*/i.test(API_BASE_URL);
 
 export class ApiError extends Error {
