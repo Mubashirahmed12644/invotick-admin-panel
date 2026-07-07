@@ -50,6 +50,11 @@ const navItems = [
     href: "/funnel-analysis",
     isActive: (pathname: string) => pathname.startsWith("/funnel-analysis"),
   },
+  {
+    label: "UTM",
+    href: "/utm",
+    isActive: (pathname: string) => pathname.startsWith("/utm"),
+  },
 ] as const;
 
 export default function Sidebar() {
