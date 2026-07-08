@@ -3,6 +3,7 @@ import type {
   AdminLoginResponse,
   AdminVerifyOtpRequest,
   ApiResponse,
+  ApiTokenResponse,
   AuthResponse,
   LoginRequest,
   UserMapLocation,
@@ -191,6 +192,19 @@ export const api = {
       method: "POST",
       body: JSON.stringify(payload),
       requiresAuth: false,
+    });
+  },
+
+  generateApiToken(expiryDays?: number) {
+    return apiRequest<ApiTokenResponse>("/v1/webpanel/api-token", {
+      method: "POST",
+      body: JSON.stringify({ expiryDays: expiryDays ?? 30 }),
+    });
+  },
+
+  revokeApiToken(jti: string) {
+    return apiRequest<null>(`/v1/webpanel/api-token/${encodeURIComponent(jti)}`, {
+      method: "DELETE",
     });
   },
 

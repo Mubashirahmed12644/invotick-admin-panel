@@ -58,6 +58,13 @@ export interface AdminVerifyOtpRequest {
   otp: string;
 }
 
+export interface ApiTokenResponse {
+  token: string;
+  jti: string;
+  expiresAt: string;
+  expiryDays: number;
+}
+
 export interface WebpanelUserActivityStats {
   overallLastActivityAt: LocalDateTime | null;
 }

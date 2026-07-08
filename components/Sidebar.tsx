@@ -55,6 +55,11 @@ const navItems = [
     href: "/utm",
     isActive: (pathname: string) => pathname.startsWith("/utm"),
   },
+  {
+    label: "API Access",
+    href: "/api-access",
+    isActive: (pathname: string) => pathname.startsWith("/api-access"),
+  },
 ] as const;
 
 export default function Sidebar() {
