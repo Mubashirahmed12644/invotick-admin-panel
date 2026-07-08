@@ -1,5 +1,7 @@
 import { getAccessToken } from "@/lib/auth";
 import type {
+  AdminLoginResponse,
+  AdminVerifyOtpRequest,
   ApiResponse,
   AuthResponse,
   LoginRequest,
@@ -177,7 +179,15 @@ export function isUnauthorizedError(error: unknown): boolean {
 
 export const api = {
   login(payload: LoginRequest) {
-    return apiRequest<AuthResponse>("/v2/auth/admin-login", {
+    return apiRequest<AdminLoginResponse>("/v2/auth/admin-login", {
+      method: "POST",
+      body: JSON.stringify(payload),
+      requiresAuth: false,
+    });
+  },
+
+  verifyAdminOtp(payload: AdminVerifyOtpRequest) {
+    return apiRequest<AuthResponse>("/v2/auth/admin-verify-otp", {
       method: "POST",
       body: JSON.stringify(payload),
       requiresAuth: false,

@@ -45,6 +45,19 @@ export interface LoginRequest {
   password: string;
 }
 
+/** Step 1 of admin login. When otpRequired, a code was emailed; call verifyAdminOtp next. */
+export interface AdminLoginResponse {
+  otpRequired: boolean;
+  email: string;
+  message: string;
+  auth?: AuthResponse;
+}
+
+export interface AdminVerifyOtpRequest {
+  email: string;
+  otp: string;
+}
+
 export interface WebpanelUserActivityStats {
   overallLastActivityAt: LocalDateTime | null;
 }
