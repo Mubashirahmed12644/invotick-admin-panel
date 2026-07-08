@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { api, getErrorMessage } from "@/lib/api";
@@ -19,6 +19,28 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [resendIn, setResendIn] = useState(0);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  function startResendCooldown(seconds = 60) {
+    setResendIn(seconds);
+    if (timerRef.current) clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => {
+      setResendIn((prev) => {
+        if (prev <= 1) {
+          if (timerRef.current) clearInterval(timerRef.current);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  }
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     if (isLoggedIn()) {
@@ -44,6 +66,7 @@ export default function LoginPage() {
         setStep("otp");
         setOtp("");
         setInfo(`A 6-digit code was sent to ${data.email}.`);
+        startResendCooldown(60);
       } else if (data.auth?.accessToken) {
         // 2FA disabled (escape hatch) — token issued directly.
         setAccessToken(data.auth.accessToken);
@@ -81,6 +104,7 @@ export default function LoginPage() {
     try {
       await api.login({ email, password });
       setInfo(`A new code was sent to ${email}.`);
+      startResendCooldown(60);
     } catch (resendError) {
       setError(getErrorMessage(resendError, "Could not resend the code."));
     } finally {
@@ -215,8 +239,13 @@ export default function LoginPage() {
             </button>
 
             <div className="auth-links">
-              <button type="button" className="auth-linkbtn" onClick={onResend} disabled={isSubmitting}>
-                Resend code
+              <button
+                type="button"
+                className="auth-linkbtn"
+                onClick={onResend}
+                disabled={isSubmitting || resendIn > 0}
+              >
+                {resendIn > 0 ? `Resend code in ${resendIn}s` : "Resend code"}
               </button>
               <button type="button" className="auth-linkbtn" onClick={backToCredentials} disabled={isSubmitting}>
                 Use a different account
