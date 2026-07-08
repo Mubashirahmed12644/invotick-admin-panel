@@ -65,6 +65,15 @@ export interface ApiTokenResponse {
   expiryDays: number;
 }
 
+export interface ActiveUser {
+  userId: string;
+  email: string | null;
+  role: string | null;
+  country: string | null;
+  lastEventAt: string;
+  recentEventCount: number;
+}
+
 export interface LiveEvent {
   id: string | null;
   eventName: string;

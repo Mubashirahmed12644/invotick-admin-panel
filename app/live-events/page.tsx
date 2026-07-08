@@ -6,9 +6,12 @@ import Navbar from "@/components/Navbar";
 import Sidebar from "@/components/Sidebar";
 import { api, getErrorMessage, isUnauthorizedError } from "@/lib/api";
 import { clearAccessToken, isLoggedIn } from "@/lib/auth";
-import type { LiveEvent, WebpanelUserWithStatsResponse } from "@/lib/types";
+import type { ActiveUser, LiveEvent } from "@/lib/types";
 
-const POLL_MS = 2500;
+const EVENT_POLL_MS = 2500;
+const USERS_POLL_MS = 5000;
+
+type SortKey = "recent" | "email" | "count";
 
 function eventKind(name: string): "screen" | "click" | "lifecycle" | "other" {
   if (name === "screen_view") return "screen";
@@ -18,25 +21,59 @@ function eventKind(name: string): "screen" | "click" | "lifecycle" | "other" {
   return "other";
 }
 
+function secondsAgo(iso: string): number {
+  return Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));
+}
+
+function relTime(iso: string): string {
+  const s = secondsAgo(iso);
+  if (s < 60) return `${s}s ago`;
+  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+  return `${Math.floor(s / 3600)}h ago`;
+}
+
+function liveState(iso: string): "live" | "recent" | "idle" {
+  const s = secondsAgo(iso);
+  if (s < 60) return "live";
+  if (s < 300) return "recent";
+  return "idle";
+}
+
 export default function LiveEventsPage() {
   const router = useRouter();
 
-  const [users, setUsers] = useState<WebpanelUserWithStatsResponse[]>([]);
+  const [navOpen, setNavOpen] = useState(false);
+
+  // left: active users
+  const [activeUsers, setActiveUsers] = useState<ActiveUser[]>([]);
   const [search, setSearch] = useState("");
-  const [userId, setUserId] = useState("");
+  const [roleFilter, setRoleFilter] = useState("all");
+  const [liveOnly, setLiveOnly] = useState(false);
+  const [sortBy, setSortBy] = useState<SortKey>("recent");
+  const [usersError, setUsersError] = useState("");
+
+  // right: selected user debug stream
+  const [selectedId, setSelectedId] = useState("");
   const [events, setEvents] = useState<LiveEvent[]>([]);
   const [paused, setPaused] = useState(false);
-  const [error, setError] = useState("");
+  const [streamError, setStreamError] = useState("");
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [, forceTick] = useState(0);
 
   const sinceRef = useRef<string | null>(null);
   const seenRef = useRef<Set<string>>(new Set());
   const pausedRef = useRef(false);
-  const userIdRef = useRef("");
+  const selectedRef = useRef("");
 
   useEffect(() => {
     pausedRef.current = paused;
   }, [paused]);
+
+  // re-render every 5s so relative times refresh
+  useEffect(() => {
+    const t = setInterval(() => forceTick((n) => n + 1), 5000);
+    return () => clearInterval(t);
+  }, []);
 
   const handleUnauthorized = useCallback(
     (err: unknown): boolean => {
@@ -50,52 +87,41 @@ export default function LiveEventsPage() {
     [router],
   );
 
+  // poll active users
   useEffect(() => {
     if (!isLoggedIn()) {
       router.replace("/login");
       return;
     }
-    api
-      .getAllUsersWithStats()
-      .then(setUsers)
-      .catch((err) => {
-        if (!handleUnauthorized(err)) setError(getErrorMessage(err, "Could not load users."));
-      });
+    let cancelled = false;
+    async function poll() {
+      try {
+        const list = await api.getActiveUsers(30, 200);
+        if (!cancelled) {
+          setActiveUsers(list);
+          setUsersError("");
+        }
+      } catch (err) {
+        if (!cancelled && !handleUnauthorized(err))
+          setUsersError(getErrorMessage(err, "Could not load active users."));
+      }
+    }
+    poll();
+    const t = setInterval(poll, USERS_POLL_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(t);
+    };
   }, [router, handleUnauthorized]);
 
-  const filteredUsers = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    const base = q
-      ? users.filter(
-          (u) =>
-            u.email.toLowerCase().includes(q) ||
-            (u.username ?? "").toLowerCase().includes(q) ||
-            u.id.toLowerCase().includes(q),
-        )
-      : users;
-    return base.slice(0, 30);
-  }, [users, search]);
-
-  function selectUser(id: string) {
-    setUserId(id);
-    userIdRef.current = id;
-    setEvents([]);
-    setError("");
-    sinceRef.current = null;
-    seenRef.current = new Set();
-    setSearch("");
-  }
-
-  // Polling loop
+  // poll selected user's events
   useEffect(() => {
-    if (!userId) return;
-
+    if (!selectedId) return;
     let cancelled = false;
-
     async function poll() {
       if (pausedRef.current || cancelled) return;
       try {
-        const batch = await api.getLiveEvents(userIdRef.current, sinceRef.current ?? undefined, 100);
+        const batch = await api.getLiveEvents(selectedRef.current, sinceRef.current ?? undefined, 100);
         if (cancelled) return;
         const fresh = batch.filter((e) => e.id && !seenRef.current.has(e.id));
         if (fresh.length > 0) {
@@ -105,59 +131,138 @@ export default function LiveEventsPage() {
             sinceRef.current ?? "",
           );
           if (maxCreated) sinceRef.current = maxCreated;
-          // newest first in the UI
           setEvents((prev) => [...[...fresh].reverse(), ...prev].slice(0, 1000));
         }
-        setError("");
+        setStreamError("");
       } catch (err) {
-        if (!handleUnauthorized(err)) setError(getErrorMessage(err, "Poll failed — retrying…"));
+        if (!handleUnauthorized(err)) setStreamError(getErrorMessage(err, "Poll failed — retrying…"));
       }
     }
-
     poll();
-    const t = setInterval(poll, POLL_MS);
+    const t = setInterval(poll, EVENT_POLL_MS);
     return () => {
       cancelled = true;
       clearInterval(t);
     };
-  }, [userId, handleUnauthorized]);
+  }, [selectedId, handleUnauthorized]);
 
-  const selectedUser = users.find((u) => u.id === userId);
+  function selectUser(id: string) {
+    setSelectedId(id);
+    selectedRef.current = id;
+    setEvents([]);
+    setStreamError("");
+    setPaused(false);
+    sinceRef.current = null;
+    seenRef.current = new Set();
+  }
+
+  const rows = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    let list = activeUsers.filter((u) => {
+      if (roleFilter !== "all" && (u.role ?? "").toLowerCase() !== roleFilter) return false;
+      if (liveOnly && liveState(u.lastEventAt) !== "live") return false;
+      if (q) {
+        return (u.email ?? "").toLowerCase().includes(q) || u.userId.toLowerCase().includes(q);
+      }
+      return true;
+    });
+    list = [...list].sort((a, b) => {
+      if (sortBy === "email") return (a.email ?? a.userId).localeCompare(b.email ?? b.userId);
+      if (sortBy === "count") return b.recentEventCount - a.recentEventCount;
+      return b.lastEventAt.localeCompare(a.lastEventAt);
+    });
+    return list;
+  }, [activeUsers, search, roleFilter, liveOnly, sortBy]);
+
+  const liveCount = activeUsers.filter((u) => liveState(u.lastEventAt) === "live").length;
+  const selectedUser = activeUsers.find((u) => u.userId === selectedId);
 
   return (
-    <main className="app-shell">
-      <Sidebar />
+    <main className={`app-shell ${navOpen ? "" : "le-nonav"}`}>
+      {navOpen ? <Sidebar /> : null}
       <div className="app-main">
         <Navbar title="Live Events (DebugView)" />
-        <section className="content-wrap">
-          <div className="live-wrap">
-            <section className="section-card">
-              <div className="section-header">
-                <h2>Select a user</h2>
-              </div>
-              <input
-                className="input"
-                placeholder="Search by email, username, or user id…"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-              {search.trim() ? (
-                <div className="live-userlist">
-                  {filteredUsers.map((u) => (
-                    <button key={u.id} className="live-useritem" onClick={() => selectUser(u.id)}>
-                      <strong>{u.email}</strong>
-                      <span>{u.username ?? "—"} · {u.id.slice(0, 8)}…</span>
-                    </button>
-                  ))}
-                  {filteredUsers.length === 0 ? <p className="api-access-desc">No matches.</p> : null}
-                </div>
-              ) : null}
+        <section className="content-wrap le-split">
+          {/* LEFT: active users */}
+          <div className="le-left section-card">
+            <div className="le-left-head">
+              <button className="le-menu-btn" onClick={() => setNavOpen((v) => !v)} title="Toggle menu">
+                ☰
+              </button>
+              <h2>
+                Live users <span className="le-livecount">{liveCount} live</span> · {activeUsers.length} active
+              </h2>
+            </div>
 
-              {userId ? (
-                <div className="live-status">
-                  <span>
-                    Streaming: <strong>{selectedUser?.email ?? userId}</strong>
+            <input
+              className="input"
+              placeholder="Search email / user id…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+            <div className="le-filters">
+              <select className="input" value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}>
+                <option value="all">All roles</option>
+                <option value="guest">Guest</option>
+                <option value="user">User</option>
+                <option value="admin">Admin</option>
+              </select>
+              <select className="input" value={sortBy} onChange={(e) => setSortBy(e.target.value as SortKey)}>
+                <option value="recent">Sort: recent</option>
+                <option value="count">Sort: events</option>
+                <option value="email">Sort: email</option>
+              </select>
+              <label className="le-check">
+                <input type="checkbox" checked={liveOnly} onChange={(e) => setLiveOnly(e.target.checked)} />
+                Live only
+              </label>
+            </div>
+
+            {usersError ? <p className="error-text">{usersError}</p> : null}
+
+            <div className="le-userlist">
+              <div className="le-user-headrow">
+                <span>User</span>
+                <span>Role</span>
+                <span>Country</span>
+                <span>Last</span>
+                <span>Ev</span>
+              </div>
+              {rows.map((u) => (
+                <button
+                  key={u.userId}
+                  className={`le-userrow ${selectedId === u.userId ? "le-userrow-active" : ""}`}
+                  onClick={() => selectUser(u.userId)}
+                >
+                  <span className="le-user-id">
+                    <span className={`le-dot le-${liveState(u.lastEventAt)}`} />
+                    {u.email && !u.email.endsWith("@guest.com") ? u.email : `${u.userId.slice(0, 8)}…`}
                   </span>
+                  <span className="le-role">{u.role ?? "—"}</span>
+                  <span>{u.country ?? "—"}</span>
+                  <span className="le-last">{relTime(u.lastEventAt)}</span>
+                  <span className="le-count">{u.recentEventCount}</span>
+                </button>
+              ))}
+              {rows.length === 0 ? <p className="api-access-desc">No matching active users.</p> : null}
+            </div>
+          </div>
+
+          {/* RIGHT: debug stream */}
+          <div className="le-right section-card">
+            {!selectedId ? (
+              <div className="le-empty">
+                <p className="api-access-desc">
+                  ← Select a live user to stream their events in real time (like GA4 DebugView).
+                </p>
+              </div>
+            ) : (
+              <>
+                <div className="le-right-head">
+                  <div>
+                    <h2>{selectedUser?.email && !selectedUser.email.endsWith("@guest.com") ? selectedUser.email : selectedId.slice(0, 12) + "…"}</h2>
+                    <span className="api-access-desc">{events.length} events streamed</span>
+                  </div>
                   <div className="api-access-controls" style={{ marginTop: 0 }}>
                     <button className="btn btn-outline" onClick={() => setPaused((p) => !p)}>
                       {paused ? "Resume" : "Pause"}
@@ -171,23 +276,15 @@ export default function LiveEventsPage() {
                     >
                       Clear
                     </button>
-                    <span className="live-dot" data-live={!paused}>
+                    <span className="le-dot-label" data-live={!paused}>
                       {paused ? "paused" : "live"}
                     </span>
                   </div>
                 </div>
-              ) : null}
-              {error ? <p className="error-text">{error}</p> : null}
-            </section>
-
-            {userId ? (
-              <section className="section-card">
-                <div className="section-header">
-                  <h2>Event stream ({events.length})</h2>
-                </div>
+                {streamError ? <p className="error-text">{streamError}</p> : null}
                 {events.length === 0 ? (
                   <p className="api-access-desc">
-                    Waiting for events… open the app as this user and interact — events appear here within ~{POLL_MS / 1000}s.
+                    Waiting for events… interact in the app as this user — events appear within ~{EVENT_POLL_MS / 1000}s.
                   </p>
                 ) : (
                   <div className="live-stream">
@@ -196,7 +293,7 @@ export default function LiveEventsPage() {
                         <span className="live-time">{new Date(e.createdAt).toLocaleTimeString()}</span>
                         <span className="live-name">{e.eventName}</span>
                         <span className="live-screen">
-                          {e.screenName ? e.screenName : ""}
+                          {e.screenName ?? ""}
                           {e.previousScreen ? ` ← ${e.previousScreen}` : ""}
                           {e.sessionId ? "" : " · ⚠️no-session"}
                         </span>
@@ -217,8 +314,8 @@ export default function LiveEventsPage() {
                     ))}
                   </div>
                 )}
-              </section>
-            ) : null}
+              </>
+            )}
           </div>
         </section>
       </div>

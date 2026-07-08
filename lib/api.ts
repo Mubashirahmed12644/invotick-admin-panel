@@ -2,6 +2,7 @@ import { getAccessToken } from "@/lib/auth";
 import type {
   AdminLoginResponse,
   AdminVerifyOtpRequest,
+  ActiveUser,
   ApiResponse,
   ApiTokenResponse,
   AuthResponse,
@@ -207,6 +208,14 @@ export const api = {
     return apiRequest<null>(`/v1/webpanel/api-token/${encodeURIComponent(jti)}`, {
       method: "DELETE",
     });
+  },
+
+  getActiveUsers(withinMinutes = 30, limit = 200) {
+    const params = new URLSearchParams({
+      withinMinutes: String(withinMinutes),
+      limit: String(limit),
+    });
+    return apiRequest<ActiveUser[]>(`/v1/webpanel/analytics/active-users?${params.toString()}`);
   },
 
   getLiveEvents(userId: string, since?: string, limit = 100) {

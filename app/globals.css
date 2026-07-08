@@ -2442,3 +2442,155 @@ th {
   overflow: auto;
   font-size: 0.75rem;
 }
+
+/* Live Events split view */
+.app-shell.le-nonav {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.le-split {
+  display: grid;
+  grid-template-columns: minmax(340px, 420px) 1fr;
+  gap: 1rem;
+  align-items: start;
+  height: calc(100vh - 120px);
+}
+
+.le-left, .le-right {
+  height: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.le-left-head {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.le-left-head h2 { font-size: 1rem; }
+
+.le-menu-btn {
+  border: 1px solid var(--color-border);
+  background: #fff;
+  border-radius: 8px;
+  width: 34px;
+  height: 34px;
+  cursor: pointer;
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+.le-menu-btn:hover { border-color: var(--color-primary-soft); }
+
+.le-livecount {
+  color: #00a85c;
+  font-weight: 700;
+  font-size: 0.82rem;
+}
+
+.le-filters {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.le-filters .input { padding: 0.4rem 0.5rem; font-size: 0.82rem; width: auto; }
+.le-check { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.82rem; color: var(--color-text-muted); }
+
+.le-userlist {
+  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.le-user-headrow, .le-userrow {
+  display: grid;
+  grid-template-columns: 1fr 52px 42px 62px 34px;
+  gap: 0.4rem;
+  align-items: center;
+  padding: 0.4rem 0.5rem;
+  font-size: 0.8rem;
+  text-align: left;
+}
+.le-user-headrow {
+  color: var(--color-text-muted);
+  font-weight: 600;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  position: sticky;
+  top: 0;
+  background: var(--color-card);
+  border-bottom: 1px solid var(--color-border);
+}
+.le-userrow {
+  border: none;
+  background: transparent;
+  border-radius: 7px;
+  cursor: pointer;
+  border-left: 3px solid transparent;
+}
+.le-userrow:hover { background: rgba(15, 61, 140, 0.05); }
+.le-userrow-active { background: rgba(15, 61, 140, 0.1); border-left-color: var(--color-primary); }
+
+.le-user-id {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.le-role { color: var(--color-text-muted); text-transform: capitalize; font-size: 0.72rem; }
+.le-last { color: var(--color-text-muted); font-size: 0.75rem; }
+.le-count { text-align: right; font-variant-numeric: tabular-nums; color: var(--color-text-muted); }
+
+.le-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: #9aa3bc;
+}
+.le-dot.le-live { background: #00a85c; box-shadow: 0 0 0 3px rgba(0, 168, 92, 0.18); }
+.le-dot.le-recent { background: #c47c00; }
+.le-dot.le-idle { background: #9aa3bc; }
+
+.le-right-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.le-right-head h2 { font-size: 1rem; word-break: break-all; }
+
+.le-empty { display: grid; place-items: center; height: 100%; }
+
+.le-dot-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #b3261e;
+  display: inline-flex;
+  align-items: center;
+}
+.le-dot-label[data-live="true"] { color: #00a85c; }
+.le-dot-label::before {
+  content: "";
+  width: 8px; height: 8px; border-radius: 50%;
+  background: currentColor; margin-right: 0.35rem;
+}
+
+.le-right .live-stream { max-height: none; flex: 1; }
+
+@media (max-width: 900px) {
+  .le-split { grid-template-columns: 1fr; height: auto; }
+  .le-left, .le-right { height: auto; }
+  .le-userlist { max-height: 340px; }
+}
