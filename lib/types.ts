@@ -65,6 +65,18 @@ export interface ApiTokenResponse {
   expiryDays: number;
 }
 
+export interface LiveEvent {
+  id: string | null;
+  eventName: string;
+  screenName: string | null;
+  previousScreen: string | null;
+  sessionId: string | null;
+  itemName: string | null;
+  eventTimestamp: string;
+  createdAt: string;
+  params: Record<string, unknown> | null;
+}
+
 export interface WebpanelUserActivityStats {
   overallLastActivityAt: LocalDateTime | null;
 }

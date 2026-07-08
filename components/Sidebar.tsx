@@ -56,6 +56,11 @@ const navItems = [
     isActive: (pathname: string) => pathname.startsWith("/utm"),
   },
   {
+    label: "Live Events",
+    href: "/live-events",
+    isActive: (pathname: string) => pathname.startsWith("/live-events"),
+  },
+  {
     label: "API Access",
     href: "/api-access",
     isActive: (pathname: string) => pathname.startsWith("/api-access"),

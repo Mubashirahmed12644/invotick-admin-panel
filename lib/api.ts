@@ -5,6 +5,7 @@ import type {
   ApiResponse,
   ApiTokenResponse,
   AuthResponse,
+  LiveEvent,
   LoginRequest,
   UserMapLocation,
   WebpanelInventoryItemResponse,
@@ -206,6 +207,12 @@ export const api = {
     return apiRequest<null>(`/v1/webpanel/api-token/${encodeURIComponent(jti)}`, {
       method: "DELETE",
     });
+  },
+
+  getLiveEvents(userId: string, since?: string, limit = 100) {
+    const params = new URLSearchParams({ userId, limit: String(limit) });
+    if (since) params.set("since", since);
+    return apiRequest<LiveEvent[]>(`/v1/webpanel/analytics/live-events?${params.toString()}`);
   },
 
   getAllUsersWithStats() {

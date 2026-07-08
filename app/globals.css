@@ -2325,3 +2325,120 @@ th {
   font-size: 0.82rem;
   margin-top: 0.7rem;
 }
+
+/* Live Events (DebugView) */
+.live-wrap {
+  display: grid;
+  gap: 1.1rem;
+  max-width: 1000px;
+}
+
+.live-userlist {
+  display: grid;
+  gap: 0.3rem;
+  margin-top: 0.6rem;
+  max-height: 320px;
+  overflow: auto;
+}
+
+.live-useritem {
+  display: grid;
+  gap: 0.15rem;
+  text-align: left;
+  border: 1px solid var(--color-border);
+  background: #fff;
+  border-radius: 8px;
+  padding: 0.5rem 0.7rem;
+  cursor: pointer;
+}
+
+.live-useritem:hover {
+  border-color: var(--color-primary-soft);
+  background: rgba(15, 61, 140, 0.04);
+}
+
+.live-useritem span {
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+}
+
+.live-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-top: 0.8rem;
+  font-size: 0.9rem;
+}
+
+.live-dot {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #b3261e;
+  display: inline-flex;
+  align-items: center;
+}
+
+.live-dot[data-live="true"] {
+  color: #00a85c;
+}
+
+.live-dot::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  margin-right: 0.35rem;
+}
+
+.live-stream {
+  display: grid;
+  gap: 2px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.8rem;
+  max-height: 62vh;
+  overflow: auto;
+}
+
+.live-row {
+  display: grid;
+  grid-template-columns: 90px 1fr 1.2fr auto;
+  gap: 0.6rem;
+  align-items: baseline;
+  padding: 0.32rem 0.5rem;
+  border-radius: 6px;
+  border-left: 3px solid var(--color-border);
+  background: rgba(0, 0, 0, 0.015);
+}
+
+.live-row.live-screen { border-left-color: var(--color-primary); }
+.live-row.live-click  { border-left-color: #00a85c; }
+.live-row.live-lifecycle { border-left-color: #9aa3bc; }
+.live-row.live-other  { border-left-color: #c47c00; }
+
+.live-time { color: var(--color-text-muted); }
+.live-name { font-weight: 700; color: var(--color-text); }
+.live-screen { color: var(--color-text-muted); }
+
+.live-params-btn {
+  border: none;
+  background: transparent;
+  color: var(--color-primary-soft);
+  cursor: pointer;
+  font-size: 0.75rem;
+}
+
+.live-params {
+  grid-column: 1 / -1;
+  background: #0f1b33;
+  color: #cfe0ff;
+  border-radius: 6px;
+  padding: 0.5rem 0.7rem;
+  margin: 0.3rem 0 0;
+  overflow: auto;
+  font-size: 0.75rem;
+}
