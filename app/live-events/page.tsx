@@ -22,6 +22,9 @@ const HIDDEN_STREAM_EVENTS = new Set([
   "app_background",
   "app_paused",
   "install_referrer",
+  // nav_screen_view is the app-side auto screen-tracker (kept in the recording for coverage), but on
+  // the panel it just duplicates screen_view with worse names — hide it so each screen shows once.
+  "nav_screen_view",
 ]);
 
 type SortKey = "recent" | "email" | "count";
