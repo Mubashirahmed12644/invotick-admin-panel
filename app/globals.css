@@ -2557,6 +2557,19 @@ th {
   white-space: nowrap;
 }
 .le-flag { font-size: 0.95rem; line-height: 1; }
+.le-iid {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--color-text);
+  cursor: copy;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.le-iid:hover { color: var(--color-primary); }
+.le-uid-fallback { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .le-last { color: var(--color-text-muted); font-size: 0.75rem; }
 .le-count { text-align: right; font-variant-numeric: tabular-nums; color: var(--color-text-muted); }
 

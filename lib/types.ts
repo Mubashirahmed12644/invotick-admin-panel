@@ -68,6 +68,7 @@ export interface ApiTokenResponse {
 export interface ActiveUser {
   userId: string;
   email: string | null;
+  invotickId: string | null;
   role: string | null;
   country: string | null;
   countryCode: string | null;

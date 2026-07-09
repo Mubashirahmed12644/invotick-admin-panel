@@ -68,7 +68,15 @@ export default function LiveEventsPage() {
   const [paused, setPaused] = useState(false);
   const [streamError, setStreamError] = useState("");
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [copiedIid, setCopiedIid] = useState<string | null>(null);
   const [, forceTick] = useState(0);
+
+  const copyInvotickId = useCallback((id: string) => {
+    navigator.clipboard?.writeText(id).then(() => {
+      setCopiedIid(id);
+      setTimeout(() => setCopiedIid((c) => (c === id ? null : c)), 1200);
+    });
+  }, []);
 
   const sinceRef = useRef<string | null>(null);
   const seenRef = useRef<Set<string>>(new Set());
@@ -178,7 +186,11 @@ export default function LiveEventsPage() {
       if (roleFilter !== "all" && (u.role ?? "").toLowerCase() !== roleFilter) return false;
       if (liveOnly && liveState(u.lastEventAt) !== "live") return false;
       if (q) {
-        return (u.email ?? "").toLowerCase().includes(q) || u.userId.toLowerCase().includes(q);
+        return (
+          (u.email ?? "").toLowerCase().includes(q) ||
+          u.userId.toLowerCase().includes(q) ||
+          (u.invotickId ?? "").includes(q)
+        );
       }
       return true;
     });
@@ -252,7 +264,19 @@ export default function LiveEventsPage() {
                 >
                   <span className="le-user-id">
                     <span className={`le-dot le-${liveState(u.lastEventAt)}`} />
-                    {u.email && !u.email.endsWith("@guest.com") ? u.email : `${u.userId.slice(0, 8)}…`}
+                    {u.invotickId ? (
+                      <span
+                        className="le-iid"
+                        title="Click to copy Invotick ID"
+                        onClick={(e) => { e.stopPropagation(); copyInvotickId(u.invotickId!); }}
+                      >
+                        {copiedIid === u.invotickId ? "✓ copied" : u.invotickId}
+                      </span>
+                    ) : (
+                      <span className="le-uid-fallback">
+                        {u.email && !u.email.endsWith("@guest.com") ? u.email : `${u.userId.slice(0, 8)}…`}
+                      </span>
+                    )}
                   </span>
                   <span className="le-role">{u.role ?? "—"}</span>
                   <span className="le-country" title={u.country ?? undefined}>
@@ -285,8 +309,10 @@ export default function LiveEventsPage() {
               <>
                 <div className="le-right-head">
                   <div>
-                    <h2>{selectedUser?.email && !selectedUser.email.endsWith("@guest.com") ? selectedUser.email : selectedId.slice(0, 12) + "…"}</h2>
-                    <span className="api-access-desc">{events.length} events streamed</span>
+                    <h2>{selectedUser?.email && !selectedUser.email.endsWith("@guest.com") ? selectedUser.email : selectedUser?.invotickId ? `#${selectedUser.invotickId}` : selectedId.slice(0, 12) + "…"}</h2>
+                    <span className="api-access-desc">
+                      {selectedUser?.invotickId ? `Invotick ID ${selectedUser.invotickId} · ` : ""}{events.length} events streamed
+                    </span>
                   </div>
                   <div className="api-access-controls" style={{ marginTop: 0 }}>
                     <button className="btn btn-outline" onClick={() => setPaused((p) => !p)}>
