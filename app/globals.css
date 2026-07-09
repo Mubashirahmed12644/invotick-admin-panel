@@ -2509,7 +2509,7 @@ th {
 
 .le-user-headrow, .le-userrow {
   display: grid;
-  grid-template-columns: 1fr 52px 42px 62px 34px;
+  grid-template-columns: 1fr 52px 52px 62px 34px;
   gap: 0.4rem;
   align-items: center;
   padding: 0.4rem 0.5rem;
@@ -2547,6 +2547,16 @@ th {
   white-space: nowrap;
 }
 .le-role { color: var(--color-text-muted); text-transform: capitalize; font-size: 0.72rem; }
+.le-country {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+.le-flag { font-size: 0.95rem; line-height: 1; }
 .le-last { color: var(--color-text-muted); font-size: 0.75rem; }
 .le-count { text-align: right; font-variant-numeric: tabular-nums; color: var(--color-text-muted); }
 

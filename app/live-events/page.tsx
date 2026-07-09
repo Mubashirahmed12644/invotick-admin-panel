@@ -8,7 +8,7 @@ import { api, getErrorMessage, isUnauthorizedError } from "@/lib/api";
 import { clearAccessToken, isLoggedIn } from "@/lib/auth";
 import type { ActiveUser, LiveEvent } from "@/lib/types";
 
-const EVENT_POLL_MS = 2500;
+const EVENT_POLL_MS = 1200;
 const USERS_POLL_MS = 5000;
 
 type SortKey = "recent" | "email" | "count";
@@ -37,6 +37,16 @@ function liveState(iso: string): "live" | "recent" | "idle" {
   if (s < 60) return "live";
   if (s < 300) return "recent";
   return "idle";
+}
+
+// ISO 3166-1 alpha-2 (e.g. "PK") → 🇵🇰 via regional-indicator symbols.
+function flagEmoji(code: string | null): string {
+  if (!code || code.length !== 2 || !/^[a-zA-Z]{2}$/.test(code)) return "";
+  const cc = code.toUpperCase();
+  return String.fromCodePoint(
+    0x1f1e6 + (cc.charCodeAt(0) - 65),
+    0x1f1e6 + (cc.charCodeAt(1) - 65),
+  );
 }
 
 export default function LiveEventsPage() {
@@ -131,7 +141,13 @@ export default function LiveEventsPage() {
             sinceRef.current ?? "",
           );
           if (maxCreated) sinceRef.current = maxCreated;
-          setEvents((prev) => [...[...fresh].reverse(), ...prev].slice(0, 1000));
+          // app_heartbeat is a foreground presence ping — it keeps the user's live dot green
+          // (via lastEventAt) but is noise in the event stream, so hide it from the display.
+          // (The cursor + seen set above still advance on it so it is not re-fetched.)
+          const visible = fresh.filter((e) => e.eventName !== "app_heartbeat");
+          if (visible.length > 0) {
+            setEvents((prev) => [...[...visible].reverse(), ...prev].slice(0, 1000));
+          }
         }
         setStreamError("");
       } catch (err) {
@@ -239,7 +255,16 @@ export default function LiveEventsPage() {
                     {u.email && !u.email.endsWith("@guest.com") ? u.email : `${u.userId.slice(0, 8)}…`}
                   </span>
                   <span className="le-role">{u.role ?? "—"}</span>
-                  <span>{u.country ?? "—"}</span>
+                  <span className="le-country" title={u.country ?? undefined}>
+                    {u.countryCode ? (
+                      <>
+                        <span className="le-flag">{flagEmoji(u.countryCode)}</span>
+                        {u.countryCode.toUpperCase()}
+                      </>
+                    ) : (
+                      "—"
+                    )}
+                  </span>
                   <span className="le-last">{relTime(u.lastEventAt)}</span>
                   <span className="le-count">{u.recentEventCount}</span>
                 </button>

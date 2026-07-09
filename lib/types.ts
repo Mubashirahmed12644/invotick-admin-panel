@@ -70,6 +70,7 @@ export interface ActiveUser {
   email: string | null;
   role: string | null;
   country: string | null;
+  countryCode: string | null;
   lastEventAt: string;
   recentEventCount: number;
 }
