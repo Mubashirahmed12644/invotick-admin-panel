@@ -354,7 +354,7 @@ export default function LiveEventsPage() {
                         <span className="live-time">{new Date(e.eventTimestamp).toLocaleTimeString()}</span>
                         <span className="live-name">{e.eventName}</span>
                         <span className="live-screen">
-                          {e.screenName ?? ""}
+                          {e.screenName ?? (e.params?.screen as string | undefined) ?? ""}
                           {e.previousScreen ? ` ← ${e.previousScreen}` : ""}
                           {e.sessionId ? "" : " · ⚠️no-session"}
                         </span>
