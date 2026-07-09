@@ -4,6 +4,11 @@ import type { NextConfig } from "next";
 const BACKEND_ORIGIN = (process.env.NEXT_PUBLIC_API_BASE_URL || "https://stage.invotick.com").replace(/\/$/, "");
 
 const nextConfig: NextConfig = {
+  // Build id shown in the panel header so you can confirm the latest deploy is live.
+  // Vercel injects VERCEL_GIT_COMMIT_SHA at build time; falls back to "dev" locally.
+  env: {
+    NEXT_PUBLIC_BUILD_ID: (process.env.VERCEL_GIT_COMMIT_SHA || "dev").slice(0, 7),
+  },
   serverExternalPackages: ["puppeteer-core", "@sparticuz/chromium", "puppeteer"],
   images: {
     remotePatterns: [

@@ -224,6 +224,14 @@ export const api = {
     return apiRequest<LiveEvent[]>(`/v1/webpanel/analytics/live-events?${params.toString()}`);
   },
 
+  // PERMANENTLY deletes a user's stream events (they won't reappear). Returns the deleted count.
+  clearLiveEvents(userId: string) {
+    return apiRequest<number>(
+      `/v1/webpanel/analytics/live-events?userId=${encodeURIComponent(userId)}`,
+      { method: "DELETE" },
+    );
+  },
+
   getAllUsersWithStats() {
     return apiRequest<WebpanelUserWithStatsResponse[]>("/v1/webpanel/getAllUsersWithStats");
   },

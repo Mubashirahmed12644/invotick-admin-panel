@@ -235,6 +235,9 @@ export default function LiveEventsPage() {
       {navOpen ? <Sidebar /> : null}
       <div className="app-main">
         <Navbar title="Live Events (DebugView)" />
+        <div style={{ padding: "2px 16px", fontSize: 11, color: "#94a3b8", textAlign: "right" }}>
+          build {process.env.NEXT_PUBLIC_BUILD_ID ?? "?"}
+        </div>
         <section className="content-wrap le-split">
           {/* LEFT: active users */}
           <div className="le-left section-card">
@@ -345,9 +348,18 @@ export default function LiveEventsPage() {
                     </button>
                     <button
                       className="btn btn-outline"
-                      onClick={() => {
-                        setEvents([]);
-                        seenRef.current = new Set();
+                      onClick={async () => {
+                        if (!selectedRef.current) return;
+                        if (!confirm("Permanently delete ALL of this user's events? They will NOT reappear."))
+                          return;
+                        try {
+                          await api.clearLiveEvents(selectedRef.current);
+                          setEvents([]);
+                          seenRef.current = new Set();
+                          sinceRef.current = null;
+                        } catch (err) {
+                          if (!handleUnauthorized(err)) setStreamError(getErrorMessage(err, "Clear failed."));
+                        }
                       }}
                     >
                       Clear
