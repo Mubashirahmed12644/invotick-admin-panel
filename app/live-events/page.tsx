@@ -154,7 +154,17 @@ export default function LiveEventsPage() {
           // (The cursor + seen set above still advance on it so it is not re-fetched.)
           const visible = fresh.filter((e) => e.eventName !== "app_heartbeat");
           if (visible.length > 0) {
-            setEvents((prev) => [...[...visible].reverse(), ...prev].slice(0, 1000));
+            // Keep the stream ordered by CLIENT eventTimestamp (true fire order) so late-arriving
+            // early events (e.g. app_cold_start, flushed in a later batch) slot into their real
+            // position instead of jumping to the top. The poll cursor stays on createdAt so none
+            // are missed.
+            setEvents((prev) =>
+              [...visible, ...prev]
+                .sort((a, b) =>
+                  a.eventTimestamp < b.eventTimestamp ? 1 : a.eventTimestamp > b.eventTimestamp ? -1 : 0,
+                )
+                .slice(0, 1000),
+            );
           }
         }
         setStreamError("");
@@ -341,7 +351,7 @@ export default function LiveEventsPage() {
                   <div className="live-stream">
                     {events.map((e, i) => (
                       <div key={`${e.id}-${i}`} className={`live-row live-${eventKind(e.eventName)}`}>
-                        <span className="live-time">{new Date(e.createdAt).toLocaleTimeString()}</span>
+                        <span className="live-time">{new Date(e.eventTimestamp).toLocaleTimeString()}</span>
                         <span className="live-name">{e.eventName}</span>
                         <span className="live-screen">
                           {e.screenName ?? ""}
