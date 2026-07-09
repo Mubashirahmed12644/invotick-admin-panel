@@ -11,6 +11,19 @@ import type { ActiveUser, LiveEvent } from "@/lib/types";
 const EVENT_POLL_MS = 1200;
 const USERS_POLL_MS = 5000;
 
+// Lifecycle / attribution pings that are recorded app-side (SessionTraceRecorder) but are noise for
+// funnel understanding — hidden from the live stream to keep the webpanel meaningful. The cursor +
+// seen-set still advance on them so they are not re-fetched, and they keep the live dot green.
+const HIDDEN_STREAM_EVENTS = new Set([
+  "app_heartbeat",
+  "app_cold_start",
+  "app_foreground",
+  "app_resumed",
+  "app_background",
+  "app_paused",
+  "install_referrer",
+]);
+
 type SortKey = "recent" | "email" | "count";
 
 function eventKind(name: string): "screen" | "click" | "lifecycle" | "other" {
@@ -149,10 +162,9 @@ export default function LiveEventsPage() {
             sinceRef.current ?? "",
           );
           if (maxCreated) sinceRef.current = maxCreated;
-          // app_heartbeat is a foreground presence ping — it keeps the user's live dot green
-          // (via lastEventAt) but is noise in the event stream, so hide it from the display.
-          // (The cursor + seen set above still advance on it so it is not re-fetched.)
-          const visible = fresh.filter((e) => e.eventName !== "app_heartbeat");
+          // Hide lifecycle/attribution noise from the stream (see HIDDEN_STREAM_EVENTS) — kept in the
+          // app-side recording, just not shown here. The cursor + seen set above already advanced.
+          const visible = fresh.filter((e) => !HIDDEN_STREAM_EVENTS.has(e.eventName));
           if (visible.length > 0) {
             // Keep the stream ordered by CLIENT eventTimestamp (true fire order) so late-arriving
             // early events (e.g. app_cold_start, flushed in a later batch) slot into their real
