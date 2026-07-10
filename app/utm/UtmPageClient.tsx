@@ -131,6 +131,8 @@ function LinkBuilder({ onSaved }: { onSaved: () => void }) {
   });
   const [label, setLabel] = useState("");
   const [customCampaign, setCustomCampaign] = useState(false);
+  const [customSource, setCustomSource] = useState(false);
+  const [customMedium, setCustomMedium] = useState(false);
 
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState<ShortLinkResponse | null>(null);
@@ -138,6 +140,8 @@ function LinkBuilder({ onSaved }: { onSaved: () => void }) {
 
   const links = useMemo(() => buildLinks(form), [form]);
   const campaignValid = !form.campaign || isValidTaxonomyValue(form.campaign);
+  const sourceValid = !form.source || isValidTaxonomyValue(form.source);
+  const mediumValid = !form.medium || isValidTaxonomyValue(form.medium);
 
   // Changing any parameter invalidates a previously-minted short link.
   const set = (k: keyof UtmInput, v: string) => {
@@ -174,11 +178,45 @@ function LinkBuilder({ onSaved }: { onSaved: () => void }) {
         <SectionTitle>Campaign parameters</SectionTitle>
 
         <Field label="Source" hint="Where the traffic comes from">
-          <Select value={form.source} onChange={(v) => set("source", v)} options={UTM_SOURCES} />
+          {customSource ? (
+            <input
+              style={inputStyle(!sourceValid)}
+              value={form.source}
+              placeholder="e.g. newsletter"
+              onChange={(e) => set("source", e.target.value)}
+            />
+          ) : (
+            <Select value={form.source} onChange={(v) => set("source", v)} options={UTM_SOURCES} />
+          )}
+          <button onClick={() => setCustomSource((c) => !c)} style={linkBtnStyle}>
+            {customSource ? "↩ pick from list" : "＋ custom source"}
+          </button>
+          {!sourceValid && (
+            <p style={{ color: "var(--color-danger)", fontSize: 12, margin: "6px 0 0" }}>
+              Use lowercase snake_case (letters, numbers, _).
+            </p>
+          )}
         </Field>
 
         <Field label="Medium" hint="How it arrives">
-          <Select value={form.medium} onChange={(v) => set("medium", v)} options={UTM_MEDIUMS} />
+          {customMedium ? (
+            <input
+              style={inputStyle(!mediumValid)}
+              value={form.medium}
+              placeholder="e.g. qr_code"
+              onChange={(e) => set("medium", e.target.value)}
+            />
+          ) : (
+            <Select value={form.medium} onChange={(v) => set("medium", v)} options={UTM_MEDIUMS} />
+          )}
+          <button onClick={() => setCustomMedium((c) => !c)} style={linkBtnStyle}>
+            {customMedium ? "↩ pick from list" : "＋ custom medium"}
+          </button>
+          {!mediumValid && (
+            <p style={{ color: "var(--color-danger)", fontSize: 12, margin: "6px 0 0" }}>
+              Use lowercase snake_case (letters, numbers, _).
+            </p>
+          )}
         </Field>
 
         <Field label="Campaign">
