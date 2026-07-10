@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Manrope, Space_Mono } from "next/font/google";
 import "./globals.css";
+import AuthGuard from "@/components/AuthGuard";
 
 const manrope = Manrope({
   variable: "--font-manrope",
@@ -25,7 +26,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${manrope.variable} ${spaceMono.variable}`}>{children}</body>
+      <body className={`${manrope.variable} ${spaceMono.variable}`}>
+        <AuthGuard>{children}</AuthGuard>
+      </body>
     </html>
   );
 }
