@@ -61,6 +61,11 @@ const navItems = [
     isActive: (pathname: string) => pathname.startsWith("/live-events"),
   },
   {
+    label: "Live Event Config",
+    href: "/live-event-config",
+    isActive: (pathname: string) => pathname.startsWith("/live-event-config"),
+  },
+  {
     label: "API Access",
     href: "/api-access",
     isActive: (pathname: string) => pathname.startsWith("/api-access"),

@@ -402,4 +402,32 @@ export const api = {
       body: JSON.stringify(request),
     });
   },
+
+  // Live Event Config — the curation catalog (kept separate from the live-events stream).
+  getEventCatalog() {
+    return apiRequest<EventCatalogItem[]>("/v2/admin/analytics/event-catalog");
+  },
+
+  saveEventConfig(body: EventConfigUpsert) {
+    return apiRequest<EventConfigUpsert>("/v2/admin/analytics/event-config", {
+      method: "PUT",
+      body: JSON.stringify(body),
+    });
+  },
 };
+
+export interface EventCatalogItem {
+  eventName: string;
+  count: number;
+  lastSeen: string | null;
+  kept: boolean;
+  displayName: string | null;
+  description: string | null;
+}
+
+export interface EventConfigUpsert {
+  eventName: string;
+  kept: boolean;
+  displayName: string | null;
+  description: string | null;
+}
