@@ -376,12 +376,20 @@ export default function LiveEventsPage() {
                   </p>
                 ) : (
                   <div className="live-stream">
-                    {events.map((e, i) => (
+                    {events.map((e, i) => {
+                      // Keep all meaningful names in ONE column (2nd): for a screen_view row show the
+                      // screen name in the name column and the literal "screen_view" in the detail column.
+                      const isScreenView = e.eventName === "screen_view";
+                      const screenLabel =
+                        e.screenName ?? (e.params?.screen as string | undefined) ?? "";
+                      const nameCol = isScreenView ? screenLabel || "screen_view" : e.eventName;
+                      const detailCol = isScreenView ? "screen_view" : screenLabel;
+                      return (
                       <div key={`${e.id}-${i}`} className={`live-row live-${eventKind(e.eventName)}`}>
                         <span className="live-time">{new Date(e.eventTimestamp).toLocaleTimeString()}</span>
-                        <span className="live-name">{e.eventName}</span>
+                        <span className="live-name">{nameCol}</span>
                         <span className="live-screen">
-                          {e.screenName ?? (e.params?.screen as string | undefined) ?? ""}
+                          {detailCol}
                           {e.previousScreen ? ` ← ${e.previousScreen}` : ""}
                           {e.sessionId ? "" : " · ⚠️no-session"}
                         </span>
@@ -399,7 +407,8 @@ export default function LiveEventsPage() {
                           <pre className="live-params">{JSON.stringify(e.params, null, 2)}</pre>
                         ) : null}
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </>
