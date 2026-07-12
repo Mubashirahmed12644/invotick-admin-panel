@@ -29,6 +29,79 @@ function eventType(name: string): "screen" | "action" {
   return "action";
 }
 
+// Constrain a display name to the analytics naming convention as the admin types: lowercase
+// snake_case, letters/digits/underscores only, must start with a letter, max 40 chars.
+function sanitizeName(raw: string): string {
+  return raw
+    .toLowerCase()
+    .replace(/[^a-z0-9_ -]/g, "") // drop symbols
+    .replace(/[\s-]+/g, "_") // spaces / hyphens -> underscore
+    .replace(/_{2,}/g, "_") // collapse repeats
+    .replace(/^[^a-z]+/, "") // must start with a letter
+    .slice(0, 40);
+}
+
+// Info tooltip that appears after ~2s of hover (matches the requested delay).
+function InfoTooltip({ children }: { children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  return (
+    <span
+      style={{ position: "relative", display: "inline-block", marginLeft: 6, verticalAlign: "middle" }}
+      onMouseEnter={() => {
+        timer.current = setTimeout(() => setOpen(true), 2000);
+      }}
+      onMouseLeave={() => {
+        if (timer.current) clearTimeout(timer.current);
+        setOpen(false);
+      }}
+    >
+      <span
+        aria-label="Naming help"
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          width: 15,
+          height: 15,
+          borderRadius: "50%",
+          border: "1px solid #9ca3af",
+          color: "#6b7280",
+          fontSize: 10,
+          fontWeight: 700,
+          fontStyle: "italic",
+          cursor: "help",
+        }}
+      >
+        i
+      </span>
+      {open ? (
+        <span
+          style={{
+            position: "absolute",
+            top: "130%",
+            left: 0,
+            zIndex: 20,
+            width: 300,
+            background: "#111827",
+            color: "#f9fafb",
+            fontSize: 12,
+            fontWeight: 400,
+            lineHeight: 1.55,
+            padding: "10px 12px",
+            borderRadius: 8,
+            boxShadow: "0 6px 20px rgba(0,0,0,0.25)",
+            whiteSpace: "normal",
+            textTransform: "none",
+          }}
+        >
+          {children}
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
 // "Live Event Discovery and Config" — live-lists every event / UI-action the DEBUG app emits (its
 // meaningful name, or a searchable identity when it has none), each tagged in-list or debug-only.
 // Turning "Track" on adds the event to the backend override allowlist (so release builds send it),
@@ -442,7 +515,20 @@ export default function LiveEventConfigClient() {
                 <th style={{ ...th, width: 64 }}>Track</th>
                 <th style={th}>Event / identity</th>
                 <th style={{ ...th, width: 108 }}>Status</th>
-                <th style={{ ...th, width: 180 }}>Display name</th>
+                <th style={{ ...th, width: 180 }}>
+                  Display name
+                  <InfoTooltip>
+                    <b>Naming best practices</b>
+                    <br />• lowercase <b>snake_case</b> (words joined by _)
+                    <br />• structure: <code>area_object_action</code>
+                    <br />• e.g. <code>add_business_logo_clicked</code>, <code>invoice_sent</code>
+                    <br />• action verb: <code>_clicked</code> / <code>_created</code> / <code>_viewed</code>
+                    <br />• only a–z, 0–9, _ · start with a letter · ≤ 40 chars
+                    <br />• no spaces, symbols, or personal data
+                    <br />
+                    <span style={{ color: "#9ca3af" }}>Input auto-formats to this as you type.</span>
+                  </InfoTooltip>
+                </th>
                 <th style={th}>Description</th>
                 <th style={{ ...th, width: 90 }}></th>
               </tr>
@@ -524,7 +610,7 @@ export default function LiveEventConfigClient() {
                         placeholder={on ? "e.g. invoice_sent" : "Track on to name"}
                         disabled={!on}
                         value={nameVal(i)}
-                        onChange={(e) => setDraft(i.eventName, { displayName: e.target.value })}
+                        onChange={(e) => setDraft(i.eventName, { displayName: sanitizeName(e.target.value) })}
                       />
                     </td>
                     <td style={td}>
