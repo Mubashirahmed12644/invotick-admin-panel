@@ -5,17 +5,18 @@ import { api, type EventDiscoveryItem } from "@/lib/api";
 
 // Per-row unsaved edits, so the live refresh never clobbers what the admin is typing.
 interface Draft {
-  renameRequested?: boolean;
-  requestedName?: string;
+  tracked?: boolean;
+  displayName?: string;
   description?: string;
 }
 
 const REFRESH_MS = 4000;
 
-// "Live Event Discovery and Config" — live-lists every event / UI-action the DEBUG app emits
-// (its meaningful name, or a searchable identity when it has none). For each, the admin flips
-// "Rename" on, types the name it SHOULD have + a description, and Saves. Saving maps the name
-// instantly for reporting AND queues a code-rename task a developer applies in the app source.
+// "Live Event Discovery and Config" — live-lists every event / UI-action the DEBUG app emits (its
+// meaningful name, or a searchable identity when it has none), each tagged in-list or debug-only.
+// Turning "Track" on adds the event to the backend override allowlist (so release builds send it),
+// maps a display name for reporting, and queues a task to bake the key into the app's bundled
+// default list next release. The app's bundled default list stays the primary source of truth.
 export default function LiveEventConfigClient() {
   const [items, setItems] = useState<EventDiscoveryItem[]>([]);
   const [drafts, setDrafts] = useState<Record<string, Draft>>({});
@@ -28,7 +29,6 @@ export default function LiveEventConfigClient() {
   const [savedRow, setSavedRow] = useState<string | null>(null);
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
 
-  // Read latest debugOnly inside the polling loop without re-arming the interval each toggle.
   const debugOnlyRef = useRef(debugOnly);
   debugOnlyRef.current = debugOnly;
 
@@ -50,14 +50,12 @@ export default function LiveEventConfigClient() {
     load(true);
   }, [load]);
 
-  // Live auto-refresh — keeps the feed current as new actions fire in the debug app.
   useEffect(() => {
     if (!live) return;
     const id = setInterval(() => load(false), REFRESH_MS);
     return () => clearInterval(id);
   }, [live, load]);
 
-  // Reload immediately when the debug-only filter flips.
   useEffect(() => {
     load(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -70,18 +68,18 @@ export default function LiveEventConfigClient() {
       (i) =>
         i.eventName.toLowerCase().includes(q) ||
         (i.screenName ?? "").toLowerCase().includes(q) ||
-        (i.requestedName ?? "").toLowerCase().includes(q),
+        (i.displayName ?? "").toLowerCase().includes(q),
     );
   }, [items, search]);
 
-  const pendingCount = useMemo(
-    () => items.filter((i) => i.codeTaskStatus === "PENDING").length,
-    [items],
+  const inListCount = useMemo(() => items.filter((i) => i.inList).length, [items]);
+  const needNameCount = useMemo(
+    () => items.filter((i) => (drafts[i.eventName]?.tracked ?? i.tracked) && !(drafts[i.eventName]?.displayName ?? i.displayName)).length,
+    [items, drafts],
   );
 
-  // Effective (draft-over-server) value getters.
-  const renameOn = (i: EventDiscoveryItem) => drafts[i.eventName]?.renameRequested ?? i.renameRequested;
-  const nameVal = (i: EventDiscoveryItem) => drafts[i.eventName]?.requestedName ?? i.requestedName ?? "";
+  const trackedOn = (i: EventDiscoveryItem) => drafts[i.eventName]?.tracked ?? i.tracked;
+  const nameVal = (i: EventDiscoveryItem) => drafts[i.eventName]?.displayName ?? i.displayName ?? "";
   const descVal = (i: EventDiscoveryItem) => drafts[i.eventName]?.description ?? i.description ?? "";
 
   function setDraft(name: string, patch: Draft) {
@@ -95,12 +93,11 @@ export default function LiveEventConfigClient() {
     try {
       const task = await api.saveEventConfig({
         eventName: i.eventName,
-        renameRequested: renameOn(i),
-        requestedName: nameVal(i).trim() || null,
+        tracked: trackedOn(i),
+        displayName: nameVal(i).trim() || null,
         description: descVal(i).trim() || null,
         screenName: i.screenName,
       });
-      // Server is now source of truth for this row → clear its draft + reflect the new task status.
       setDrafts((prev) => {
         const next = { ...prev };
         delete next[i.eventName];
@@ -111,10 +108,10 @@ export default function LiveEventConfigClient() {
           it.eventName === i.eventName
             ? {
                 ...it,
-                renameRequested: task.requestedName != null,
-                requestedName: task.requestedName,
+                tracked: trackedOn(i),
+                displayName: task.displayName,
                 description: task.description,
-                codeTaskStatus: task.codeTaskStatus,
+                defaultListStatus: task.status,
               }
             : it,
         ),
@@ -150,27 +147,47 @@ export default function LiveEventConfigClient() {
     verticalAlign: "top",
   };
 
+  function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void }) {
+    return (
+      <button
+        type="button"
+        onClick={() => onChange(!on)}
+        aria-pressed={on}
+        style={{
+          width: 38,
+          height: 22,
+          borderRadius: 22,
+          border: "none",
+          background: on ? "#16a34a" : "#d4d4d8",
+          padding: 2,
+          cursor: "pointer",
+          display: "inline-flex",
+          justifyContent: on ? "flex-end" : "flex-start",
+          alignItems: "center",
+        }}
+      >
+        <span style={{ width: 18, height: 18, borderRadius: "50%", background: "#fff", display: "block" }} />
+      </button>
+    );
+  }
+
   return (
     <div style={{ padding: 24, maxWidth: 1280, margin: "0 auto" }}>
       <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 800, color: "#0D4DC0" }}>Live Event Discovery and Config</h1>
           <p style={{ color: "#71717a", fontSize: 13, marginTop: 4, maxWidth: 720 }}>
-            Live feed of every event & UI-action the <b>debug</b> app emits — its meaningful name, or a
-            searchable identity when it has none. Flip <b>Rename</b>, type the name it should have + a
-            description, and Save: the name maps for reporting instantly and a code-rename task is queued.
+            Every event & UI-action the <b>debug</b> app emits, tagged <b>in-list</b> or <b>debug-only</b>. Turn
+            <b> Track</b> on to send it from release builds + name it — the app&apos;s bundled default list stays primary.
           </p>
         </div>
         <div style={{ fontSize: 13, color: "#52525b", textAlign: "right" }}>
           <div>
-            <b>{items.length}</b> events ·{" "}
-            <b style={{ color: pendingCount ? "#d97706" : "#16a34a" }}>{pendingCount}</b> pending task
-            {pendingCount === 1 ? "" : "s"}
+            <b>{items.length}</b> seen · <b style={{ color: "#16a34a" }}>{inListCount}</b> in list ·{" "}
+            <b style={{ color: needNameCount ? "#d97706" : "#16a34a" }}>{needNameCount}</b> need name
           </div>
           {lastRefreshed ? (
-            <div style={{ fontSize: 11, color: "#a1a1aa", marginTop: 2 }}>
-              updated {lastRefreshed.toLocaleTimeString()}
-            </div>
+            <div style={{ fontSize: 11, color: "#a1a1aa", marginTop: 2 }}>updated {lastRefreshed.toLocaleTimeString()}</div>
           ) : null}
         </div>
       </div>
@@ -189,15 +206,7 @@ export default function LiveEventConfigClient() {
         <label style={{ fontSize: 13, display: "flex", alignItems: "center", gap: 6, color: "#3f3f46" }}>
           <input type="checkbox" checked={live} onChange={(e) => setLive(e.target.checked)} />
           <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
-            <span
-              style={{
-                width: 8,
-                height: 8,
-                borderRadius: "50%",
-                background: live ? "#16a34a" : "#a1a1aa",
-                display: "inline-block",
-              }}
-            />
+            <span style={{ width: 8, height: 8, borderRadius: "50%", background: live ? "#16a34a" : "#a1a1aa", display: "inline-block" }} />
             Live ({REFRESH_MS / 1000}s)
           </span>
         </label>
@@ -219,45 +228,49 @@ export default function LiveEventConfigClient() {
           <table style={{ width: "100%", borderCollapse: "collapse", background: "#fff" }}>
             <thead>
               <tr>
-                <th style={{ ...th, width: 70 }}>Rename</th>
-                <th style={th}>Event name / identity</th>
-                <th style={{ ...th, width: 240 }}>Updated name</th>
+                <th style={{ ...th, width: 64 }}>Track</th>
+                <th style={th}>Event / identity</th>
+                <th style={{ ...th, width: 108 }}>Status</th>
+                <th style={{ ...th, width: 180 }}>Display name</th>
                 <th style={th}>Description</th>
-                <th style={{ ...th, width: 96 }}></th>
+                <th style={{ ...th, width: 90 }}></th>
               </tr>
             </thead>
             <tbody>
               {filtered.map((i) => {
-                const on = renameOn(i);
+                const on = trackedOn(i);
+                const needName = on && !nameVal(i).trim();
                 return (
                   <tr key={i.eventName} style={{ background: on ? "#eff6ff" : undefined }}>
                     <td style={{ ...td, textAlign: "center" }}>
-                      <input
-                        type="checkbox"
-                        checked={on}
-                        onChange={(e) => setDraft(i.eventName, { renameRequested: e.target.checked })}
-                      />
+                      <Toggle on={on} onChange={(v) => setDraft(i.eventName, { tracked: v })} />
                     </td>
                     <td style={td}>
-                      <div style={{ fontFamily: "monospace", fontSize: 12.5, fontWeight: 600, wordBreak: "break-all" }}>
-                        {i.eventName}
-                      </div>
+                      <div style={{ fontFamily: "monospace", fontSize: 12.5, fontWeight: 600, wordBreak: "break-all" }}>{i.eventName}</div>
                       <div style={{ fontSize: 11, color: "#a1a1aa", marginTop: 2 }}>
-                        {i.screenName ? `on ${i.screenName}` : "—"}
-                        {i.codeTaskStatus === "PENDING" ? (
-                          <span style={{ marginLeft: 8, color: "#d97706", fontWeight: 700 }}>● task queued</span>
-                        ) : i.codeTaskStatus === "APPLIED" ? (
-                          <span style={{ marginLeft: 8, color: "#16a34a", fontWeight: 700 }}>✓ applied</span>
-                        ) : null}
+                        {i.screenName ?? "—"}
+                        {i.lastSeen ? ` · ${new Date(i.lastSeen).toLocaleTimeString()}` : ""}
                       </div>
                     </td>
                     <td style={td}>
+                      {i.inList ? (
+                        <span style={{ fontSize: 11, color: "#15803d", background: "#f0fdf4", borderRadius: 6, padding: "3px 8px", whiteSpace: "nowrap" }}>● in list</span>
+                      ) : (
+                        <span style={{ fontSize: 11, color: "#b45309", background: "#fffbeb", borderRadius: 6, padding: "3px 8px", whiteSpace: "nowrap" }}>● debug-only</span>
+                      )}
+                      {i.defaultListStatus === "PENDING" ? (
+                        <div style={{ fontSize: 10.5, color: "#d97706", marginTop: 3 }}>task queued</div>
+                      ) : i.defaultListStatus === "APPLIED" ? (
+                        <div style={{ fontSize: 10.5, color: "#16a34a", marginTop: 3 }}>✓ in default</div>
+                      ) : null}
+                    </td>
+                    <td style={td}>
                       <input
-                        style={{ ...inputStyle, background: on ? "#fff" : "#f4f4f5", color: on ? "#111" : "#a1a1aa" }}
-                        placeholder={on ? "e.g. invoice_sent" : "enable Rename to edit"}
+                        style={{ ...inputStyle, background: on ? "#fff" : "#f4f4f5", color: on ? "#111" : "#a1a1aa", borderColor: needName ? "#f59e0b" : "#d4d4d8" }}
+                        placeholder={on ? "e.g. invoice_sent" : "Track on to name"}
                         disabled={!on}
                         value={nameVal(i)}
-                        onChange={(e) => setDraft(i.eventName, { requestedName: e.target.value })}
+                        onChange={(e) => setDraft(i.eventName, { displayName: e.target.value })}
                       />
                     </td>
                     <td style={td}>
@@ -293,7 +306,7 @@ export default function LiveEventConfigClient() {
               })}
               {filtered.length === 0 ? (
                 <tr>
-                  <td style={{ ...td, color: "#a1a1aa", textAlign: "center" }} colSpan={5}>
+                  <td style={{ ...td, color: "#a1a1aa", textAlign: "center" }} colSpan={6}>
                     No events yet{debugOnly ? " from debug builds" : ""}. Interact with the debug app — actions appear here live.
                   </td>
                 </tr>

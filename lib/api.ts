@@ -410,40 +410,42 @@ export const api = {
     );
   },
 
-  // Save a rename intent: instant reporting mapping + queues a code-rename task for a developer.
+  // Save a Track toggle: adds to the backend override allowlist + maps a name + queues a
+  // "bake into the app's bundled default list" task for a developer.
   saveEventConfig(body: EventConfigUpsert) {
-    return apiRequest<EventRenameTask>("/v2/admin/analytics/event-config", {
+    return apiRequest<DefaultListTask>("/v2/admin/analytics/event-config", {
       method: "PUT",
       body: JSON.stringify(body),
     });
   },
 };
 
-export type CodeTaskStatus = "NONE" | "PENDING" | "APPLIED";
+export type DefaultListStatus = "NONE" | "PENDING" | "APPLIED";
 
 export interface EventDiscoveryItem {
   eventName: string;
   screenName: string | null;
   lastSeen: string | null;
-  renameRequested: boolean;
-  requestedName: string | null;
+  tracked: boolean;
+  inList: boolean;
+  displayName: string | null;
   description: string | null;
-  codeTaskStatus: CodeTaskStatus;
+  defaultListStatus: DefaultListStatus;
 }
 
 export interface EventConfigUpsert {
   eventName: string;
-  renameRequested: boolean;
-  requestedName: string | null;
+  tracked: boolean;
+  displayName: string | null;
   description: string | null;
   screenName?: string | null;
 }
 
-export interface EventRenameTask {
+export interface DefaultListTask {
   eventName: string;
-  requestedName: string | null;
+  displayName: string | null;
   description: string | null;
   screenName: string | null;
-  codeTaskStatus: CodeTaskStatus;
+  status: DefaultListStatus;
   updatedAt: string;
 }
