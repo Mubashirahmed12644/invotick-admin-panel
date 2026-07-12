@@ -403,31 +403,47 @@ export const api = {
     });
   },
 
-  // Live Event Config — the curation catalog (kept separate from the live-events stream).
-  getEventCatalog() {
-    return apiRequest<EventCatalogItem[]>("/v2/admin/analytics/event-catalog");
+  // Live Event Discovery — the live feed of events/UI-actions the debug app emits.
+  getEventDiscovery(debugOnly = true) {
+    return apiRequest<EventDiscoveryItem[]>(
+      `/v2/admin/analytics/event-discovery?debugOnly=${debugOnly}`,
+    );
   },
 
+  // Save a rename intent: instant reporting mapping + queues a code-rename task for a developer.
   saveEventConfig(body: EventConfigUpsert) {
-    return apiRequest<EventConfigUpsert>("/v2/admin/analytics/event-config", {
+    return apiRequest<EventRenameTask>("/v2/admin/analytics/event-config", {
       method: "PUT",
       body: JSON.stringify(body),
     });
   },
 };
 
-export interface EventCatalogItem {
+export type CodeTaskStatus = "NONE" | "PENDING" | "APPLIED";
+
+export interface EventDiscoveryItem {
   eventName: string;
-  count: number;
+  screenName: string | null;
   lastSeen: string | null;
-  kept: boolean;
-  displayName: string | null;
+  renameRequested: boolean;
+  requestedName: string | null;
   description: string | null;
+  codeTaskStatus: CodeTaskStatus;
 }
 
 export interface EventConfigUpsert {
   eventName: string;
-  kept: boolean;
-  displayName: string | null;
+  renameRequested: boolean;
+  requestedName: string | null;
   description: string | null;
+  screenName?: string | null;
+}
+
+export interface EventRenameTask {
+  eventName: string;
+  requestedName: string | null;
+  description: string | null;
+  screenName: string | null;
+  codeTaskStatus: CodeTaskStatus;
+  updatedAt: string;
 }
