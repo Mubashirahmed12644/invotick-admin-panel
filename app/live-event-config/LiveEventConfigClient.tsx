@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { api, type EventDiscoveryItem, type DefaultListTask } from "@/lib/api";
 
 // Per-row unsaved edits, so the live refresh never clobbers what the admin is typing.
@@ -243,6 +244,10 @@ export default function LiveEventConfigClient() {
     color: "#52525b",
     borderBottom: "1px solid #e4e4e7",
     whiteSpace: "nowrap",
+    position: "sticky",
+    top: 0,
+    background: "#f9fafb",
+    zIndex: 1,
   };
   const td: React.CSSProperties = {
     padding: "8px 10px",
@@ -276,6 +281,12 @@ export default function LiveEventConfigClient() {
 
   return (
     <div style={{ padding: 24, maxWidth: 1280, margin: "0 auto" }}>
+      <Link
+        href="/"
+        style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, color: "#0D4DC0", textDecoration: "none", marginBottom: 12 }}
+      >
+        ← Back to home
+      </Link>
       <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 800, color: "#0D4DC0" }}>Live Event Discovery and Config</h1>
@@ -378,7 +389,7 @@ export default function LiveEventConfigClient() {
       {loading ? (
         <p style={{ color: "#71717a" }}>Loading discovery feed…</p>
       ) : (
-        <div style={{ overflowX: "auto", border: "1px solid #e4e4e7", borderRadius: 10 }}>
+        <div style={{ overflowX: "auto", overflowY: "auto", maxHeight: "calc(100vh - 300px)", border: "1px solid #e4e4e7", borderRadius: 10 }}>
           <table style={{ width: "100%", borderCollapse: "collapse", background: "#fff" }}>
             <thead>
               <tr>
