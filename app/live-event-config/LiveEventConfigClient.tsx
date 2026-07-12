@@ -16,7 +16,13 @@ const REFRESH_MS = 4000;
 // screen_view / nav_screen_view, or named "<Something>_Scr" via trackScreen.
 function eventType(name: string): "screen" | "action" {
   const n = name.toLowerCase();
-  if (n === "screen_view" || n === "nav_screen_view" || n.endsWith("_scr") || n.includes("screen_view")) {
+  if (
+    n.startsWith("screen:") ||
+    n === "screen_view" ||
+    n === "nav_screen_view" ||
+    n.endsWith("_scr") ||
+    n.includes("screen_view")
+  ) {
     return "screen";
   }
   return "action";
