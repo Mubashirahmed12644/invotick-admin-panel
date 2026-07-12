@@ -34,6 +34,7 @@ export default function LiveEventConfigClient() {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [debugOnly, setDebugOnly] = useState(true);
+  const [showIgnored, setShowIgnored] = useState(false);
   const [live, setLive] = useState(true);
   const [savingRow, setSavingRow] = useState<string | null>(null);
   const [savedRow, setSavedRow] = useState<string | null>(null);
@@ -55,13 +56,30 @@ export default function LiveEventConfigClient() {
     setTimeout(() => setCopiedRow((r) => (r === name ? null : r)), 1200);
   }
 
+  async function setIgnored(name: string, ignored: boolean) {
+    try {
+      await api.ignoreEvent(name, ignored);
+      // Ignoring drops it from the normal feed; restoring drops it from the ignored feed.
+      setItems((prev) => prev.filter((it) => it.eventName !== name));
+      setDrafts((prev) => {
+        const next = { ...prev };
+        delete next[name];
+        return next;
+      });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to update ignore.");
+    }
+  }
+
   const debugOnlyRef = useRef(debugOnly);
   debugOnlyRef.current = debugOnly;
+  const showIgnoredRef = useRef(showIgnored);
+  showIgnoredRef.current = showIgnored;
 
   const load = useCallback(async (showSpinner = false) => {
     if (showSpinner) setLoading(true);
     try {
-      const data = await api.getEventDiscovery(debugOnlyRef.current);
+      const data = await api.getEventDiscovery(debugOnlyRef.current, showIgnoredRef.current);
       setItems(data);
       setError(null);
       setLastRefreshed(new Date());
@@ -85,7 +103,7 @@ export default function LiveEventConfigClient() {
   useEffect(() => {
     load(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debugOnly]);
+  }, [debugOnly, showIgnored]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -229,6 +247,10 @@ export default function LiveEventConfigClient() {
           <input type="checkbox" checked={debugOnly} onChange={(e) => setDebugOnly(e.target.checked)} />
           Debug builds only
         </label>
+        <label style={{ fontSize: 13, display: "flex", alignItems: "center", gap: 6, color: showIgnored ? "#b45309" : "#3f3f46" }}>
+          <input type="checkbox" checked={showIgnored} onChange={(e) => setShowIgnored(e.target.checked)} />
+          Show ignored
+        </label>
         <label style={{ fontSize: 13, display: "flex", alignItems: "center", gap: 6, color: "#3f3f46" }}>
           <input type="checkbox" checked={live} onChange={(e) => setLive(e.target.checked)} />
           <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
@@ -297,6 +319,24 @@ export default function LiveEventConfigClient() {
                         >
                           {copiedRow === i.eventName ? "✓" : "⧉"}
                         </button>
+                        <button
+                          type="button"
+                          onClick={() => setIgnored(i.eventName, !showIgnored)}
+                          title={showIgnored ? "Restore to feed" : "Never show again"}
+                          aria-label={showIgnored ? `Restore ${i.eventName}` : `Ignore ${i.eventName}`}
+                          style={{
+                            flexShrink: 0,
+                            border: "none",
+                            background: "transparent",
+                            cursor: "pointer",
+                            padding: "1px 4px",
+                            fontSize: 11,
+                            lineHeight: 1.4,
+                            color: showIgnored ? "#16a34a" : "#c4c4c8",
+                          }}
+                        >
+                          {showIgnored ? "↺" : "⊘"}
+                        </button>
                       </div>
                       <div style={{ fontSize: 11, color: "#a1a1aa", marginTop: 2 }}>
                         {i.screenName ?? "—"}
@@ -358,7 +398,9 @@ export default function LiveEventConfigClient() {
               {filtered.length === 0 ? (
                 <tr>
                   <td style={{ ...td, color: "#a1a1aa", textAlign: "center" }} colSpan={6}>
-                    No events yet{debugOnly ? " from debug builds" : ""}. Interact with the debug app — actions appear here live.
+                    {showIgnored
+                      ? "No ignored events."
+                      : `No events yet${debugOnly ? " from debug builds" : ""}. Interact with the debug app — actions appear here live.`}
                   </td>
                 </tr>
               ) : null}

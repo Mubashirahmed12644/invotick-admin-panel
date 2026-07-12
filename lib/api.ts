@@ -404,9 +404,17 @@ export const api = {
   },
 
   // Live Event Discovery — the live feed of events/UI-actions the debug app emits.
-  getEventDiscovery(debugOnly = true) {
+  getEventDiscovery(debugOnly = true, showIgnored = false) {
     return apiRequest<EventDiscoveryItem[]>(
-      `/v2/admin/analytics/event-discovery?debugOnly=${debugOnly}`,
+      `/v2/admin/analytics/event-discovery?debugOnly=${debugOnly}&showIgnored=${showIgnored}`,
+    );
+  },
+
+  // Ignore ("never show again") an event, or restore it.
+  ignoreEvent(eventName: string, ignored: boolean) {
+    return apiRequest<DefaultListTask>(
+      `/v2/admin/analytics/event-config/${encodeURIComponent(eventName)}/ignore?ignored=${ignored}`,
+      { method: "POST" },
     );
   },
 
@@ -427,6 +435,7 @@ export interface EventDiscoveryItem {
   screenName: string | null;
   lastSeen: string | null;
   tracked: boolean;
+  ignored: boolean;
   inList: boolean;
   displayName: string | null;
   description: string | null;
