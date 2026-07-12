@@ -165,6 +165,17 @@ export default function LiveEventConfigClient() {
     }
   }
 
+  async function resetDefaultList() {
+    if (!window.confirm("Reset the default list? This untracks ALL events so you can build a fresh list. Names/descriptions are kept.")) return;
+    try {
+      await api.resetDefaultList();
+      setDefaultItems([]);
+      await load(true); // refresh the feed so Track toggles reflect the reset
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Reset failed.");
+    }
+  }
+
   function exportKotlin() {
     const text = buildKotlin(defaultItems);
     const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
@@ -473,6 +484,15 @@ export default function LiveEventConfigClient() {
               </div>
             </div>
             <div style={{ display: "flex", gap: 8 }}>
+              <button
+                type="button"
+                onClick={resetDefaultList}
+                disabled={defaultItems.length === 0}
+                title="Untrack all events to build a fresh default list"
+                style={{ padding: "6px 12px", borderRadius: 6, border: "1px solid #dc2626", background: "#fff", color: "#dc2626", fontSize: 13, cursor: "pointer" }}
+              >
+                Reset
+              </button>
               <button
                 type="button"
                 onClick={copyKotlin}

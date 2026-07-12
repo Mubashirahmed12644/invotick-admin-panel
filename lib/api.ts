@@ -415,6 +415,11 @@ export const api = {
     return apiRequest<DefaultListTask[]>("/v2/admin/analytics/default-list");
   },
 
+  // Reset the default list: untrack all events so a fresh list can be built.
+  resetDefaultList() {
+    return apiRequest<number>("/v2/admin/analytics/default-list/reset", { method: "POST" });
+  },
+
   // Ignore ("never show again") an event, or restore it.
   ignoreEvent(eventName: string, ignored: boolean) {
     return apiRequest<DefaultListTask>(
