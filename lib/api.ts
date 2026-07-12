@@ -410,6 +410,11 @@ export const api = {
     );
   },
 
+  // The full bundled default allowlist the app should ship (every tracked event).
+  getDefaultList() {
+    return apiRequest<DefaultListTask[]>("/v2/admin/analytics/default-list");
+  },
+
   // Ignore ("never show again") an event, or restore it.
   ignoreEvent(eventName: string, ignored: boolean) {
     return apiRequest<DefaultListTask>(

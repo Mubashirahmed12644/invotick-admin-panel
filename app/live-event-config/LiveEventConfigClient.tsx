@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { api, type EventDiscoveryItem } from "@/lib/api";
+import { api, type EventDiscoveryItem, type DefaultListTask } from "@/lib/api";
 
 // Per-row unsaved edits, so the live refresh never clobbers what the admin is typing.
 interface Draft {
@@ -40,6 +40,59 @@ export default function LiveEventConfigClient() {
   const [savedRow, setSavedRow] = useState<string | null>(null);
   const [copiedRow, setCopiedRow] = useState<string | null>(null);
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
+  const [showDefault, setShowDefault] = useState(false);
+  const [defaultItems, setDefaultItems] = useState<DefaultListTask[]>([]);
+  const [defaultLoading, setDefaultLoading] = useState(false);
+  const [copiedKt, setCopiedKt] = useState(false);
+
+  function buildKotlin(list: DefaultListTask[]): string {
+    const date = new Date().toISOString().slice(0, 10);
+    const lines = list.map((i) => `    "${i.eventName}",${i.displayName ? `  // ${i.displayName}` : ""}`);
+    return (
+      `// Live Event Discovery — bundled default allowlist (exported ${date})\n` +
+      `// Paste into AnalyticsAllowlist.DEFAULT (core/analytics).\n` +
+      `private val DEFAULT: Set<String> = setOf(\n${lines.join("\n")}\n)\n`
+    );
+  }
+
+  async function openDefaultList() {
+    setShowDefault(true);
+    setDefaultLoading(true);
+    try {
+      setDefaultItems(await api.getDefaultList());
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load the default list.");
+    } finally {
+      setDefaultLoading(false);
+    }
+  }
+
+  function exportKotlin() {
+    const text = buildKotlin(defaultItems);
+    const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "AnalyticsAllowlist.default.kt";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function copyKotlin() {
+    const text = buildKotlin(defaultItems);
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+    }
+    setCopiedKt(true);
+    setTimeout(() => setCopiedKt(false), 1500);
+  }
 
   async function copyIdentity(name: string) {
     try {
@@ -260,12 +313,59 @@ export default function LiveEventConfigClient() {
         </label>
         <button
           type="button"
+          onClick={() => (showDefault ? setShowDefault(false) : openDefaultList())}
+          style={{ marginLeft: "auto", padding: "6px 14px", borderRadius: 6, border: "1px solid #0D4DC0", background: showDefault ? "#eff6ff" : "#fff", color: "#0D4DC0", fontSize: 13, fontWeight: 500, cursor: "pointer" }}
+        >
+          {showDefault ? "Hide default list" : "Default list"}
+        </button>
+        <button
+          type="button"
           onClick={() => load(true)}
-          style={{ marginLeft: "auto", padding: "6px 14px", borderRadius: 6, border: "1px solid #d4d4d8", background: "#fff", fontSize: 13, cursor: "pointer" }}
+          style={{ padding: "6px 14px", borderRadius: 6, border: "1px solid #d4d4d8", background: "#fff", fontSize: 13, cursor: "pointer" }}
         >
           Refresh
         </button>
       </div>
+
+      {showDefault ? (
+        <div style={{ border: "1px solid #bfdbfe", background: "#f8fbff", borderRadius: 10, padding: 16, marginBottom: 16 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 10 }}>
+            <div>
+              <div style={{ fontSize: 15, fontWeight: 600, color: "#0D4DC0" }}>App bundled default list</div>
+              <div style={{ fontSize: 12, color: "#71717a", marginTop: 2 }}>
+                Every tracked event — ships in the app as <code>AnalyticsAllowlist.DEFAULT</code>. <b>{defaultItems.length}</b> keys.
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button
+                type="button"
+                onClick={copyKotlin}
+                disabled={defaultItems.length === 0}
+                style={{ padding: "6px 12px", borderRadius: 6, border: "1px solid #d4d4d8", background: "#fff", fontSize: 13, cursor: "pointer" }}
+              >
+                {copiedKt ? "Copied ✓" : "Copy .kt"}
+              </button>
+              <button
+                type="button"
+                onClick={exportKotlin}
+                disabled={defaultItems.length === 0}
+                style={{ padding: "6px 12px", borderRadius: 6, border: "none", background: "#0D4DC0", color: "#fff", fontSize: 13, fontWeight: 500, cursor: "pointer" }}
+              >
+                Export .kt
+              </button>
+            </div>
+          </div>
+          {defaultLoading ? (
+            <p style={{ color: "#71717a", fontSize: 13 }}>Loading…</p>
+          ) : defaultItems.length === 0 ? (
+            <p style={{ color: "#a1a1aa", fontSize: 13 }}>No tracked events yet. Turn Track on for an event to add it here.</p>
+          ) : (
+            <pre style={{ margin: 0, maxHeight: 260, overflow: "auto", background: "#fff", border: "1px solid #e4e4e7", borderRadius: 6, padding: 12, fontSize: 12.5, lineHeight: 1.7, whiteSpace: "pre" }}>
+              {buildKotlin(defaultItems)}
+            </pre>
+          )}
+        </div>
+      ) : null}
 
       {error ? <p style={{ color: "#dc2626", fontSize: 13, marginBottom: 12 }}>{error}</p> : null}
 
