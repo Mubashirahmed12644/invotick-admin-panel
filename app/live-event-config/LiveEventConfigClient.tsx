@@ -12,6 +12,16 @@ interface Draft {
 
 const REFRESH_MS = 4000;
 
+// Classify a discovered event: screen-view vs a click/action event. Screen views are emitted as
+// screen_view / nav_screen_view, or named "<Something>_Scr" via trackScreen.
+function eventType(name: string): "screen" | "action" {
+  const n = name.toLowerCase();
+  if (n === "screen_view" || n === "nav_screen_view" || n.endsWith("_scr") || n.includes("screen_view")) {
+    return "screen";
+  }
+  return "action";
+}
+
 // "Live Event Discovery and Config" — live-lists every event / UI-action the DEBUG app emits (its
 // meaningful name, or a searchable identity when it has none), each tagged in-list or debug-only.
 // Turning "Track" on adds the event to the backend override allowlist (so release builds send it),
@@ -27,7 +37,23 @@ export default function LiveEventConfigClient() {
   const [live, setLive] = useState(true);
   const [savingRow, setSavingRow] = useState<string | null>(null);
   const [savedRow, setSavedRow] = useState<string | null>(null);
+  const [copiedRow, setCopiedRow] = useState<string | null>(null);
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
+
+  async function copyIdentity(name: string) {
+    try {
+      await navigator.clipboard.writeText(name);
+    } catch {
+      const ta = document.createElement("textarea");
+      ta.value = name;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+    }
+    setCopiedRow(name);
+    setTimeout(() => setCopiedRow((r) => (r === name ? null : r)), 1200);
+  }
 
   const debugOnlyRef = useRef(debugOnly);
   debugOnlyRef.current = debugOnly;
@@ -246,7 +272,32 @@ export default function LiveEventConfigClient() {
                       <Toggle on={on} onChange={(v) => setDraft(i.eventName, { tracked: v })} />
                     </td>
                     <td style={td}>
-                      <div style={{ fontFamily: "monospace", fontSize: 12.5, fontWeight: 600, wordBreak: "break-all" }}>{i.eventName}</div>
+                      <div style={{ display: "flex", alignItems: "flex-start", gap: 6 }}>
+                        {eventType(i.eventName) === "screen" ? (
+                          <span style={{ flexShrink: 0, fontSize: 10.5, fontWeight: 600, color: "#6d28d9", background: "#f5f3ff", borderRadius: 5, padding: "2px 6px", marginTop: 1 }}>screen</span>
+                        ) : (
+                          <span style={{ flexShrink: 0, fontSize: 10.5, fontWeight: 600, color: "#3f3f46", background: "#f4f4f5", borderRadius: 5, padding: "2px 6px", marginTop: 1 }}>action</span>
+                        )}
+                        <span style={{ fontFamily: "monospace", fontSize: 12.5, fontWeight: 600, wordBreak: "break-all" }}>{i.eventName}</span>
+                        <button
+                          type="button"
+                          onClick={() => copyIdentity(i.eventName)}
+                          title="Copy identity"
+                          aria-label={`Copy ${i.eventName}`}
+                          style={{
+                            flexShrink: 0,
+                            border: "none",
+                            background: "transparent",
+                            cursor: "pointer",
+                            padding: "1px 4px",
+                            fontSize: 11,
+                            lineHeight: 1.4,
+                            color: copiedRow === i.eventName ? "#16a34a" : "#a1a1aa",
+                          }}
+                        >
+                          {copiedRow === i.eventName ? "✓" : "⧉"}
+                        </button>
+                      </div>
                       <div style={{ fontSize: 11, color: "#a1a1aa", marginTop: 2 }}>
                         {i.screenName ?? "—"}
                         {i.lastSeen ? ` · ${new Date(i.lastSeen).toLocaleTimeString()}` : ""}
