@@ -47,6 +47,24 @@ export default function LiveEventConfigClient() {
   const [savedRow, setSavedRow] = useState<string | null>(null);
   const [copiedRow, setCopiedRow] = useState<string | null>(null);
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
+  // "Clear list" cutoff (epoch ms): hide events last seen BEFORE this, so repeated flow-testing
+  // starts from a clean feed. Only hides content — configs (Track/name/description) are untouched.
+  const [clearedAt, setClearedAt] = useState<number | null>(null);
+
+  useEffect(() => {
+    const v = typeof window !== "undefined" ? window.localStorage.getItem("lediscovery_cleared_at") : null;
+    if (v) setClearedAt(Number(v));
+  }, []);
+
+  function clearList() {
+    const now = Date.now();
+    setClearedAt(now);
+    window.localStorage.setItem("lediscovery_cleared_at", String(now));
+  }
+  function showAll() {
+    setClearedAt(null);
+    window.localStorage.removeItem("lediscovery_cleared_at");
+  }
   const [showDefault, setShowDefault] = useState(false);
   const [defaultItems, setDefaultItems] = useState<DefaultListTask[]>([]);
   const [defaultLoading, setDefaultLoading] = useState(false);
@@ -165,21 +183,30 @@ export default function LiveEventConfigClient() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debugOnly, showIgnored]);
 
+  // Events still visible after the "Clear" cutoff (content-only; configs are untouched).
+  const visibleItems = useMemo(
+    () =>
+      clearedAt
+        ? items.filter((i) => (i.lastSeen ? new Date(i.lastSeen).getTime() > clearedAt : true))
+        : items,
+    [items, clearedAt],
+  );
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return items;
-    return items.filter(
+    if (!q) return visibleItems;
+    return visibleItems.filter(
       (i) =>
         i.eventName.toLowerCase().includes(q) ||
         (i.screenName ?? "").toLowerCase().includes(q) ||
         (i.displayName ?? "").toLowerCase().includes(q),
     );
-  }, [items, search]);
+  }, [visibleItems, search]);
 
-  const inListCount = useMemo(() => items.filter((i) => i.inList).length, [items]);
+  const inListCount = useMemo(() => visibleItems.filter((i) => i.inList).length, [visibleItems]);
   const needNameCount = useMemo(
-    () => items.filter((i) => (drafts[i.eventName]?.tracked ?? i.tracked) && !(drafts[i.eventName]?.displayName ?? i.displayName)).length,
-    [items, drafts],
+    () => visibleItems.filter((i) => (drafts[i.eventName]?.tracked ?? i.tracked) && !(drafts[i.eventName]?.displayName ?? i.displayName)).length,
+    [visibleItems, drafts],
   );
 
   const trackedOn = (i: EventDiscoveryItem) => drafts[i.eventName]?.tracked ?? i.tracked;
@@ -297,7 +324,7 @@ export default function LiveEventConfigClient() {
         </div>
         <div style={{ fontSize: 13, color: "#52525b", textAlign: "right" }}>
           <div>
-            <b>{items.length}</b> seen · <b style={{ color: "#16a34a" }}>{inListCount}</b> in list ·{" "}
+            <b>{visibleItems.length}</b> seen · <b style={{ color: "#16a34a" }}>{inListCount}</b> in list ·{" "}
             <b style={{ color: needNameCount ? "#d97706" : "#16a34a" }}>{needNameCount}</b> need name
           </div>
           {lastRefreshed ? (
@@ -342,6 +369,25 @@ export default function LiveEventConfigClient() {
         >
           Refresh
         </button>
+        {clearedAt ? (
+          <button
+            type="button"
+            onClick={showAll}
+            title={`Cleared at ${new Date(clearedAt).toLocaleTimeString()} — showing events since then`}
+            style={{ padding: "6px 14px", borderRadius: 6, border: "1px solid #b45309", background: "#fffbeb", color: "#b45309", fontSize: 13, cursor: "pointer" }}
+          >
+            Show all (cleared {new Date(clearedAt).toLocaleTimeString()})
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={clearList}
+            title="Hide all current events (noise). Configs are kept; new events still appear."
+            style={{ padding: "6px 14px", borderRadius: 6, border: "1px solid #d4d4d8", background: "#fff", fontSize: 13, cursor: "pointer" }}
+          >
+            Clear list
+          </button>
+        )}
       </div>
 
       {showDefault ? (
