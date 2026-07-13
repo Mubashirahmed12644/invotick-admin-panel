@@ -143,12 +143,31 @@ export default function LiveEventConfigClient() {
   const [defaultLoading, setDefaultLoading] = useState(false);
   const [copiedKt, setCopiedKt] = useState(false);
 
+  // Auto-captured identity? (file-based tap/btn/ib or a tap:screen:label key). Only these are
+  // gated by the allowlist AND have no production history, so they're safe to rename in code.
+  function isAutoCaptured(key: string): boolean {
+    return /^tap:/.test(key) || /\.(tap|btn|ib)_\d+$/.test(key);
+  }
+
   function buildKotlin(list: DefaultListTask[]): string {
     const date = new Date().toISOString().slice(0, 10);
-    const lines = list.map((i) => `    "${i.eventName}",${i.displayName ? `  // ${i.displayName}` : ""}`);
+    const lines = list.map((i) => {
+      // [replace] = rename the code id -> display name (safe: auto-captured + not yet shipped).
+      // Explicit named events + already-applied ones are [keep] (renaming would split prod reporting).
+      const replace = isAutoCaptured(i.eventName) && i.status !== "APPLIED" && !!i.displayName;
+      const key = replace ? (i.displayName as string) : i.eventName;
+      const tag = replace
+        ? `  // [replace] ← ${i.eventName}`
+        : i.displayName
+          ? `  // [keep] ${i.displayName}`
+          : "";
+      return `    "${key}",${tag}`;
+    });
     return (
       `// Live Event Discovery — bundled default allowlist (exported ${date})\n` +
       `// Paste into AnalyticsAllowlist.DEFAULT (core/analytics).\n` +
+      `// [replace] = also rename that code analyticsId to this display name (auto + not shipped → safe).\n` +
+      `// [keep]    = leave the raw event name; the display name is a reporting mapping only.\n` +
       `private val DEFAULT: Set<String> = setOf(\n${lines.join("\n")}\n)\n`
     );
   }
