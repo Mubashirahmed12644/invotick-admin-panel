@@ -448,6 +448,7 @@ export interface EventDiscoveryItem {
   ignored: boolean;
   inList: boolean;
   displayName: string | null;
+  replaceName: string | null;
   description: string | null;
   defaultListStatus: DefaultListStatus;
 }
@@ -456,6 +457,7 @@ export interface EventConfigUpsert {
   eventName: string;
   tracked: boolean;
   displayName: string | null;
+  replaceName: string | null;
   description: string | null;
   screenName?: string | null;
 }
@@ -463,6 +465,7 @@ export interface EventConfigUpsert {
 export interface DefaultListTask {
   eventName: string;
   displayName: string | null;
+  replaceName: string | null;
   description: string | null;
   screenName: string | null;
   status: DefaultListStatus;

@@ -8,6 +8,7 @@ import { api, type EventDiscoveryItem, type DefaultListTask } from "@/lib/api";
 interface Draft {
   tracked?: boolean;
   displayName?: string;
+  replaceName?: string;
   description?: string;
 }
 
@@ -152,10 +153,10 @@ export default function LiveEventConfigClient() {
   function buildKotlin(list: DefaultListTask[]): string {
     const date = new Date().toISOString().slice(0, 10);
     const lines = list.map((i) => {
-      // [replace] = rename the code id -> display name (safe: auto-captured + not yet shipped).
-      // Explicit named events + already-applied ones are [keep] (renaming would split prod reporting).
-      const replace = isAutoCaptured(i.eventName) && i.status !== "APPLIED" && !!i.displayName;
-      const key = replace ? (i.displayName as string) : i.eventName;
+      // [replace] = the admin filled the Replace-name column -> rename the code id to it (key = that name).
+      // Otherwise [keep] the raw event name (display name, if any, is a reporting mapping only).
+      const replace = !!i.replaceName;
+      const key = replace ? (i.replaceName as string) : i.eventName;
       const tag = replace
         ? `  // [replace] ← ${i.eventName}`
         : i.displayName
@@ -166,7 +167,7 @@ export default function LiveEventConfigClient() {
     return (
       `// Live Event Discovery — bundled default allowlist (exported ${date})\n` +
       `// Paste into AnalyticsAllowlist.DEFAULT (core/analytics).\n` +
-      `// [replace] = also rename that code analyticsId to this display name (auto + not shipped → safe).\n` +
+      `// [replace] = rename that code analyticsId to this name (admin set Replace name — auto + not shipped).\n` +
       `// [keep]    = leave the raw event name; the display name is a reporting mapping only.\n` +
       `private val DEFAULT: Set<String> = setOf(\n${lines.join("\n")}\n)\n`
     );
@@ -314,6 +315,7 @@ export default function LiveEventConfigClient() {
 
   const trackedOn = (i: EventDiscoveryItem) => drafts[i.eventName]?.tracked ?? i.tracked;
   const nameVal = (i: EventDiscoveryItem) => drafts[i.eventName]?.displayName ?? i.displayName ?? "";
+  const replaceVal = (i: EventDiscoveryItem) => drafts[i.eventName]?.replaceName ?? i.replaceName ?? "";
   const descVal = (i: EventDiscoveryItem) => drafts[i.eventName]?.description ?? i.description ?? "";
 
   function setDraft(name: string, patch: Draft) {
@@ -329,6 +331,7 @@ export default function LiveEventConfigClient() {
         eventName: i.eventName,
         tracked: trackedOn(i),
         displayName: nameVal(i).trim() || null,
+        replaceName: replaceVal(i).trim() || null,
         description: descVal(i).trim() || null,
         screenName: i.screenName,
       });
@@ -568,6 +571,19 @@ export default function LiveEventConfigClient() {
                     <span style={{ color: "#9ca3af" }}>Input auto-formats to this as you type.</span>
                   </InfoTooltip>
                 </th>
+                <th style={{ ...th, width: 180 }}>
+                  Replace name
+                  <InfoTooltip>
+                    <b>Replace the code identity</b>
+                    <br />Renames this event&apos;s name IN THE APP CODE to what you type here.
+                    <br /><br />
+                    <b>Only fill for debug-only auto buttons</b> (e.g. <code>SendButton.tap_1</code>) — new events
+                    with no production history.
+                    <br /><br />
+                    <b>Leave empty</b> for in-list / hand-coded events (<code>Business_clicked</code>) — renaming
+                    those would split production reporting. Use Display name for those instead.
+                  </InfoTooltip>
+                </th>
                 <th style={th}>Description</th>
                 <th style={{ ...th, width: 90 }}></th>
               </tr>
@@ -653,6 +669,21 @@ export default function LiveEventConfigClient() {
                       />
                     </td>
                     <td style={td}>
+                      {(() => {
+                        const canReplace = isAutoCaptured(i.eventName) && !i.inList;
+                        return (
+                          <input
+                            style={{ ...inputStyle, background: canReplace ? "#fff" : "#f4f4f5", color: canReplace ? "#111" : "#a1a1aa" }}
+                            placeholder={canReplace ? "rename code → e.g. send_button_clicked" : "keep raw (in prod / not auto)"}
+                            disabled={!canReplace}
+                            title={canReplace ? "" : "Only debug-only auto buttons can be renamed safely"}
+                            value={replaceVal(i)}
+                            onChange={(e) => setDraft(i.eventName, { replaceName: sanitizeName(e.target.value) })}
+                          />
+                        );
+                      })()}
+                    </td>
+                    <td style={td}>
                       <input
                         style={inputStyle}
                         placeholder="What this event means / where it fires…"
@@ -685,7 +716,7 @@ export default function LiveEventConfigClient() {
               })}
               {filtered.length === 0 ? (
                 <tr>
-                  <td style={{ ...td, color: "#a1a1aa", textAlign: "center" }} colSpan={6}>
+                  <td style={{ ...td, color: "#a1a1aa", textAlign: "center" }} colSpan={7}>
                     {showIgnored
                       ? "No ignored events."
                       : `No events yet${debugOnly ? " from debug builds" : ""}. Interact with the debug app — actions appear here live.`}
