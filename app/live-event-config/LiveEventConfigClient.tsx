@@ -576,12 +576,11 @@ export default function LiveEventConfigClient() {
                   <InfoTooltip>
                     <b>Replace the code identity</b>
                     <br />Renames this event&apos;s name IN THE APP CODE to what you type here.
+                    <b>Leave empty = no change</b> (the current name keeps running).
                     <br /><br />
-                    <b>Only fill for debug-only auto buttons</b> (e.g. <code>SendButton.tap_1</code>) — new events
-                    with no production history.
-                    <br /><br />
-                    <b>Leave empty</b> for in-list / hand-coded events (<code>Business_clicked</code>) — renaming
-                    those would split production reporting. Use Display name for those instead.
+                    For an already-shipped event this is still safe by design: old app versions keep
+                    reporting the old name, and the new version reports this new name — each version is
+                    correct on its own. Fill it only when you actually want to rename.
                   </InfoTooltip>
                 </th>
                 <th style={th}>Description</th>
@@ -669,19 +668,12 @@ export default function LiveEventConfigClient() {
                       />
                     </td>
                     <td style={td}>
-                      {(() => {
-                        const canReplace = isAutoCaptured(i.eventName) && !i.inList;
-                        return (
-                          <input
-                            style={{ ...inputStyle, background: canReplace ? "#fff" : "#f4f4f5", color: canReplace ? "#111" : "#a1a1aa" }}
-                            placeholder={canReplace ? "rename code → e.g. send_button_clicked" : "keep raw (in prod / not auto)"}
-                            disabled={!canReplace}
-                            title={canReplace ? "" : "Only debug-only auto buttons can be renamed safely"}
-                            value={replaceVal(i)}
-                            onChange={(e) => setDraft(i.eventName, { replaceName: sanitizeName(e.target.value) })}
-                          />
-                        );
-                      })()}
+                      <input
+                        style={inputStyle}
+                        placeholder="rename code id (optional) → e.g. send_button_clicked"
+                        value={replaceVal(i)}
+                        onChange={(e) => setDraft(i.eventName, { replaceName: sanitizeName(e.target.value) })}
+                      />
                     </td>
                     <td style={td}>
                       <input
