@@ -735,3 +735,37 @@ export interface FunnelQueryResponse {
   filters: FunnelFilters;
   steps: FunnelStepResult[];
 }
+
+/**
+ * One distinct sync defect, aggregated across everyone hitting it.
+ *
+ * `signature` groups by what is broken (entity + field + error), not by who hit it, so a single
+ * bug affecting hundreds of devices reads as one ranked line instead of hundreds of errors.
+ */
+export interface SyncHealthSignature {
+  signature: string;
+  entityType: string;
+  field: string | null;
+  errorType: string;
+  source: string;
+  occurrences: number;
+  deviceCount: number;
+  userCount: number;
+  firstSeenAt: string;
+  lastSeenAt: string;
+}
+
+/** Who is actually stuck on one defect. */
+export interface SyncHealthOccurrence {
+  userId: string | null;
+  deviceId: string | null;
+  appVersion: string | null;
+  platform: string | null;
+  operation: string | null;
+  recordId: string | null;
+  reason: string | null;
+  occurrenceCount: number;
+  firstSeenAt: string;
+  lastSeenAt: string;
+  resolved: boolean;
+}

@@ -13,6 +13,8 @@ import type {
   WebpanelInvoiceFullResponse,
   WebpanelInvoiceSummaryResponse,
   WebpanelTestingDeviceLookupResponse,
+  SyncHealthOccurrence,
+  SyncHealthSignature,
   WebpanelTestingDeviceResponse,
   WebpanelUserStatsAndAnalyticsByUserIdResponse,
   WebpanelUserWithStatsAndAnalyticsResponse,
@@ -278,6 +280,29 @@ export const api = {
   lookupTestingDevice(deviceId: string) {
     return apiRequest<WebpanelTestingDeviceLookupResponse>(
       `/v1/webpanel/testing-devices/lookup?deviceId=${encodeURIComponent(deviceId)}`,
+    );
+  },
+
+  getSyncHealthSignatures(options?: { unresolvedOnly?: boolean; days?: number }) {
+    const params = new URLSearchParams();
+    if (options?.unresolvedOnly !== undefined) params.set("unresolvedOnly", String(options.unresolvedOnly));
+    if (options?.days !== undefined) params.set("days", String(options.days));
+    const query = params.toString();
+    return apiRequest<SyncHealthSignature[]>(
+      `/v1/webpanel/sync-health/signatures${query ? `?${query}` : ""}`,
+    );
+  },
+
+  getSyncHealthOccurrences(signature: string) {
+    return apiRequest<SyncHealthOccurrence[]>(
+      `/v1/webpanel/sync-health/occurrences?signature=${encodeURIComponent(signature)}`,
+    );
+  },
+
+  resolveSyncHealthSignature(signature: string, resolved: boolean) {
+    return apiRequest<number>(
+      `/v1/webpanel/sync-health/resolve?signature=${encodeURIComponent(signature)}&resolved=${resolved}`,
+      { method: "POST" },
     );
   },
 
