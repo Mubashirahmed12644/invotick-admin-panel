@@ -110,7 +110,11 @@ export default function ContactDataPage() {
                 <Stat
                   label="On Invotick"
                   value={stats.registeredPhones}
-                  hint={`${matchedShare.toFixed(1)}% of the numbers held belong to a registered user.`}
+                  // A share this small rounds to "0.0%", which reads like a broken stat rather than
+                  // the finding it actually is — that almost nobody we hold data on is a user.
+                  hint={`${
+                    matchedShare > 0 && matchedShare < 0.1 ? "<0.1" : matchedShare.toFixed(1)
+                  }% of the numbers held belong to a registered user.`}
                 />
                 {/* The number that matters: people whose details we hold who never installed the
                     app and never agreed to anything. */}
