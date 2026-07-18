@@ -784,3 +784,19 @@ export interface ContactDataStats {
   registeredPhones: number;
   unmatchedPhoneNumbers: number;
 }
+
+/** One held person, as the Contact Data table shows them. */
+export interface ContactRow {
+  phone: string;
+  names: string[];
+  emails: string[];
+  knownByUsers: number;
+  onInvotick: boolean;
+  firstSeenAt: string;
+}
+
+export interface ContactPage {
+  rows: ContactRow[];
+  total: number;
+  returned: number;
+}

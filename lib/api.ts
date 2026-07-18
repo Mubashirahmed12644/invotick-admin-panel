@@ -14,6 +14,7 @@ import type {
   WebpanelInvoiceSummaryResponse,
   WebpanelTestingDeviceLookupResponse,
   ContactDataStats,
+  ContactPage,
   SyncHealthOccurrence,
   SyncHealthSignature,
   WebpanelTestingDeviceResponse,
@@ -286,6 +287,16 @@ export const api = {
 
   getContactDataStats() {
     return apiRequest<ContactDataStats>("/v1/webpanel/contact-data/stats");
+  },
+
+  getHeldContacts(options?: { filter?: string; sort?: string; search?: string; limit?: number }) {
+    const params = new URLSearchParams();
+    if (options?.filter) params.set("filter", options.filter);
+    if (options?.sort) params.set("sort", options.sort);
+    if (options?.search) params.set("search", options.search);
+    if (options?.limit !== undefined) params.set("limit", String(options.limit));
+    const query = params.toString();
+    return apiRequest<ContactPage>(`/v1/webpanel/contact-data/contacts${query ? `?${query}` : ""}`);
   },
 
   getSyncHealthSignatures(options?: { unresolvedOnly?: boolean; days?: number }) {
