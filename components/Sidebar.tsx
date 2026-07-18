@@ -36,6 +36,11 @@ const navItems = [
     isActive: (pathname: string) => pathname.startsWith("/userBasedScreenFlow"),
   },
   {
+    label: "Contact Data",
+    href: "/contact-data",
+    isActive: (pathname: string) => pathname.startsWith("/contact-data"),
+  },
+  {
     label: "Sync Health",
     href: "/sync-health",
     isActive: (pathname: string) => pathname.startsWith("/sync-health"),

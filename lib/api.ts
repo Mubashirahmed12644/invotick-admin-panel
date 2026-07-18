@@ -13,6 +13,7 @@ import type {
   WebpanelInvoiceFullResponse,
   WebpanelInvoiceSummaryResponse,
   WebpanelTestingDeviceLookupResponse,
+  ContactDataStats,
   SyncHealthOccurrence,
   SyncHealthSignature,
   WebpanelTestingDeviceResponse,
@@ -281,6 +282,10 @@ export const api = {
     return apiRequest<WebpanelTestingDeviceLookupResponse>(
       `/v1/webpanel/testing-devices/lookup?deviceId=${encodeURIComponent(deviceId)}`,
     );
+  },
+
+  getContactDataStats() {
+    return apiRequest<ContactDataStats>("/v1/webpanel/contact-data/stats");
   },
 
   getSyncHealthSignatures(options?: { unresolvedOnly?: boolean; days?: number }) {

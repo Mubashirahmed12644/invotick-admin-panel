@@ -769,3 +769,18 @@ export interface SyncHealthOccurrence {
   lastSeenAt: string;
   resolved: boolean;
 }
+
+/**
+ * How much contact data is held.
+ *
+ * Contacts come from users' address books, so most of these numbers describe people who never
+ * installed the app — which is what makes the size of this store worth watching.
+ */
+export interface ContactDataStats {
+  uniquePhoneNumbers: number;
+  userContactLinks: number;
+  rawContactRows: number;
+  ingestBatches: number;
+  registeredPhones: number;
+  unmatchedPhoneNumbers: number;
+}
