@@ -37,6 +37,28 @@ function shortId(value: string | null, keep = 8): string {
   return value.length <= keep * 2 + 1 ? value : `${value.slice(0, keep)}…${value.slice(-keep)}`;
 }
 
+/**
+ * What each rejection means, in words that do not require reading the sync service to understand.
+ *
+ * The error type is the server's vocabulary, not an operator's: knowing a push came back
+ * STALE_CONFLICT says nothing about whether a customer lost an invoice. These sentences are the
+ * translation, so triage can start on this page instead of in the backend source.
+ */
+const ERROR_MEANINGS: Record<string, string> = {
+  STALE_CONFLICT:
+    "The server already holds this record and considers its copy newer, so the push was refused. If the operation is CREATE this repeats forever — the device resends, the server refuses, and the record never lands.",
+  INVALID_REFERENCE:
+    "The record points at a parent the server does not have. Usually a knock-on effect: the parent failed first, and everything hanging off it fails with it.",
+  INVALID_UUID: "The device sent a malformed id. Fixed in the app, not yet released.",
+  NOT_FOUND: "The record was updated or deleted on the server, but no such record exists there.",
+  VALIDATION: "The payload was rejected before it reached the sync service.",
+};
+
+/** A defect where a handful of records account for the occurrences is a retry loop, not a spike. */
+function isRetryLoop(records: number, occurrences: number): boolean {
+  return records > 0 && occurrences >= records * 5;
+}
+
 export default function SyncHealthPage() {
   const router = useRouter();
 
@@ -175,9 +197,12 @@ export default function SyncHealthPage() {
                   <tr>
                     <th>What is failing</th>
                     <th>Error</th>
+                    <th>Op</th>
                     <th>Devices</th>
                     <th>Users</th>
+                    <th>Records</th>
                     <th>Occurrences</th>
+                    <th>First seen</th>
                     <th>Last seen</th>
                     <th>Source</th>
                     <th />
@@ -198,11 +223,22 @@ export default function SyncHealthPage() {
                           </button>
                         </td>
                         <td>{row.errorType}</td>
+                        <td>{row.operations.length > 0 ? row.operations.join(", ") : "—"}</td>
                         {/* Distinct devices is the impact number: one defect across many devices
                             outranks one device retrying the same broken record all day. */}
                         <td><strong>{row.deviceCount}</strong></td>
                         <td>{row.userCount}</td>
-                        <td>{row.occurrences}</td>
+                        <td><strong>{row.recordCount}</strong></td>
+                        <td>
+                          {row.occurrences}
+                          {isRetryLoop(row.recordCount, row.occurrences) && (
+                            <span title={`Worst: ${row.worstRecordId ?? "?"} refused ${row.worstRecordOccurrences}x`}
+                                  style={{ marginInlineStart: 6, color: "#b42318", fontWeight: 600 }}>
+                              loop
+                            </span>
+                          )}
+                        </td>
+                        <td title={row.firstSeenAt}>{formatWhen(row.firstSeenAt)}</td>
                         <td title={row.lastSeenAt}>{formatWhen(row.lastSeenAt)}</td>
                         <td>{row.source}</td>
                         <td>
@@ -216,9 +252,31 @@ export default function SyncHealthPage() {
                         </td>
                       </tr>
 
+                      {/* The reason sits under its own row rather than in a cell: it is a sentence,
+                          and squeezing it into a column would truncate the one field that explains
+                          the defect. */}
+                      {row.latestReason && (
+                        <tr>
+                          <td colSpan={11} style={{ paddingTop: 0, fontSize: 13 }}>
+                            <div style={{ opacity: 0.8 }}>{row.latestReason}</div>
+                            {ERROR_MEANINGS[row.errorType] && (
+                              <div style={{ opacity: 0.6, marginTop: 2 }}>
+                                {ERROR_MEANINGS[row.errorType]}
+                              </div>
+                            )}
+                            {isRetryLoop(row.recordCount, row.occurrences) && row.worstRecordId && (
+                              <div style={{ color: "#b42318", marginTop: 2 }}>
+                                Stuck in a loop: record {shortId(row.worstRecordId)} refused{" "}
+                                {row.worstRecordOccurrences} times on its own.
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      )}
+
                       {expanded === row.signature && (
                         <tr>
-                          <td colSpan={8}>
+                          <td colSpan={11}>
                             {isLoadingOccurrences && <LoadingState />}
                             {!isLoadingOccurrences && occurrences.length === 0 && (
                               <EmptyState message="No occurrence detail." />
@@ -228,6 +286,7 @@ export default function SyncHealthPage() {
                                 <thead>
                                   <tr>
                                     <th>User</th>
+                                    <th>Account</th>
                                     <th>Device</th>
                                     <th>App</th>
                                     <th>Op</th>
@@ -240,7 +299,10 @@ export default function SyncHealthPage() {
                                 <tbody>
                                   {occurrences.map((occurrence, index) => (
                                     <tr key={`${occurrence.deviceId ?? "d"}-${occurrence.recordId ?? index}`}>
-                                      <td title={occurrence.userId ?? ""}>{shortId(occurrence.userId)}</td>
+                                      <td title={occurrence.userId ?? ""}>
+                                        {occurrence.userEmail ?? shortId(occurrence.userId)}
+                                      </td>
+                                      <td>{occurrence.userRole ?? "—"}</td>
                                       <td title={occurrence.deviceId ?? ""}>{shortId(occurrence.deviceId)}</td>
                                       <td>{occurrence.appVersion ?? "—"}</td>
                                       <td>{occurrence.operation ?? "—"}</td>

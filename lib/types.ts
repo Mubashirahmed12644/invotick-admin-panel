@@ -753,11 +753,21 @@ export interface SyncHealthSignature {
   userCount: number;
   firstSeenAt: string;
   lastSeenAt: string;
+  /** The server's own words for the most recent occurrence — usually the whole diagnosis. */
+  latestReason: string | null;
+  /** CREATE that keeps being refused = a record that never lands; UPDATE = a lost edit. */
+  operations: string[];
+  /** Distinct records affected. Read against `occurrences`: few records, many occurrences = a loop. */
+  recordCount: number;
+  worstRecordId: string | null;
+  worstRecordOccurrences: number;
 }
 
 /** Who is actually stuck on one defect. */
 export interface SyncHealthOccurrence {
   userId: string | null;
+  userEmail: string | null;
+  userRole: string | null;
   deviceId: string | null;
   appVersion: string | null;
   platform: string | null;
