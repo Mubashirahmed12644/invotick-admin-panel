@@ -55,8 +55,8 @@ const ERROR_MEANINGS: Record<string, string> = {
 };
 
 /** A defect where a handful of records account for the occurrences is a retry loop, not a spike. */
-function isRetryLoop(records: number, occurrences: number): boolean {
-  return records > 0 && occurrences >= records * 5;
+function isRetryLoop(records: number | undefined, occurrences: number): boolean {
+  return records !== undefined && records > 0 && occurrences >= records * 5;
 }
 
 export default function SyncHealthPage() {
@@ -223,12 +223,12 @@ export default function SyncHealthPage() {
                           </button>
                         </td>
                         <td>{row.errorType}</td>
-                        <td>{row.operations.length > 0 ? row.operations.join(", ") : "—"}</td>
+                        <td>{row.operations?.length ? row.operations.join(", ") : "—"}</td>
                         {/* Distinct devices is the impact number: one defect across many devices
                             outranks one device retrying the same broken record all day. */}
                         <td><strong>{row.deviceCount}</strong></td>
                         <td>{row.userCount}</td>
-                        <td><strong>{row.recordCount}</strong></td>
+                        <td><strong>{row.recordCount ?? "—"}</strong></td>
                         <td>
                           {row.occurrences}
                           {isRetryLoop(row.recordCount, row.occurrences) && (
