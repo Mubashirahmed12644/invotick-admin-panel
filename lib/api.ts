@@ -16,6 +16,7 @@ import type {
   ContactDataStats,
   ContactPage,
   SyncHealthOccurrence,
+  BillingHealthSummary,
   SyncHealthSignature,
   WebpanelTestingDeviceResponse,
   WebpanelUserStatsAndAnalyticsByUserIdResponse,
@@ -297,6 +298,12 @@ export const api = {
     if (options?.limit !== undefined) params.set("limit", String(options.limit));
     const query = params.toString();
     return apiRequest<ContactPage>(`/v1/webpanel/contact-data/contacts${query ? `?${query}` : ""}`);
+  },
+
+  getBillingHealth(sharingThreshold = 2) {
+    return apiRequest<BillingHealthSummary>(
+      `/v1/webpanel/billing-health/summary?sharingThreshold=${sharingThreshold}`,
+    );
   },
 
   getSyncHealthSignatures(options?: { unresolvedOnly?: boolean; days?: number }) {

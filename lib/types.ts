@@ -812,3 +812,29 @@ export interface ContactPage {
   total: number;
   returned: number;
 }
+
+/**
+ * The paid side of the product, and the two ways it goes wrong.
+ *
+ * Revenue is not the interesting number here. `heldByGuests` counts people who paid on an account
+ * with no email and no password — one wiped device and their purchase is gone, and nothing in the
+ * product warns them. The two mismatch counts are the app and the server disagreeing about who has
+ * premium, which neither side can see alone.
+ */
+export interface BillingHealthSummary {
+  activeEntitlements: number;
+  premiumEnabledInApp: number;
+  /** Showing premium with nothing paid for it: a bug, a stale cache, or a modified build. */
+  enabledWithoutPayment: number;
+  /** Paid and not being honoured — the failure that costs a customer rather than money. */
+  paidButNotEnabled: number;
+  heldByGuests: number;
+  widelyShared: SharedPurchase[];
+}
+
+export interface SharedPurchase {
+  providerPurchaseId: string;
+  productId: string;
+  accountBindingCount: number;
+  firstSeenAt: string;
+}

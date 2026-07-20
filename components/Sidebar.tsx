@@ -46,6 +46,11 @@ const navItems = [
     isActive: (pathname: string) => pathname.startsWith("/sync-health"),
   },
   {
+    label: "Billing Health",
+    href: "/billing-health",
+    isActive: (pathname: string) => pathname.startsWith("/billing-health"),
+  },
+  {
     label: "Testing Devices",
     href: "/testing-devices",
     isActive: (pathname: string) => pathname.startsWith("/testing-devices"),
