@@ -52,6 +52,8 @@ const ERROR_MEANINGS: Record<string, string> = {
   INVALID_UUID: "The device sent a malformed id. Fixed in the app, not yet released.",
   NOT_FOUND: "The record was updated or deleted on the server, but no such record exists there.",
   VALIDATION: "The payload was rejected before it reached the sync service.",
+  CURRENCY_FILLED_FROM_CLIENT:
+    "The invoice arrived with no currency and the server filled it from the client. Nothing failed — the record saved, and filling it beats storing a blank, which every server-rendered surface reads as USD. It is listed because it should fall to almost nothing once the app fix ships; a device still sending blank currencies is a real defect. Worth knowing when reading the count: a client's currency defaults to USD, so a client who never chose one is indistinguishable from one who chose dollars.",
 };
 
 /** A defect where a handful of records account for the occurrences is a retry loop, not a spike. */
