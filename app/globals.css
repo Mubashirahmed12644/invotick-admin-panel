@@ -2617,3 +2617,85 @@ th {
   .le-left, .le-right { height: auto; }
   .le-userlist { max-height: 340px; }
 }
+
+/* Per-currency invoice total — see components/CurrencyTotalCell.tsx.
+   The headline figure sums across currencies; where a user bills in more than one, the cell says so
+   and the exact per-currency totals appear on hover rather than pretending to be dollars. */
+.currency-total-cell {
+  position: relative;
+}
+
+.currency-total-mixed {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: help;
+  color: #b45309;
+}
+
+.currency-total-hint {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.currency-total-plain {
+  color: #6b7280;
+}
+
+.currency-total-popover {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + 6px);
+  left: 0;
+  min-width: 220px;
+  padding: 10px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  /* The row itself is a button; the popover must not swallow the click that opens the user. */
+  pointer-events: none;
+}
+
+.currency-total-row {
+  display: grid;
+  grid-template-columns: 44px 1fr auto;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.currency-total-code {
+  font-weight: 700;
+  color: #374151;
+}
+
+.currency-total-amount {
+  font-variant-numeric: tabular-nums;
+  color: #111827;
+}
+
+.currency-total-count {
+  color: #9ca3af;
+  font-size: 11px;
+}
+
+.currency-total-note {
+  margin-top: 2px;
+  padding-top: 6px;
+  border-top: 1px solid #f3f4f6;
+  color: #9ca3af;
+  font-size: 11px;
+}

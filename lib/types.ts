@@ -117,10 +117,24 @@ export interface WebpanelUserCountsStats {
   unitTypes: number;
 }
 
+export interface WebpanelCurrencyTotal {
+  currency: string;
+  amount: Decimal;
+  invoices: number;
+}
+
 export interface WebpanelUserTotalsStats {
   invoiceTotalAmount: Decimal;
   paymentTotalAmount: Decimal;
   expenseTotalAmount: Decimal;
+  /**
+   * The invoice total split by the currency each invoice is actually in.
+   *
+   * invoiceTotalAmount adds them all together whatever currency they are in — for the 120 users who
+   * bill in more than one, that is not a wrong figure so much as a meaningless one. This is the same
+   * data without the assumption, and it needs no exchange rate.
+   */
+  invoiceTotalsByCurrency?: WebpanelCurrencyTotal[];
 }
 
 export interface WebpanelUserLastUpdatedAtStats {
