@@ -2824,6 +2824,27 @@ th {
 .hc-summary { margin: 0.2rem 0 0; font-size: 0.9rem; font-weight: 600; }
 .hc-checked { font-size: 0.74rem; color: #9ca3af; white-space: nowrap; }
 
+.hc-card-wrap { display: flex; flex-direction: column; gap: 0.5rem; }
+/* The card must still fill the grid row when an action hangs below it. */
+.hc-card-wrap > .hc-card { flex: 1; }
+
+.hc-action {
+  display: grid; gap: 0.4rem;
+  padding: 0.65rem 0.8rem; border-radius: 8px;
+  background: var(--color-surface-muted, rgba(0, 0, 0, 0.03));
+  border: 1px solid var(--color-border);
+}
+.hc-action-btn { justify-self: start; }
+.hc-action-where { font-size: 0.72rem; color: #9ca3af; }
+/* Shown, not hidden behind the button: a command you are about to run as root should be readable
+   first, and the copy still works if the clipboard API is unavailable. */
+.hc-action-cmd {
+  margin: 0; padding: 0.5rem 0.6rem; border-radius: 6px;
+  background: rgba(0, 0, 0, 0.06); overflow-x: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.72rem; line-height: 1.5; white-space: pre;
+}
+
 .hc-open {
   margin-top: auto; padding-top: 0.15rem;
   font-size: 0.78rem; font-weight: 600; color: var(--color-primary, #2563eb);

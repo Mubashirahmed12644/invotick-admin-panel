@@ -916,7 +916,15 @@ export interface HealthCheckEntry {
   summary: string;
   detail: string | null;
   facts: Record<string, string>;
+  /** The command that fixes it. Copied for a human to run — never executed from here. */
+  action: HealthAction | null;
   checkedAt: string;
+}
+
+export interface HealthAction {
+  label: string;
+  command: string;
+  runOn: string;
 }
 
 export interface HealthCentreOverview {

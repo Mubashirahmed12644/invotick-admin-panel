@@ -8,7 +8,7 @@ import LoadingState from "@/components/LoadingState";
 import ErrorState from "@/components/ErrorState";
 import { api } from "@/lib/api";
 import { formatDateTime } from "@/lib/format";
-import type { HealthCentreOverview, HealthCheckEntry } from "@/lib/types";
+import type { HealthAction, HealthCentreOverview, HealthCheckEntry } from "@/lib/types";
 
 /**
  * Everything that can quietly stop working, in one place.
@@ -148,14 +148,59 @@ function CheckCard({ check }: { check: HealthCheckEntry }) {
     </>
   );
 
+  // Outside `body` because the card may be a Link, and a button inside an anchor is neither
+  // clickable on its own nor valid markup.
+  const action = wrong && check.action ? <ActionButton action={check.action} /> : null;
+
   const className = `section-card hc-card hc-card-${tone}${check.detailPath ? " hc-card-link" : ""}`;
 
-  return check.detailPath ? (
-    <Link href={check.detailPath} className={className}>
-      {body}
-    </Link>
-  ) : (
-    <article className={className}>{body}</article>
+  // The card keeps its link; the action sits beside it in a wrapper so both are reachable.
+  return (
+    <div className="hc-card-wrap">
+      {check.detailPath ? (
+        <Link href={check.detailPath} className={className}>
+          {body}
+        </Link>
+      ) : (
+        <article className={className}>{body}</article>
+      )}
+      {action}
+    </div>
+  );
+}
+
+/**
+ * The fix, ready to paste.
+ *
+ * Copies rather than runs. Executing it would mean this backend — a container — running privileged
+ * commands on the host, which turns an admin panel into remote root on the VPS: a larger problem
+ * than any certificate it would renew. The command arrives with the affected names already filled
+ * in, which is the part that was actually missing. Nobody failed to renew because `clpctl` was hard
+ * to type; they failed because nothing said which domains needed it.
+ */
+function ActionButton({ action }: { action: HealthAction }) {
+  const [copied, setCopied] = useState(false);
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(action.command);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Clipboard needs a secure context and permission. Showing the command beats a dead button.
+      setCopied(false);
+    }
+  }
+
+  return (
+    <div className="hc-action">
+      <button type="button" className="btn btn-outline hc-action-btn" onClick={() => void copy()}>
+        {copied ? "Copied ✓" : `Copy: ${action.label}`}
+      </button>
+      {/* So nobody pastes a VPS command into their laptop. */}
+      <span className="hc-action-where">run on {action.runOn}</span>
+      <pre className="hc-action-cmd">{action.command}</pre>
+    </div>
   );
 }
 
