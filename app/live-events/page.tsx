@@ -14,18 +14,21 @@ const USERS_POLL_MS = 5000;
 // Lifecycle / attribution pings that are recorded app-side (SessionTraceRecorder) but are noise for
 // funnel understanding — hidden from the live stream to keep the webpanel meaningful. The cursor +
 // seen-set still advance on them so they are not re-fetched, and they keep the live dot green.
-const HIDDEN_STREAM_EVENTS = new Set([
-  "app_heartbeat",
-  "app_cold_start",
-  "app_foreground",
-  "app_resumed",
-  "app_background",
-  "app_paused",
-  "install_referrer",
-  // nav_screen_view is the app-side auto screen-tracker (kept in the recording for coverage), but on
-  // the panel it just duplicates screen_view with worse names — hide it so each screen shows once.
-  "nav_screen_view",
-]);
+/**
+ * The one event the stream hides on its own.
+ *
+ * `nav_screen_view` cannot be configured in Event Discovery: that page rewrites it into
+ * `screen: <route>` per screen, so the raw name never appears there to be judged. On this stream it
+ * would sit beside screen_view saying the same thing with worse names.
+ *
+ * Everything else is decided in Event Discovery, not here. A hard-coded list in this file used to
+ * hide app_cold_start, app_background, app_paused, app_foreground, app_resumed and install_referrer
+ * as "lifecycle noise", which was fair when they carried nothing but build_type. They carry the
+ * screen and the elapsed time now, which makes app_background the single most useful row on the
+ * page — it is the only record of somebody giving up, and where. Two places deciding what is worth
+ * seeing is how a list like that outlives its reason.
+ */
+const ALWAYS_HIDDEN = new Set(["nav_screen_view"]);
 
 type SortKey = "recent" | "email" | "count";
 
@@ -96,8 +99,27 @@ export default function LiveEventsPage() {
 
   const sinceRef = useRef<string | null>(null);
   const seenRef = useRef<Set<string>>(new Set());
+  /** Event names Event Discovery has marked ignored — the only thing this stream hides by choice. */
+  const ignoredRef = useRef<Set<string>>(new Set());
   const pausedRef = useRef(false);
   const selectedRef = useRef("");
+
+  // Whatever Event Discovery marks "ignored" is what this stream hides. Fetched once: the set
+  // changes when somebody decides it does, not while a stream is running.
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const ignored = await api.getEventDiscovery(false, true);
+        if (!cancelled) ignoredRef.current = new Set(ignored.map((i) => i.eventName));
+      } catch {
+        // A stream showing too much beats a stream that silently shows nothing.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     pausedRef.current = paused;
@@ -165,9 +187,11 @@ export default function LiveEventsPage() {
             sinceRef.current ?? "",
           );
           if (maxCreated) sinceRef.current = maxCreated;
-          // Hide lifecycle/attribution noise from the stream (see HIDDEN_STREAM_EVENTS) — kept in the
+          // What to hide is decided in Event Discovery (see ALWAYS_HIDDEN) — kept in the
           // app-side recording, just not shown here. The cursor + seen set above already advanced.
-          const visible = fresh.filter((e) => !HIDDEN_STREAM_EVENTS.has(e.eventName));
+          const visible = fresh.filter(
+            (e) => !ALWAYS_HIDDEN.has(e.eventName) && !ignoredRef.current.has(e.eventName),
+          );
           if (visible.length > 0) {
             // Keep the stream ordered by CLIENT eventTimestamp (true fire order) so late-arriving
             // early events (e.g. app_cold_start, flushed in a later batch) slot into their real
