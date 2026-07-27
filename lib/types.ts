@@ -896,3 +896,30 @@ export interface ExchangeRatesHealth {
   projectedExhaustionAt: string | null;
   sampleRates: Record<string, number>;
 }
+
+/**
+ * One health check's answer. Mirrors HealthCentreService.Entry.
+ *
+ * UNKNOWN is not OK: a check that could not run is a gap in the thing meant to close gaps, and it
+ * counts toward `needsAttention` for that reason.
+ */
+export type HealthStatus = "OK" | "WARNING" | "CRITICAL" | "UNKNOWN";
+
+export interface HealthCheckEntry {
+  id: string;
+  name: string;
+  status: HealthStatus;
+  summary: string;
+  detail: string | null;
+  facts: Record<string, string>;
+  checkedAt: string;
+}
+
+export interface HealthCentreOverview {
+  checks: HealthCheckEntry[];
+  critical: number;
+  warning: number;
+  unknown: number;
+  needsAttention: number;
+  generatedAt: string;
+}

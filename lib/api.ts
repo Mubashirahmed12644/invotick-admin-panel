@@ -1,6 +1,7 @@
 import { getAccessToken } from "@/lib/auth";
 import type {
   ExchangeRatesHealth,
+  HealthCentreOverview,
   AdminLoginResponse,
   AdminVerifyOtpRequest,
   ActiveUser,
@@ -285,6 +286,16 @@ export const api = {
     return apiRequest<WebpanelTestingDeviceLookupResponse>(
       `/v1/webpanel/testing-devices/lookup?deviceId=${encodeURIComponent(deviceId)}`,
     );
+  },
+
+  /**
+   * Every health check, worst first.
+   *
+   * @param force skip the per-check cache — for the Re-check button. A check with a twelve-hour
+   * interval is otherwise unhelpful to someone who has just fixed what it reported.
+   */
+  getHealthCentre(force = false) {
+    return apiRequest<HealthCentreOverview>(`/v1/webpanel/health-centre?force=${force}`);
   },
 
   /** The rates service's status, already judged into an `issues` list — see ExchangeRatesAdminService. */
