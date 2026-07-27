@@ -103,6 +103,36 @@ function InfoTooltip({ children }: { children: React.ReactNode }) {
   );
 }
 
+
+/**
+ * A row being authored for an event the app does not emit yet.
+ *
+ * `anchor` is the identity it was inserted next to, so the plan sits beside the thing it relates to
+ * — "this screen fires these three, and a fourth is missing" reads at a glance in a way an appended
+ * list never does. `anchor: null` means it was added from the toolbar and goes at the top.
+ */
+interface PendingRow {
+  id: string;
+  anchor: string | null;
+  position: "above" | "below";
+  eventName: string;
+  identityType: "action" | "screen";
+  displayName: string;
+  description: string;
+}
+
+function newPending(anchor: string | null, position: "above" | "below"): PendingRow {
+  return {
+    id: `p_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+    anchor,
+    position,
+    eventName: "",
+    identityType: "action",
+    displayName: "",
+    description: "",
+  };
+}
+
 // "Live Event Discovery and Config" — live-lists every event / UI-action the DEBUG app emits (its
 // meaningful name, or a searchable identity when it has none), each tagged in-list or debug-only.
 // Turning "Track" on adds the event to the backend override allowlist (so release builds send it),
@@ -124,6 +154,10 @@ export default function LiveEventConfigClient() {
   // "Clear list" cutoff (epoch ms): hide events last seen BEFORE this, so repeated flow-testing
   // starts from a clean feed. Only hides content — configs (Track/name/description) are untouched.
   const [clearedAt, setClearedAt] = useState<number | null>(null);
+  // Rows an admin is authoring for events the app does not emit yet. Held here until saved, so a
+  // half-typed plan never reaches the server and never looks like a real event.
+  const [pending, setPending] = useState<PendingRow[]>([]);
+  const [menuFor, setMenuFor] = useState<string | null>(null);
 
   useEffect(() => {
     const v = typeof window !== "undefined" ? window.localStorage.getItem("lediscovery_cleared_at") : null;
@@ -307,6 +341,10 @@ export default function LiveEventConfigClient() {
     );
   }, [visibleItems, search]);
 
+  // "Seen" must exclude planned rows. An event nobody built and an event that was built and stopped
+  // firing are the same picture once those are counted together, and telling them apart is the point.
+  const seenCount = useMemo(() => visibleItems.filter((i) => !i.planned).length, [visibleItems]);
+  const plannedCount = useMemo(() => visibleItems.filter((i) => i.planned).length, [visibleItems]);
   const inListCount = useMemo(() => visibleItems.filter((i) => i.inList).length, [visibleItems]);
   const needNameCount = useMemo(
     () => visibleItems.filter((i) => (drafts[i.eventName]?.tracked ?? i.tracked) && !(drafts[i.eventName]?.displayName ?? i.displayName)).length,
@@ -317,6 +355,208 @@ export default function LiveEventConfigClient() {
   const nameVal = (i: EventDiscoveryItem) => drafts[i.eventName]?.displayName ?? i.displayName ?? "";
   const replaceVal = (i: EventDiscoveryItem) => drafts[i.eventName]?.replaceName ?? i.replaceName ?? "";
   const descVal = (i: EventDiscoveryItem) => drafts[i.eventName]?.description ?? i.description ?? "";
+
+
+  function addPending(anchor: string | null, position: "above" | "below") {
+    setPending((prev) => [...prev, newPending(anchor, position)]);
+    setMenuFor(null);
+  }
+
+  function patchPending(id: string, patch: Partial<PendingRow>) {
+    setPending((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+  }
+
+  /**
+   * Save an authored row as a planned event.
+   *
+   * The identity is stored exactly as the app will emit it: a screen becomes `screen: <route>`,
+   * because that is the shape the discovery query derives when the event actually fires. Getting
+   * this wrong would mean the row never matches its own event and sits "planned" forever after the
+   * work was in fact done.
+   */
+  async function savePending(row: PendingRow) {
+    const raw = row.eventName.trim();
+    if (!raw) return;
+    const identity =
+      row.identityType === "screen" && !raw.startsWith("screen: ") ? `screen: ${raw}` : raw;
+
+    setSavingRow(row.id);
+    setError(null);
+    try {
+      await api.saveEventConfig({
+        eventName: identity,
+        tracked: false,
+        displayName: row.displayName.trim() || null,
+        replaceName: null,
+        description: row.description.trim() || null,
+        planned: true,
+        identityType: row.identityType,
+      });
+      setPending((prev) => prev.filter((r) => r.id !== row.id));
+      await load(true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not save");
+    } finally {
+      setSavingRow(null);
+    }
+  }
+
+  /** Only planned rows can be deleted; the server refuses the rest and says why. */
+  async function deleteRow(i: EventDiscoveryItem) {
+    setMenuFor(null);
+    if (!i.planned) return;
+    setSavingRow(i.eventName);
+    try {
+      await api.deletePlannedEvent(i.eventName);
+      await load(true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not delete");
+    } finally {
+      setSavingRow(null);
+    }
+  }
+
+
+  const inp: React.CSSProperties = {
+    width: "100%", padding: "6px 8px", borderRadius: 6,
+    border: "1px solid #e4e4e7", fontSize: 12.5,
+  };
+
+  /** One authored row: the four things needed to build the event, and nothing else. */
+  function renderPending(row: PendingRow) {
+    return (
+      <tr key={row.id} style={{ background: "#fffbeb" }}>
+        <td style={{ ...td, textAlign: "center", color: "#a1a1aa", fontSize: 11 }}>—</td>
+        <td style={td}>
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            <select
+              value={row.identityType}
+              onChange={(e) => patchPending(row.id, { identityType: e.target.value as "action" | "screen" })}
+              style={{ ...inp, width: 84, flexShrink: 0 }}
+            >
+              <option value="action">action</option>
+              <option value="screen">screen</option>
+            </select>
+            <input
+              autoFocus
+              value={row.eventName}
+              onChange={(e) => patchPending(row.id, { eventName: e.target.value })}
+              placeholder={row.identityType === "screen" ? "route name" : "event_name"}
+              style={{ ...inp, fontFamily: "monospace" }}
+            />
+          </div>
+          {/* Said out loud because the stored identity must match what the app will emit, and a
+              screen row is stored with this prefix. A mismatch would leave the row planned forever
+              after the work was actually done. */}
+          {row.identityType === "screen" && row.eventName.trim() ? (
+            <span style={{ fontSize: 10.5, color: "#a16207" }}>
+              saved as <code>screen: {row.eventName.trim()}</code>
+            </span>
+          ) : null}
+        </td>
+        <td style={td}>
+          <span style={{ fontSize: 11, color: "#b45309", background: "#fef3c7", borderRadius: 6, padding: "3px 8px", whiteSpace: "nowrap" }}>
+            ● planned
+          </span>
+        </td>
+        <td style={td}>
+          <input
+            value={row.displayName}
+            onChange={(e) => patchPending(row.id, { displayName: e.target.value })}
+            placeholder="Reporting name"
+            style={inp}
+          />
+        </td>
+        <td style={td}>
+          {/* Renaming targets an identity that already exists in code. This one does not yet. */}
+          <input disabled placeholder="n/a until it exists" style={{ ...inp, background: "#fafafa", color: "#a1a1aa" }} />
+        </td>
+        <td style={td}>
+          <input
+            value={row.description}
+            onChange={(e) => patchPending(row.id, { description: e.target.value })}
+            placeholder="What it means and exactly where it fires"
+            style={inp}
+          />
+        </td>
+        <td style={{ ...td, whiteSpace: "nowrap" }}>
+          <button
+            type="button"
+            onClick={() => void savePending(row)}
+            disabled={!row.eventName.trim() || savingRow === row.id}
+            style={{
+              padding: "6px 12px", borderRadius: 6, border: "none",
+              background: row.eventName.trim() ? "#0D4DC0" : "#d4d4d8",
+              color: "#fff", fontSize: 12.5, fontWeight: 600,
+              cursor: row.eventName.trim() ? "pointer" : "not-allowed",
+            }}
+          >
+            {savingRow === row.id ? "Saving…" : "Save"}
+          </button>
+          <button
+            type="button"
+            onClick={() => setPending((prev) => prev.filter((r) => r.id !== row.id))}
+            style={{ marginLeft: 6, padding: "6px 8px", borderRadius: 6, border: "1px solid #e4e4e7", background: "#fff", fontSize: 12.5, cursor: "pointer", color: "#71717a" }}
+          >
+            Cancel
+          </button>
+        </td>
+      </tr>
+    );
+  }
+
+  /** Row menu: insert a plan beside this event, or drop a plan that was abandoned. */
+  function rowMenu(i: EventDiscoveryItem) {
+    const open = menuFor === i.eventName;
+    const item: React.CSSProperties = {
+      display: "block", width: "100%", textAlign: "left", padding: "7px 12px",
+      border: "none", background: "transparent", fontSize: 12.5, cursor: "pointer", whiteSpace: "nowrap",
+    };
+    return (
+      <span style={{ position: "relative", display: "inline-block" }}>
+        <button
+          type="button"
+          aria-label={`Row actions for ${i.eventName}`}
+          onClick={() => setMenuFor(open ? null : i.eventName)}
+          style={{ border: "none", background: "transparent", cursor: "pointer", padding: "2px 6px", color: "#a1a1aa", fontSize: 15, lineHeight: 1 }}
+        >
+          ⋯
+        </button>
+        {open ? (
+          <>
+            {/* Click-away, so the menu never sticks open behind a live feed that keeps re-rendering. */}
+            <span
+              onClick={() => setMenuFor(null)}
+              style={{ position: "fixed", inset: 0, zIndex: 10 }}
+            />
+            <span
+              style={{
+                position: "absolute", right: 0, top: "100%", zIndex: 11, minWidth: 170,
+                background: "#fff", border: "1px solid #e4e4e7", borderRadius: 8,
+                boxShadow: "0 8px 24px rgba(0,0,0,0.10)", padding: "4px 0",
+              }}
+            >
+              <button type="button" style={item} onClick={() => addPending(i.eventName, "above")}>
+                Add row above
+              </button>
+              <button type="button" style={item} onClick={() => addPending(i.eventName, "below")}>
+                Add row below
+              </button>
+              <button
+                type="button"
+                onClick={() => void deleteRow(i)}
+                disabled={!i.planned}
+                title={i.planned ? undefined : "This event has fired — use Ignore to hide it"}
+                style={{ ...item, color: i.planned ? "#dc2626" : "#d4d4d8", cursor: i.planned ? "pointer" : "not-allowed" }}
+              >
+                Delete row
+              </button>
+            </span>
+          </>
+        ) : null}
+      </span>
+    );
+  }
 
   function setDraft(name: string, patch: Draft) {
     setDrafts((prev) => ({ ...prev, [name]: { ...prev[name], ...patch } }));
@@ -430,7 +670,13 @@ export default function LiveEventConfigClient() {
         </div>
         <div style={{ fontSize: 13, color: "#52525b", textAlign: "right" }}>
           <div>
-            <b>{visibleItems.length}</b> seen · <b style={{ color: "#16a34a" }}>{inListCount}</b> in list ·{" "}
+            <b>{seenCount}</b> seen ·{" "}
+            {plannedCount > 0 ? (
+              <>
+                <b style={{ color: "#b45309" }}>{plannedCount}</b> planned ·{" "}
+              </>
+            ) : null}
+            <b style={{ color: "#16a34a" }}>{inListCount}</b> in list ·{" "}
             <b style={{ color: needNameCount ? "#d97706" : "#16a34a" }}>{needNameCount}</b> need name
           </div>
           {lastRefreshed ? (
@@ -588,11 +834,16 @@ export default function LiveEventConfigClient() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((i) => {
+              {pending.filter((r) => r.anchor === null).map(renderPending)}
+              {filtered.flatMap((i) => {
                 const on = trackedOn(i);
                 const needName = on && !nameVal(i).trim();
-                return (
-                  <tr key={i.eventName} style={{ background: on ? "#eff6ff" : undefined }}>
+                return [
+                  ...pending.filter((r) => r.anchor === i.eventName && r.position === "above").map(renderPending),
+                  <tr
+                    key={i.eventName}
+                    style={{ background: i.planned ? "#fffbeb" : on ? "#eff6ff" : undefined }}
+                  >
                     <td style={{ ...td, textAlign: "center" }}>
                       <Toggle on={on} onChange={(v) => setDraft(i.eventName, { tracked: v })} />
                     </td>
@@ -647,7 +898,12 @@ export default function LiveEventConfigClient() {
                       </div>
                     </td>
                     <td style={td}>
-                      {i.inList ? (
+                      {/* Planned is tested FIRST. It has inList = false, so any check starting from
+                          inList files it under "debug-only" — which reads as "this fired but is not
+                          allowlisted" and is the exact confusion this status exists to prevent. */}
+                      {i.planned ? (
+                        <span style={{ fontSize: 11, color: "#b45309", background: "#fef3c7", borderRadius: 6, padding: "3px 8px", whiteSpace: "nowrap" }}>● planned</span>
+                      ) : i.inList ? (
                         <span style={{ fontSize: 11, color: "#15803d", background: "#f0fdf4", borderRadius: 6, padding: "3px 8px", whiteSpace: "nowrap" }}>● in list</span>
                       ) : (
                         <span style={{ fontSize: 11, color: "#b45309", background: "#fffbeb", borderRadius: 6, padding: "3px 8px", whiteSpace: "nowrap" }}>● debug-only</span>
@@ -702,11 +958,13 @@ export default function LiveEventConfigClient() {
                       >
                         {savingRow === i.eventName ? "Saving…" : savedRow === i.eventName ? "Saved ✓" : "Save"}
                       </button>
+                      {rowMenu(i)}
                     </td>
-                  </tr>
-                );
+                  </tr>,
+                  ...pending.filter((r) => r.anchor === i.eventName && r.position === "below").map(renderPending),
+                ];
               })}
-              {filtered.length === 0 ? (
+              {filtered.length === 0 && pending.length === 0 ? (
                 <tr>
                   <td style={{ ...td, color: "#a1a1aa", textAlign: "center" }} colSpan={7}>
                     {showIgnored

@@ -492,6 +492,15 @@ export const api = {
     return apiRequest<number>("/v2/admin/analytics/default-list/reset", { method: "POST" });
   },
 
+  // Remove a planned event. The server refuses this for events that have actually fired — those
+  // are evidence, and hiding them is what Ignore is for.
+  deletePlannedEvent(eventName: string) {
+    return apiRequest<string>(
+      `/v2/admin/analytics/event-config/${encodeURIComponent(eventName)}`,
+      { method: "DELETE" },
+    );
+  },
+
   // Ignore ("never show again") an event, or restore it.
   ignoreEvent(eventName: string, ignored: boolean) {
     return apiRequest<DefaultListTask>(
@@ -523,6 +532,10 @@ export interface EventDiscoveryItem {
   replaceName: string | null;
   description: string | null;
   defaultListStatus: DefaultListStatus;
+  /** Authored here; the app has never emitted it. Cleared by the server once it fires. */
+  planned: boolean;
+  /** "action" | "screen" — stated by the author on a planned row. */
+  identityType: string | null;
 }
 
 export interface EventConfigUpsert {
@@ -532,6 +545,8 @@ export interface EventConfigUpsert {
   replaceName: string | null;
   description: string | null;
   screenName?: string | null;
+  planned?: boolean;
+  identityType?: string | null;
 }
 
 export interface DefaultListTask {
