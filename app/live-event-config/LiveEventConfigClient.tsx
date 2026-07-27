@@ -10,6 +10,7 @@ interface Draft {
   displayName?: string;
   replaceName?: string;
   description?: string;
+  layer?: string;
 }
 
 const REFRESH_MS = 4000;
@@ -111,12 +112,53 @@ function InfoTooltip({ children }: { children: React.ReactNode }) {
  * — "this screen fires these three, and a fourth is missing" reads at a glance in a way an appended
  * list never does. `anchor: null` means it was added from the toolbar and goes at the top.
  */
+/**
+ * Who caused an event — the question a funnel cannot answer about itself.
+ *
+ * A funnel is built from what the user did. People leave one because of what the app did to them:
+ * an ad, a login wall, an API that never answered. With only the first kind recorded, every leak
+ * reads as lost interest — including the ~20% splash drop, which is a login wall we put there.
+ *
+ * Grouped in the select so picking the right one needs no theory: anything the user touched is
+ * Intent, and the rest is reviewed by whoever wires the event up.
+ */
+const LAYERS: { group: string; options: { value: string; label: string; hint: string }[] }[] = [
+  {
+    group: "Intent — the user did this",
+    options: [
+      { value: "intent.screen", label: "Screen", hint: "a screen the user reached" },
+      { value: "intent.action", label: "Action", hint: "something the user deliberately did" },
+    ],
+  },
+  {
+    group: "Response — the app did this back",
+    options: [
+      { value: "response.outcome", label: "Outcome", hint: "did what they asked for actually happen" },
+      { value: "response.gate", label: "Gate", hint: "we stopped them on purpose: login wall, paywall, ad gate, permission" },
+      { value: "response.interruption", label: "Interruption", hint: "happened to them unasked: an ad displayed, a dialog" },
+    ],
+  },
+  {
+    group: "Infra — underneath",
+    options: [
+      { value: "infra.api", label: "API", hint: "a server call's result" },
+      { value: "infra.sync", label: "Sync", hint: "a push or pull result" },
+      { value: "infra.ads", label: "Ads SDK", hint: "load/show failures, not the visible ad" },
+    ],
+  },
+];
+
+const LAYER_LABEL: Record<string, string> = Object.fromEntries(
+  LAYERS.flatMap((g) => g.options.map((o) => [o.value, `${g.group.split(" —")[0]} · ${o.label}`])),
+);
+
 interface PendingRow {
   id: string;
   anchor: string | null;
   position: "above" | "below";
   eventName: string;
   identityType: "action" | "screen";
+  layer: string;
   displayName: string;
   description: string;
 }
@@ -128,6 +170,7 @@ function newPending(anchor: string | null, position: "above" | "below"): Pending
     position,
     eventName: "",
     identityType: "action",
+    layer: "intent.action",
     displayName: "",
     description: "",
   };
@@ -355,6 +398,7 @@ export default function LiveEventConfigClient() {
   const nameVal = (i: EventDiscoveryItem) => drafts[i.eventName]?.displayName ?? i.displayName ?? "";
   const replaceVal = (i: EventDiscoveryItem) => drafts[i.eventName]?.replaceName ?? i.replaceName ?? "";
   const descVal = (i: EventDiscoveryItem) => drafts[i.eventName]?.description ?? i.description ?? "";
+  const layerVal = (i: EventDiscoveryItem) => drafts[i.eventName]?.layer ?? i.layer ?? "";
 
 
   function addPending(anchor: string | null, position: "above" | "below") {
@@ -391,6 +435,7 @@ export default function LiveEventConfigClient() {
         description: row.description.trim() || null,
         planned: true,
         identityType: row.identityType,
+        layer: row.layer || null,
       });
       setPending((prev) => prev.filter((r) => r.id !== row.id));
       await load(true);
@@ -422,6 +467,34 @@ export default function LiveEventConfigClient() {
     border: "1px solid #e4e4e7", fontSize: 12.5,
   };
 
+  /** The layer select, grouped so the right answer needs no theory. */
+  function layerSelect(value: string, onChange: (v: string) => void, unset: boolean) {
+    return (
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        style={{
+          ...inp,
+          // Uncategorised is a real state, not a default, and it should look unanswered rather than
+          // quietly pass as one of the choices.
+          color: unset ? "#a16207" : undefined,
+          background: unset ? "#fffbeb" : undefined,
+        }}
+      >
+        <option value="">— not set —</option>
+        {LAYERS.map((g) => (
+          <optgroup key={g.group} label={g.group}>
+            {g.options.map((o) => (
+              <option key={o.value} value={o.value} title={o.hint}>
+                {o.label}
+              </option>
+            ))}
+          </optgroup>
+        ))}
+      </select>
+    );
+  }
+
   /** One authored row: the four things needed to build the event, and nothing else. */
   function renderPending(row: PendingRow) {
     return (
@@ -431,7 +504,16 @@ export default function LiveEventConfigClient() {
           <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
             <select
               value={row.identityType}
-              onChange={(e) => patchPending(row.id, { identityType: e.target.value as "action" | "screen" })}
+              onChange={(e) => {
+                const t = e.target.value as "action" | "screen";
+                // Follows the shape only while the layer is still Intent — once it has been moved to
+                // Response or Infra, that was a considered choice and must not be undone by touching
+                // an unrelated dropdown.
+                patchPending(row.id, {
+                  identityType: t,
+                  ...(row.layer.startsWith("intent.") ? { layer: `intent.${t === "screen" ? "screen" : "action"}` } : {}),
+                });
+              }}
               style={{ ...inp, width: 84, flexShrink: 0 }}
             >
               <option value="action">action</option>
@@ -453,6 +535,9 @@ export default function LiveEventConfigClient() {
               saved as <code>screen: {row.eventName.trim()}</code>
             </span>
           ) : null}
+        </td>
+        <td style={td}>
+          {layerSelect(row.layer, (v) => patchPending(row.id, { layer: v }), !row.layer)}
         </td>
         <td style={td}>
           <span style={{ fontSize: 11, color: "#b45309", background: "#fef3c7", borderRadius: 6, padding: "3px 8px", whiteSpace: "nowrap" }}>
@@ -569,6 +654,7 @@ export default function LiveEventConfigClient() {
     try {
       const task = await api.saveEventConfig({
         eventName: i.eventName,
+        layer: layerVal(i) || null,
         tracked: trackedOn(i),
         displayName: nameVal(i).trim() || null,
         replaceName: replaceVal(i).trim() || null,
@@ -802,6 +888,9 @@ export default function LiveEventConfigClient() {
               <tr>
                 <th style={{ ...th, width: 64 }}>Track</th>
                 <th style={th}>Event / identity</th>
+                <th style={{ ...th, width: 150 }} title="Who caused this event — what a funnel cannot tell you about itself">
+                  Layer
+                </th>
                 <th style={{ ...th, width: 108 }}>Status</th>
                 <th style={{ ...th, width: 180 }}>
                   Display name
@@ -898,6 +987,9 @@ export default function LiveEventConfigClient() {
                       </div>
                     </td>
                     <td style={td}>
+                      {layerSelect(layerVal(i), (v) => setDraft(i.eventName, { layer: v }), !layerVal(i))}
+                    </td>
+                    <td style={td}>
                       {/* Planned is tested FIRST. It has inList = false, so any check starting from
                           inList files it under "debug-only" — which reads as "this fired but is not
                           allowlisted" and is the exact confusion this status exists to prevent. */}
@@ -966,7 +1058,7 @@ export default function LiveEventConfigClient() {
               })}
               {filtered.length === 0 && pending.length === 0 ? (
                 <tr>
-                  <td style={{ ...td, color: "#a1a1aa", textAlign: "center" }} colSpan={7}>
+                  <td style={{ ...td, color: "#a1a1aa", textAlign: "center" }} colSpan={8}>
                     {showIgnored
                       ? "No ignored events."
                       : `No events yet${debugOnly ? " from debug builds" : ""}. Interact with the debug app — actions appear here live.`}

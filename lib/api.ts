@@ -536,6 +536,8 @@ export interface EventDiscoveryItem {
   planned: boolean;
   /** "action" | "screen" — stated by the author on a planned row. */
   identityType: string | null;
+  /** Which layer caused it. Null = nobody has categorised it yet. */
+  layer: string | null;
 }
 
 export interface EventConfigUpsert {
@@ -547,6 +549,7 @@ export interface EventConfigUpsert {
   screenName?: string | null;
   planned?: boolean;
   identityType?: string | null;
+  layer?: string | null;
 }
 
 export interface DefaultListTask {
