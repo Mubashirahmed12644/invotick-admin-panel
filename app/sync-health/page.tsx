@@ -151,7 +151,7 @@ export default function SyncHealthPage() {
     <main className="app-shell">
       <Sidebar />
       <div className="app-main">
-        <Navbar title="Sync Health" />
+        <Navbar title="Sync Health" backHref="/health" backLabel="Health Centre" />
         <section className="content-wrap">
           <div style={{ display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap", marginBottom: 20 }}>
             <label style={{ display: "flex", gap: 8, alignItems: "center" }}>

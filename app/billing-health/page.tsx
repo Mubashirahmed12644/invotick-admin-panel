@@ -54,7 +54,7 @@ export default function BillingHealthPage() {
     <main className="app-shell">
       <Sidebar />
       <div className="app-main">
-        <Navbar title="Billing Health" />
+        <Navbar title="Billing Health" backHref="/health" backLabel="Health Centre" />
         <section className="content-wrap">
           <div style={{ marginBottom: 20 }}>
             <button type="button" onClick={() => void load()} disabled={isLoading}>

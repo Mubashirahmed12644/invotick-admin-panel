@@ -15,10 +15,14 @@ const navItems: NavItem[] = [
   {
     label: "Health Centre",
     href: "/health",
-    // Exchange Rates lives under here rather than beside it — it is one check among several, and a
-    // nav item per service is how the next silent failure ends up somewhere nobody looks.
+    // Exchange Rates, Sync Health and Billing Health used to be nav items of their own. They are
+    // drill-downs now, because a page only opened deliberately is a page nobody opens on the
+    // ordinary day when something starts going wrong — Sync Health had every symptom of the atomic
+    // push bug on it while a user was writing in to report the invoices it had eaten.
     isActive: (pathname: string) =>
-      pathname.startsWith("/health") || pathname.startsWith("/exchange-rates"),
+      ["/health", "/exchange-rates", "/sync-health", "/billing-health"].some((p) =>
+        pathname.startsWith(p),
+      ),
     // The count is the whole point. Four faults were found by accident in one day, all of them
     // already reported somewhere nobody was reading.
     badge: "health" as const,
@@ -52,16 +56,6 @@ const navItems: NavItem[] = [
     label: "Contact Data",
     href: "/contact-data",
     isActive: (pathname: string) => pathname.startsWith("/contact-data"),
-  },
-  {
-    label: "Sync Health",
-    href: "/sync-health",
-    isActive: (pathname: string) => pathname.startsWith("/sync-health"),
-  },
-  {
-    label: "Billing Health",
-    href: "/billing-health",
-    isActive: (pathname: string) => pathname.startsWith("/billing-health"),
   },
   {
     label: "Testing Devices",

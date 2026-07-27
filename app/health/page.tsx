@@ -18,11 +18,12 @@ import type { HealthCentreOverview, HealthCheckEntry } from "@/lib/types";
  * tenth of its real limit, and 2,717 invoices carrying a currency their own client disagreed with.
  * Nothing crashed; every endpoint answered 200. The information existed in all four cases.
  *
- * So the page leads with what is wrong and says nothing decorative when nothing is.
+ * This is the landing page for all of it: one card per check, each carrying enough of its own answer
+ * to be judged without opening anything, and each opening the page with the rows behind it. Sync
+ * Health and Billing Health were nav items of their own until they became two of these cards — a
+ * page you have to decide to visit is a page nobody visits on the ordinary day when something
+ * starts going wrong.
  */
-
-const ORDER = ["CRITICAL", "UNKNOWN", "WARNING", "OK"] as const;
-
 export default function HealthCentrePage() {
   const [data, setData] = useState<HealthCentreOverview | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -46,10 +47,6 @@ export default function HealthCentrePage() {
   useEffect(() => {
     void load();
   }, [load]);
-
-  const sorted = data
-    ? [...data.checks].sort((a, b) => ORDER.indexOf(a.status) - ORDER.indexOf(b.status))
-    : [];
 
   return (
     <main className="app-shell">
@@ -91,8 +88,10 @@ export default function HealthCentrePage() {
                 </div>
               </div>
 
-              <div className="hc-list">
-                {sorted.map((check) => (
+              {/* Already ordered worst-first by the server, so the thing to act on is the thing
+                  nearest the top of the screen. */}
+              <div className="hc-grid">
+                {data.checks.map((check) => (
                   <CheckCard key={check.id} check={check} />
                 ))}
               </div>
@@ -104,26 +103,37 @@ export default function HealthCentrePage() {
   );
 }
 
+/**
+ * One check, summarised.
+ *
+ * Shows the verdict, the two or three numbers behind it, and — only when something is wrong — what
+ * to do. A green card stays quiet: an overview that explains itself at length when everything is
+ * fine trains people to skim past the one day it isn't.
+ */
 function CheckCard({ check }: { check: HealthCheckEntry }) {
   const facts = Object.entries(check.facts ?? {});
-  return (
-    <article className={`section-card hc-card hc-card-${check.status.toLowerCase()}`}>
+  const tone = check.status.toLowerCase();
+  const wrong = check.status !== "OK";
+
+  const body = (
+    <>
       <header className="hc-card-head">
-        <span className={`hc-pill hc-pill-${check.status.toLowerCase()}`}>{check.status}</span>
-        <div className="hc-card-heading">
-          <h2>{check.name}</h2>
-          <p className="hc-summary">{check.summary}</p>
-        </div>
+        <span className={`hc-pill hc-pill-${tone}`}>{check.status}</span>
         {/* Not decoration. A check with a twelve-hour interval can be showing an answer from this
             morning, and "when was this last true" is the first thing to ask of a green tick. */}
         <span className="hc-checked">{formatDateTime(check.checkedAt)}</span>
       </header>
 
-      {check.detail && <p className="hc-detail">{check.detail}</p>}
+      <h2 className="hc-card-title">{check.name}</h2>
+      <p className="hc-purpose">{check.purpose}</p>
+      <p className="hc-summary">{check.summary}</p>
 
+      {/* The verdict can be right while the reason is surprising: "3 keys × 100 = 300 available,
+          744 needed" is the sentence that would have prevented a month of failure, and no status
+          colour carries it. Capped, because a card that lists everything is read as nothing. */}
       {facts.length > 0 && (
         <dl className="hc-facts">
-          {facts.map(([k, v]) => (
+          {facts.slice(0, wrong ? facts.length : TOP_FACTS).map(([k, v]) => (
             <div key={k} className="hc-fact">
               <dt>{k}</dt>
               <dd>{v}</dd>
@@ -131,6 +141,23 @@ function CheckCard({ check }: { check: HealthCheckEntry }) {
           ))}
         </dl>
       )}
-    </article>
+
+      {wrong && check.detail && <p className="hc-detail">{check.detail}</p>}
+
+      {check.detailPath && <span className="hc-open">Open {check.name.toLowerCase()} →</span>}
+    </>
+  );
+
+  const className = `section-card hc-card hc-card-${tone}${check.detailPath ? " hc-card-link" : ""}`;
+
+  return check.detailPath ? (
+    <Link href={check.detailPath} className={className}>
+      {body}
+    </Link>
+  ) : (
+    <article className={className}>{body}</article>
   );
 }
+
+/** Enough to judge a green card by, few enough that it stays a card. */
+const TOP_FACTS = 3;

@@ -908,6 +908,10 @@ export type HealthStatus = "OK" | "WARNING" | "CRITICAL" | "UNKNOWN";
 export interface HealthCheckEntry {
   id: string;
   name: string;
+  /** What this check watches, in one line, for a reader who does not already know. */
+  purpose: string;
+  /** Admin-panel path with the underlying rows, or null when the card is the whole story. */
+  detailPath: string | null;
   status: HealthStatus;
   summary: string;
   detail: string | null;
