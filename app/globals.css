@@ -2823,6 +2823,9 @@ th {
 .hc-purpose { margin: 0; font-size: 0.78rem; line-height: 1.45; color: #9ca3af; }
 .hc-summary { margin: 0.2rem 0 0; font-size: 0.9rem; font-weight: 600; }
 .hc-checked { font-size: 0.74rem; color: #9ca3af; white-space: nowrap; }
+/* An old answer should look old — this is the state somebody lands in right after fixing something
+   and reloading, which does not re-run anything. */
+.hc-checked-stale { color: #b45309; font-weight: 600; }
 
 .hc-card-wrap { display: flex; flex-direction: column; gap: 0.5rem; }
 /* The card must still fill the grid row when an action hangs below it. */

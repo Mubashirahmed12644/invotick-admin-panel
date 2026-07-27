@@ -114,14 +114,18 @@ function CheckCard({ check }: { check: HealthCheckEntry }) {
   const facts = Object.entries(check.facts ?? {});
   const tone = check.status.toLowerCase();
   const wrong = check.status !== "OK";
+  const stale = Date.now() - new Date(check.checkedAt).getTime() > STALE_AFTER_MS;
 
   const body = (
     <>
       <header className="hc-card-head">
         <span className={`hc-pill hc-pill-${tone}`}>{check.status}</span>
-        {/* Not decoration. A check with a twelve-hour interval can be showing an answer from this
-            morning, and "when was this last true" is the first thing to ask of a green tick. */}
-        <span className="hc-checked">{formatDateTime(check.checkedAt)}</span>
+        {/* Age, not a timestamp. A check caches for its own interval, so after fixing something the
+            natural next move — reloading the page — shows the same answer, and "Jul 27 at 10:05 PM"
+            does not read as stale the way "45m ago" does. Title keeps the exact time. */}
+        <span className={`hc-checked${stale ? " hc-checked-stale" : ""}`} title={formatDateTime(check.checkedAt)}>
+          {ageLabel(check.checkedAt)}
+        </span>
       </header>
 
       <h2 className="hc-card-title">{check.name}</h2>
@@ -206,3 +210,22 @@ function ActionButton({ action }: { action: HealthAction }) {
 
 /** Enough to judge a green card by, few enough that it stays a card. */
 const TOP_FACTS = 3;
+
+/**
+ * Past this, the age is worth pointing at.
+ *
+ * Not a correctness threshold — a check answering from an hour ago is usually fine. It is about the
+ * one moment that matters: somebody has just fixed the thing this card reported and wants to know
+ * whether the card knows yet.
+ */
+const STALE_AFTER_MS = 15 * 60 * 1000;
+
+/** "just now" · "45m ago" · "3h ago" · "2d ago". */
+function ageLabel(iso: string): string {
+  const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.floor(hours / 24)}d ago`;
+}
