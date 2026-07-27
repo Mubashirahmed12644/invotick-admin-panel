@@ -106,7 +106,20 @@ p {
   display: grid;
   gap: 0.45rem;
   align-content: start;
+  /* The sidebar is 100vh with the nav as its 1fr row, so once the list outgrows the screen the
+     items simply fell off the bottom with no way to reach them. `min-height: 0` is the half that
+     is easy to miss: a grid child defaults to `min-height: auto`, which refuses to shrink below its
+     content, and overflow never gets a chance to apply. */
+  min-height: 0;
+  overflow-y: auto;
+  /* Keep the bar out of the way until it is needed. */
+  scrollbar-width: thin;
+  scrollbar-color: #c7d6ea transparent;
 }
+
+.sidebar-nav::-webkit-scrollbar { width: 6px; }
+.sidebar-nav::-webkit-scrollbar-track { background: transparent; }
+.sidebar-nav::-webkit-scrollbar-thumb { background: #c7d6ea; border-radius: 3px; }
 
 .sidebar-link {
   display: inline-flex;
