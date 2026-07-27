@@ -1,5 +1,6 @@
 import { getAccessToken } from "@/lib/auth";
 import type {
+  ExchangeRatesHealth,
   AdminLoginResponse,
   AdminVerifyOtpRequest,
   ActiveUser,
@@ -284,6 +285,18 @@ export const api = {
     return apiRequest<WebpanelTestingDeviceLookupResponse>(
       `/v1/webpanel/testing-devices/lookup?deviceId=${encodeURIComponent(deviceId)}`,
     );
+  },
+
+  /** The rates service's status, already judged into an `issues` list — see ExchangeRatesAdminService. */
+  getExchangeRatesHealth() {
+    return apiRequest<ExchangeRatesHealth>("/v1/webpanel/exchange-rates/health");
+  },
+
+  addExchangeRateKey(body: { providerName: string; apiKey: string; monthlyQuota: number; status?: string }) {
+    return apiRequest<unknown>("/v1/webpanel/exchange-rates/api-keys", {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
   },
 
   getContactDataStats() {

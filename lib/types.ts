@@ -852,3 +852,47 @@ export interface SharedPurchase {
   accountBindingCount: number;
   firstSeenAt: string;
 }
+
+/**
+ * The rates service's status, already judged into `issues` by the backend.
+ *
+ * Mirrors ExchangeRatesAdminService.Health. `issues` is the point of it: the raw healthcheck stated
+ * these facts for sixteen days and nobody read them, so the judging happens server-side and the
+ * panel only has to count.
+ */
+export interface ExchangeRateKey {
+  id: number | null;
+  provider: string | null;
+  status: string | null;
+  monthlyQuota: number | null;
+  requestCount: number | null;
+  usagePercent: number | null;
+  lastUsedAt: string | null;
+}
+
+export interface ExchangeRateIssue {
+  severity: string;
+  title: string;
+  detail: string;
+}
+
+export interface ExchangeRatesHealth {
+  reachable: boolean;
+  status: string | null;
+  frequency: string | null;
+  provider: string | null;
+  lastFetchAt: string | null;
+  rateAgeDays: number | null;
+  stale: boolean;
+  lastError: string | null;
+  lastErrorAt: string | null;
+  currencies: number | null;
+  keys: ExchangeRateKey[];
+  issues: ExchangeRateIssue[];
+  monthlyCapacity: number;
+  monthlyDemand: number | null;
+  monthlyUsed: number | null;
+  quotaResetsAt: string | null;
+  projectedExhaustionAt: string | null;
+  sampleRates: Record<string, number>;
+}

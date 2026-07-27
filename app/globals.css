@@ -2699,3 +2699,55 @@ th {
   color: #9ca3af;
   font-size: 11px;
 }
+
+/* Exchange rates page — app/exchange-rates/page.tsx.
+   The whole screen exists because the rates service reported stale rates and exhausted keys on its
+   own healthcheck for sixteen days with nobody looking. Issues are loud on purpose. */
+.xr-issues { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+
+.xr-issue {
+  display: flex; flex-direction: column; gap: 3px;
+  padding: 12px 14px; border-radius: 10px; border-left: 4px solid;
+}
+.xr-issue strong { font-size: 14px; }
+.xr-issue span { font-size: 12.5px; color: #4b5563; }
+.xr-issue-critical { background: #fef2f2; border-color: #dc2626; }
+.xr-issue-critical strong { color: #991b1b; }
+.xr-issue-warning { background: #fffbeb; border-color: #f59e0b; }
+.xr-issue-warning strong { color: #92400e; }
+
+.xr-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin-bottom: 16px; }
+
+.xr-card {
+  display: flex; flex-direction: column; gap: 3px;
+  padding: 14px 16px; border: 1px solid #e5e7eb; border-radius: 12px; background: #fff;
+}
+.xr-card-bad { border-color: #fca5a5; background: #fef2f2; }
+.xr-card-label { font-size: 11.5px; text-transform: uppercase; letter-spacing: .04em; color: #6b7280; }
+.xr-card-value { font-size: 19px; font-weight: 700; color: #111827; }
+.xr-card-note { font-size: 12px; color: #9ca3af; }
+.xr-card-bad .xr-card-note { color: #b91c1c; }
+
+.xr-panel {
+  padding: 16px; border: 1px solid #e5e7eb; border-radius: 12px; background: #fff; margin-bottom: 16px;
+}
+.xr-panel h2 { font-size: 15px; margin: 0 0 10px; }
+.xr-muted { font-size: 12px; color: #9ca3af; margin-top: 10px; }
+.xr-error-text { font-family: ui-monospace, monospace; font-size: 13px; color: #991b1b; margin: 0; }
+
+.xr-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.xr-table th { text-align: left; font-weight: 600; color: #6b7280; padding: 6px 8px; border-bottom: 1px solid #e5e7eb; }
+.xr-table td { padding: 7px 8px; border-bottom: 1px solid #f3f4f6; }
+.xr-row-warn { background: #fffbeb; }
+
+.xr-rates { display: flex; flex-wrap: wrap; gap: 14px; }
+.xr-rate { font-size: 13px; }
+.xr-rate-code { color: #9ca3af; margin-right: 4px; }
+
+/* The count that makes the difference between the information existing and someone seeing it. */
+.sidebar-badge {
+  margin-left: auto; min-width: 18px; height: 18px; padding: 0 5px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 9px; background: #dc2626; color: #fff;
+  font-size: 11px; font-weight: 700;
+}

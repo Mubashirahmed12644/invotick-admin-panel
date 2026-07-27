@@ -2,13 +2,24 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import Logo from "@/components/Logo";
+import { api } from "@/lib/api";
 
-const navItems = [
+const navItems: NavItem[] = [
   {
     label: "All Users",
     href: "/users",
     isActive: (pathname: string) => pathname.startsWith("/users"),
+  },
+  {
+    label: "Exchange Rates",
+    href: "/exchange-rates",
+    isActive: (pathname: string) => pathname.startsWith("/exchange-rates"),
+    // Carries a count. The rates service reported stale rates and exhausted keys on its own
+    // healthcheck for sixteen days without anyone opening it; a number in the nav is the difference
+    // between information existing and someone seeing it.
+    badge: "exchange-rates" as const,
   },
   {
     label: "Inventory Items",
@@ -87,8 +98,17 @@ const navItems = [
   },
 ] as const;
 
+interface NavItem {
+  label: string;
+  href: string;
+  isActive: (pathname: string) => boolean;
+  /** Only set where the item shows a count. */
+  badge?: "exchange-rates";
+}
+
 export default function Sidebar() {
   const pathname = usePathname();
+  const issues = useExchangeRateIssueCount();
 
   return (
     <aside className="app-sidebar">
@@ -104,6 +124,11 @@ export default function Sidebar() {
             className={`sidebar-link ${item.isActive(pathname) ? "sidebar-link-active" : ""}`}
           >
             {item.label}
+            {item.badge === "exchange-rates" && issues > 0 && (
+              <span className="sidebar-badge" title={`${issues} thing${issues === 1 ? "" : "s"} to look at`}>
+                {issues}
+              </span>
+            )}
           </Link>
         ))}
       </nav>
@@ -111,4 +136,35 @@ export default function Sidebar() {
       <p className="sidebar-note">Extend `navItems` in `Sidebar.tsx` when adding new modules.</p>
     </aside>
   );
+}
+
+/**
+ * How many things are currently wrong with the rates service.
+ *
+ * Polled rather than pushed, because the failure it is watching for is slow — rates go stale over
+ * days, and keys run down over weeks. Five minutes is far more often than the underlying state can
+ * change. Failures are swallowed: a nav badge must never be the thing that breaks the page.
+ */
+function useExchangeRateIssueCount(): number {
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    const check = async () => {
+      try {
+        const health = await api.getExchangeRatesHealth();
+        if (!cancelled) setCount(health.issues?.length ?? 0);
+      } catch {
+        // Silent on purpose — see above.
+      }
+    };
+    void check();
+    const timer = setInterval(check, 5 * 60 * 1000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, []);
+
+  return count;
 }
