@@ -446,6 +446,21 @@ export default function LiveEventConfigClient() {
     }
   }
 
+  /**
+   * Ask the app to stop emitting an event.
+   *
+   * Deliberately does not hide the row. The point is that it is still arriving — that is what makes
+   * the pending state honest, and what makes "marked removed but still firing" visible later.
+   */
+  async function suppress(i: EventDiscoveryItem, on: boolean) {
+    try {
+      await api.suppressEvent(i.eventName, on);
+      await load(true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not update");
+    }
+  }
+
   /** Only planned rows can be deleted; the server refuses the rest and says why. */
   async function deleteRow(i: EventDiscoveryItem) {
     setMenuFor(null);
@@ -631,13 +646,24 @@ export default function LiveEventConfigClient() {
               <button
                 type="button"
                 style={item}
-                title="Hides it here. Findable again with Show ignored — and it stays a code-side job."
+                title="Queues removing the emission from the app. Until that ships, the app keeps sending it."
+                onClick={() => {
+                  setMenuFor(null);
+                  void suppress(i, i.suppressStatus === "NONE");
+                }}
+              >
+                {i.suppressStatus === "NONE" ? "Stop sending from app" : "Keep sending it"}
+              </button>
+              <button
+                type="button"
+                style={item}
+                title="Only hides the row here. The app carries on sending it."
                 onClick={() => {
                   setMenuFor(null);
                   void setIgnored(i.eventName, !i.ignored);
                 }}
               >
-                {i.ignored ? "Show again" : "Don\u2019t show again"}
+                {i.ignored ? "Show again" : "Hide from this list"}
               </button>
               <button
                 type="button"
@@ -1005,7 +1031,13 @@ export default function LiveEventConfigClient() {
                       {/* Planned is tested FIRST. It has inList = false, so any check starting from
                           inList files it under "debug-only" — which reads as "this fired but is not
                           allowlisted" and is the exact confusion this status exists to prevent. */}
-                      {i.planned ? (
+                      {i.stillFiringAfterRemoval ? (
+                        /* We said this was removed and it arrived anyway. Loudest state on the row,
+                           because it means a release did not do what it claimed. */
+                        <span style={{ fontSize: 11, color: "#991b1b", background: "#fee2e2", borderRadius: 6, padding: "3px 8px", whiteSpace: "nowrap" }}>● still firing</span>
+                      ) : i.suppressStatus === "PENDING" ? (
+                        <span style={{ fontSize: 11, color: "#9a3412", background: "#ffedd5", borderRadius: 6, padding: "3px 8px", whiteSpace: "nowrap" }}>● removing</span>
+                      ) : i.planned ? (
                         <span style={{ fontSize: 11, color: "#b45309", background: "#fef3c7", borderRadius: 6, padding: "3px 8px", whiteSpace: "nowrap" }}>● planned</span>
                       ) : i.inList ? (
                         <span style={{ fontSize: 11, color: "#15803d", background: "#f0fdf4", borderRadius: 6, padding: "3px 8px", whiteSpace: "nowrap" }}>● in list</span>

@@ -501,6 +501,15 @@ export const api = {
     );
   },
 
+  // Ask the app to stop emitting this event. Queues a source change for a developer — unlike
+  // ignoreEvent, which only hides the row and leaves the app sending it forever.
+  suppressEvent(eventName: string, suppress: boolean) {
+    return apiRequest<DefaultListTask>(
+      `/v2/admin/analytics/event-config/${encodeURIComponent(eventName)}/suppress?suppress=${suppress}`,
+      { method: "POST" },
+    );
+  },
+
   // Ignore ("never show again") an event, or restore it.
   ignoreEvent(eventName: string, ignored: boolean) {
     return apiRequest<DefaultListTask>(
@@ -538,6 +547,10 @@ export interface EventDiscoveryItem {
   identityType: string | null;
   /** Which layer caused it. Null = nobody has categorised it yet. */
   layer: string | null;
+  /** NONE / PENDING / APPLIED — whether the app should stop emitting this at all. */
+  suppressStatus: "NONE" | "PENDING" | "APPLIED";
+  /** Marked removed in code and still arriving: the removal did not work. */
+  stillFiringAfterRemoval: boolean;
 }
 
 export interface EventConfigUpsert {
