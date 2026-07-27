@@ -1,5 +1,6 @@
 "use client";
 
+import type { WebpanelCurrencyTotal } from "@/lib/types";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import EmptyState from "@/components/EmptyState";
@@ -76,6 +77,7 @@ interface UserListRow {
   taxesAll: number;
   paymentInstructionsAll: number;
   invoiceTotalAll: number;
+  invoiceTotalsByCurrency?: WebpanelCurrencyTotal[];
   paymentTotalAll: number;
   expenseTotalAll: number;
   invoiceStatusCounts: Record<string, number>;
@@ -377,6 +379,7 @@ export default function UsersPage() {
         taxesAll: allCounts.taxes,
         paymentInstructionsAll: allCounts.paymentInstructions,
         invoiceTotalAll: allTime.totals.invoiceTotalAmount,
+        invoiceTotalsByCurrency: allTime.totals.invoiceTotalsByCurrency ?? [],
         paymentTotalAll: allTime.totals.paymentTotalAmount,
         expenseTotalAll: allTime.totals.expenseTotalAmount,
         invoiceStatusCounts: statusCounts,
@@ -1567,6 +1570,7 @@ export default function UsersPage() {
                         paymentsAll: row.paymentsAll,
                         expensesAll: row.expensesAll,
                         invoiceTotalAll: row.invoiceTotalAll,
+                        invoiceTotalsByCurrency: row.invoiceTotalsByCurrency,
                         lastActivityAt: row.lastActivityAt,
                         createdAt: row.createdAt,
                         appVersions: row.appVersions,

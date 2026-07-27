@@ -1,4 +1,6 @@
-import { formatCurrency, formatDate, formatDateTime } from "@/lib/format";
+import { formatDate, formatDateTime } from "@/lib/format";
+import { CurrencyTotalCell } from "./CurrencyTotalCell";
+import type { WebpanelCurrencyTotal } from "@/lib/types";
 
 interface UserCardProps {
   row: {
@@ -11,6 +13,7 @@ interface UserCardProps {
     paymentsAll: number;
     expensesAll: number;
     invoiceTotalAll: number;
+    invoiceTotalsByCurrency?: WebpanelCurrencyTotal[];
     lastActivityAt: string | null;
     createdAt: string | null;
     appVersions: string[];
@@ -73,7 +76,7 @@ export default function UserCard({ row, onClick }: UserCardProps) {
       <span className="users-cell users-cell-number">{row.overdue}</span>
       <span className="users-cell users-cell-number">{row.paymentsAll}</span>
       <span className="users-cell users-cell-number">{row.expensesAll}</span>
-      <span className="users-cell">{formatCurrency(row.invoiceTotalAll, "USD")}</span>
+      <CurrencyTotalCell total={row.invoiceTotalAll} byCurrency={row.invoiceTotalsByCurrency} />
       <span className="users-cell">{formatDateTime(row.lastActivityAt)}</span>
       <span className="users-cell">{formatDate(row.createdAt)}</span>
       <span className="users-cell" title={row.appVersions.join(", ")}>
