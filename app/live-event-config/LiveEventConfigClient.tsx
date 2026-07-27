@@ -627,6 +627,18 @@ export default function LiveEventConfigClient() {
               <button type="button" style={item} onClick={() => addPending(i.eventName, "below")}>
                 Add row below
               </button>
+              <span style={{ display: "block", height: 1, background: "#f4f4f5", margin: "4px 0" }} />
+              <button
+                type="button"
+                style={item}
+                title="Hides it here. Findable again with Show ignored — and it stays a code-side job."
+                onClick={() => {
+                  setMenuFor(null);
+                  void setIgnored(i.eventName, !i.ignored);
+                }}
+              >
+                {i.ignored ? "Show again" : "Don\u2019t show again"}
+              </button>
               <button
                 type="button"
                 onClick={() => void deleteRow(i)}
