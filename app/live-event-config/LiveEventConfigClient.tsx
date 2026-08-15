@@ -740,7 +740,9 @@ export default function LiveEventConfigClient() {
                 row is offered nothing while there is nothing to undo, and "Keep sending it" the
                 moment there is.
               */}
-              {i.autoCaptured && i.suppressStatus === "NONE" ? null : (
+              {/* CODED rows: their only lever. The allowlist does not gate a deliberately-coded
+                  event, so it always sends and deleting the call is the one thing that stops it. */}
+              {i.autoCaptured ? null : (
                 <button
                   type="button"
                   style={item}
@@ -757,17 +759,45 @@ export default function LiveEventConfigClient() {
                   {i.suppressStatus === "NONE" ? "Stop sending from app" : "Keep sending it"}
                 </button>
               )}
+
+              {/* Both kinds get this. For an AUTO row it is the only lever it needs: the
+                  send-allowlist is a positive list, so one never added to it never reaches
+                  production, and taking it out of the way is the whole job. For a CODED row it is
+                  the second option — hide it from the list while you decide, without queuing a
+                  source change you have not committed to. */}
               <button
                 type="button"
                 style={item}
-                title="Only hides the row here. The app carries on sending it."
+                title={
+                  i.autoCaptured
+                    ? "Takes it out of this list. The allowlist already decides whether it ships, and it is not on it."
+                    : "Only hides the row here. The app carries on sending it."
+                }
                 onClick={() => {
                   setMenuFor(null);
                   void setIgnored(i.eventName, !i.ignored);
                 }}
               >
-                {i.ignored ? "Show again" : "Hide from this list"}
+                {i.ignored ? "Show again" : "Never show again"}
               </button>
+
+              {/* An auto row that was marked for removal BEFORE the two levers were separated. Its
+                  own lever cannot clear that state, and leaving it with no way out is the trap this
+                  already caused once. Transitional: nothing can set the state on an auto row now, so
+                  this disappears as the last of them are cleared. */}
+              {i.autoCaptured && i.suppressStatus !== "NONE" ? (
+                <button
+                  type="button"
+                  style={item}
+                  title="Cancel a removal that was queued before auto and coded events had separate controls."
+                  onClick={() => {
+                    setMenuFor(null);
+                    void suppress(i, false);
+                  }}
+                >
+                  Keep sending it
+                </button>
+              ) : null}
               <button
                 type="button"
                 onClick={() => void deleteRow(i)}
