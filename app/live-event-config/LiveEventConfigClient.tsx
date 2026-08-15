@@ -732,12 +732,23 @@ export default function LiveEventConfigClient() {
 
                 A deliberately-coded event is the opposite: the allowlist does not gate it, it always
                 sends, and deleting the call is the only thing that stops it.
+
+                The `suppressStatus === "NONE"` half matters as much as the autoCaptured half. Hiding
+                the control outright left auto rows that were ALREADY marked for removal with no way
+                back — the state existed and the only button that could undo it had gone. Withholding
+                a decision that does not apply is right; trapping one already made is not. So an auto
+                row is offered nothing while there is nothing to undo, and "Keep sending it" the
+                moment there is.
               */}
-              {i.autoCaptured ? null : (
+              {i.autoCaptured && i.suppressStatus === "NONE" ? null : (
                 <button
                   type="button"
                   style={item}
-                  title="Queues removing the emission from the app source. Until that ships, the app keeps sending it."
+                  title={
+                    i.suppressStatus === "NONE"
+                      ? "Queues removing the emission from the app source. Until that ships, the app keeps sending it."
+                      : "Cancel the removal — the app keeps sending this, and it returns to the feed."
+                  }
                   onClick={() => {
                     setMenuFor(null);
                     void suppress(i, i.suppressStatus === "NONE");
