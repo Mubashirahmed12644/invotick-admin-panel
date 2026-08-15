@@ -43,6 +43,27 @@ function sanitizeName(raw: string): string {
     .slice(0, 40);
 }
 
+/**
+ * A wall-clock time for one event, to the millisecond.
+ *
+ * Seconds are not enough resolution for this page. A single tap emits several events at once — a
+ * screen view, the action, and whatever outcome follows — and at second granularity they all read
+ * `15:14:43`, so the one question this list is used to answer, *what fired before what*, has no
+ * answer on screen. `toLocaleTimeString()` cannot show fractions, hence the manual assembly.
+ *
+ * 24-hour and fixed-width on purpose: these are read as a column, and a 12-hour clock puts a
+ * variable-width "PM" where the eye is scanning for a digit.
+ */
+function timeWithMillis(iso: string): string {
+  const at = new Date(iso);
+  if (Number.isNaN(at.getTime())) return "—";
+  const hh = String(at.getHours()).padStart(2, "0");
+  const mm = String(at.getMinutes()).padStart(2, "0");
+  const ss = String(at.getSeconds()).padStart(2, "0");
+  const ms = String(at.getMilliseconds()).padStart(3, "0");
+  return `${hh}:${mm}:${ss}.${ms}`;
+}
+
 // Info tooltip that appears after ~2s of hover (matches the requested delay).
 function InfoTooltip({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
@@ -1019,9 +1040,17 @@ export default function LiveEventConfigClient() {
                           {showIgnored ? "↺" : "⊘"}
                         </button>
                       </div>
-                      <div style={{ fontSize: 11, color: "#a1a1aa", marginTop: 2 }}>
+                      <div
+                        style={{
+                          fontSize: 11,
+                          color: "#a1a1aa",
+                          marginTop: 2,
+                          // So the millisecond digits line up down the column instead of drifting.
+                          fontVariantNumeric: "tabular-nums",
+                        }}
+                      >
                         {i.screenName ?? "—"}
-                        {i.lastSeen ? ` · ${new Date(i.lastSeen).toLocaleTimeString()}` : ""}
+                        {i.lastSeen ? ` · ${timeWithMillis(i.lastSeen)}` : ""}
                       </div>
                     </td>
                     <td style={td}>
