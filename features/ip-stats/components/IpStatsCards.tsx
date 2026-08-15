@@ -4,10 +4,10 @@ import styles from "../styles/ip-stats.module.css";
 import { useIpStats } from "../hooks/useIpStats";
 import { DonutChart } from "./DonutChart";
 
-const CYAN = "#00f0ff";
-const GREEN = "#3dffa0";
-const AMBER = "#ffb547";
-const RED = "#ff4f6a";
+const CYAN = "var(--md-sys-color-tertiary)";
+const GREEN = "var(--md-sys-color-success)";
+const AMBER = "var(--md-sys-color-warning)";
+const RED = "var(--md-sys-color-error)";
 
 export function IpStatsCards() {
     const { data, loading, error } = useIpStats();

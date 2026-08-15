@@ -61,7 +61,7 @@
 .funnelByToggle {
   display: flex;
   align-items: center;
-  background: #f0f4fa;
+  background: var(--md-sys-color-surface-container-low);
   border-radius: 8px;
   padding: 3px;
   gap: 2px;
@@ -128,7 +128,7 @@
   height: 28px;
   border-radius: 50%;
   background: var(--color-primary);
-  color: #fff;
+  color: var(--md-sys-color-on-primary);
   font-size: 0.75rem;
   font-weight: 800;
   display: inline-flex;
@@ -170,7 +170,7 @@
 }
 
 .stepSuggestion:hover {
-  background: #eef5ff;
+  background: var(--md-sys-color-surface-container-low);
   color: var(--color-primary);
 }
 
@@ -198,7 +198,7 @@
 }
 
 .moveBtn:hover:not(:disabled) {
-  background: #f0f4fa;
+  background: var(--md-sys-color-surface-container-low);
   color: var(--color-primary);
   border-color: var(--color-primary);
 }
@@ -225,7 +225,7 @@
 }
 
 .removeBtn:hover:not(:disabled) {
-  background: #fdecea;
+  background: var(--md-sys-color-surface-container-low);
   color: var(--color-danger);
 }
 
@@ -256,7 +256,7 @@
 .addStepBtn:hover:not(:disabled) {
   border-color: var(--color-primary);
   color: var(--color-primary);
-  background: #eef5ff;
+  background: var(--md-sys-color-surface-container-low);
 }
 
 .addStepBtn:disabled {
@@ -291,9 +291,9 @@
   align-items: center;
   border-radius: 999px;
   padding: 0.22rem 0.65rem;
-  background: #eef5ff;
-  border: 1px solid #d5e5ff;
-  color: #2559a8;
+  background: var(--md-sys-color-surface-container-low);
+  border: 1px solid var(--md-sys-color-outline-variant);
+  color: var(--md-sys-color-primary);
   font-size: 0.75rem;
   font-weight: 700;
 }
@@ -335,7 +335,7 @@
 }
 
 .statValueGreen {
-  color: #1a8a4a;
+  color: var(--md-sys-color-success);
 }
 
 .statLabel {
@@ -416,7 +416,7 @@
   height: 20px;
   border-radius: 50%;
   background: var(--color-primary);
-  color: #fff;
+  color: var(--md-sys-color-on-primary);
   font-size: 0.65rem;
   font-weight: 800;
   display: inline-flex;
@@ -463,7 +463,7 @@
 /* The centered bar */
 .funnelBarTrack {
   width: 100%;
-  background: #f0f4fa;
+  background: var(--md-sys-color-surface-container-low);
   border-radius: 8px;
   overflow: hidden;
   height: 48px;
@@ -485,14 +485,14 @@
 }
 
 .funnelBarFillText {
-  color: #fff;
+  color: var(--md-sys-color-on-primary);
   font-size: 0.82rem;
   font-weight: 700;
   white-space: nowrap;
 }
 
 .funnelBarFillUsers {
-  color: rgba(255, 255, 255, 0.75);
+  color: var(--md-sys-color-on-primary);
   font-size: 0.75rem;
   font-weight: 600;
   white-space: nowrap;
@@ -513,7 +513,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: #fdecea;
+  background: var(--md-sys-color-surface-container-low);
   border-radius: 50%;
   font-size: 0.75rem;
   color: var(--color-danger);
@@ -524,8 +524,8 @@
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
-  background: #fdecea;
-  border: 1px solid #f5c6c4;
+  background: var(--md-sys-color-surface-container-low);
+  border: 1px solid var(--md-sys-color-outline-variant);
   border-radius: 999px;
   padding: 0.2rem 0.65rem;
   font-size: 0.78rem;
@@ -536,20 +536,20 @@
 .dropOffPct {
   display: inline-flex;
   align-items: center;
-  background: #fff3f3;
-  border: 1px solid #f5c6c4;
+  background: var(--md-sys-color-surface-container-low);
+  border: 1px solid var(--md-sys-color-outline-variant);
   border-radius: 999px;
   padding: 0.2rem 0.65rem;
   font-size: 0.78rem;
   font-weight: 600;
-  color: #c0392b;
+  color: var(--md-sys-color-error);
 }
 
 .dropOffTime {
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
-  background: #f7f9fc;
+  background: var(--md-sys-color-surface-container-lowest);
   border: 1px solid var(--color-border);
   border-radius: 999px;
   padding: 0.2rem 0.65rem;
@@ -607,7 +607,7 @@
   height: 26px;
   border-radius: 50%;
   background: var(--color-primary);
-  color: #fff;
+  color: var(--md-sys-color-on-primary);
   font-size: 0.72rem;
   font-weight: 800;
   display: inline-flex;
@@ -632,7 +632,7 @@
 
 .stepCardProgressTrack {
   height: 7px;
-  background: #f0f4fa;
+  background: var(--md-sys-color-surface-container-low);
   border-radius: 99px;
   overflow: hidden;
 }
@@ -686,7 +686,7 @@
 /* Time row at bottom of step card */
 .stepCardTime {
   padding: 0.55rem 1rem;
-  background: #f7f9fc;
+  background: var(--md-sys-color-surface-container-lowest);
   border-top: 1px solid var(--color-border);
   font-size: 0.78rem;
   color: var(--color-text-muted);
@@ -703,15 +703,15 @@
 
 /* Bottleneck highlight */
 .stepCardBottleneck {
-  border-color: #f5c6c4;
-  box-shadow: 0 0 0 1px #f5c6c4, var(--shadow-soft);
+  border-color: var(--md-sys-color-outline-variant);
+  box-shadow: 0 0 0 1px var(--md-sys-color-error), var(--shadow-soft);
 }
 
 .bottleneckBadge {
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
-  background: #fdecea;
+  background: var(--md-sys-color-surface-container-low);
   border-radius: 999px;
   padding: 0.18rem 0.55rem;
   font-size: 0.7rem;

@@ -36,7 +36,7 @@
 
 .viewToggleActive {
   background: var(--color-primary);
-  color: #ffffff;
+  color: var(--md-sys-color-on-primary);
   border-color: var(--color-primary);
 }
 
@@ -51,9 +51,9 @@
   align-items: center;
   border-radius: 999px;
   padding: 0.28rem 0.62rem;
-  background: #eef5ff;
-  border: 1px solid #d5e5ff;
-  color: #2559a8;
+  background: var(--md-sys-color-surface-container-low);
+  border: 1px solid var(--md-sys-color-outline-variant);
+  color: var(--md-sys-color-primary);
   font-size: 0.77rem;
   font-weight: 700;
 }
@@ -67,7 +67,7 @@
 .summaryCard {
   border: 1px solid var(--color-border);
   border-radius: 14px;
-  background: linear-gradient(145deg, #ffffff 0%, #f8fbff 100%);
+  background: var(--md-sys-color-surface-container-lowest);
   box-shadow: var(--shadow-soft);
   padding: 1rem;
 }
@@ -94,7 +94,7 @@
 .graphCard {
   border: 1px solid var(--color-border);
   border-radius: 18px;
-  background: linear-gradient(180deg, #ffffff 0%, #f9fbff 100%);
+  background: var(--md-sys-color-surface-container-lowest);
   box-shadow: var(--shadow-soft);
   padding: 1rem;
   display: grid;
@@ -146,10 +146,10 @@
 .graphZoomButton {
   width: 2rem;
   height: 2rem;
-  border: 1px solid #c9d8f2;
+  border: 1px solid var(--md-sys-color-outline-variant);
   border-radius: 999px;
-  background: #ffffff;
-  color: #234f95;
+  background: var(--md-sys-color-surface-container-lowest);
+  color: var(--md-sys-color-primary);
   font-size: 1.1rem;
   font-weight: 800;
   line-height: 1;
@@ -163,9 +163,9 @@
 
 .graphZoomButton:hover:not(:disabled) {
   transform: translateY(-1px);
-  border-color: #9fbaf0;
+  border-color: var(--md-sys-color-primary);
   box-shadow: 0 10px 20px rgba(37, 89, 168, 0.14);
-  color: #163f82;
+  color: var(--md-sys-color-primary);
 }
 
 .graphZoomButton:disabled {
@@ -179,7 +179,7 @@
   text-align: center;
   font-size: 0.8rem;
   font-weight: 800;
-  color: #31558f;
+  color: var(--md-sys-color-primary);
 }
 
 .flowLegendItem {
@@ -188,8 +188,8 @@
   gap: 0.45rem;
   border-radius: 999px;
   padding: 0.34rem 0.68rem;
-  background: #f6f9ff;
-  border: 1px solid #dce6f7;
+  background: var(--md-sys-color-surface-container-lowest);
+  border: 1px solid var(--md-sys-color-outline-variant);
   max-width: 100%;
 }
 
@@ -203,7 +203,7 @@
 .flowLegendLabel {
   font-size: 0.78rem;
   font-weight: 800;
-  color: #294d86;
+  color: var(--md-sys-color-primary);
 }
 
 .flowLegendMeta {
@@ -214,11 +214,11 @@
 .graphViewport {
   overflow-x: auto;
   overflow-y: auto;
-  border: 1px solid #dfe8f6;
+  border: 1px solid var(--md-sys-color-outline-variant);
   border-radius: 16px;
   background:
     radial-gradient(circle at top left, rgba(37, 89, 168, 0.08), transparent 30%),
-    linear-gradient(180deg, #fbfdff 0%, #f4f8ff 100%);
+    var(--md-sys-color-surface-container-lowest);
   min-height: 520px;
   max-height: 78vh;
   min-width: 100%;
@@ -239,7 +239,7 @@
 }
 
 .graphStepLabel {
-  fill: #2a518f;
+  fill: var(--md-sys-color-primary);
   font-size: 12px;
   font-weight: 800;
   letter-spacing: 0.08em;
@@ -247,20 +247,20 @@
 }
 
 .graphStepHint {
-  fill: #7a8ca9;
+  fill: var(--md-sys-color-primary);
   font-size: 10px;
   font-weight: 600;
 }
 
 .graphEdge {
   fill: none;
-  stroke: #5d86cc;
+  stroke: var(--md-sys-color-primary);
   transition: opacity 0.18s ease, stroke 0.18s ease;
 }
 
 .graphEdge:hover {
   opacity: 0.7 !important;
-  stroke: #2559a8;
+  stroke: var(--md-sys-color-primary);
 }
 
 .graphEdgeSelected {
@@ -276,7 +276,7 @@
 }
 
 .graphEdgeLabelText {
-  fill: #ffffff;
+  fill: var(--md-sys-color-on-surface-variant);
   font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.01em;
@@ -291,13 +291,13 @@
 }
 
 .graphNodeTitle {
-  fill: #000000;
+  fill: var(--md-sys-color-on-surface-variant);
   font-size: 9px;
   font-weight: 800;
 }
 
 .graphNodeMeta {
-  fill: #000000;
+  fill: var(--md-sys-color-on-surface-variant);
   font-size: 8px;
   font-weight: 700;
 }
@@ -312,9 +312,9 @@
 }
 
 .graphDetailsPanel {
-  border: 1px solid #dfe8f6;
+  border: 1px solid var(--md-sys-color-outline-variant);
   border-radius: 16px;
-  background: linear-gradient(180deg, #fbfdff 0%, #f6f9ff 100%);
+  background: var(--md-sys-color-surface-container-lowest);
   padding: 0.95rem 1rem;
   display: grid;
   gap: 0.8rem;
@@ -334,7 +334,7 @@
   gap: 0.45rem;
   font-size: 0.84rem;
   font-weight: 800;
-  color: #27477e;
+  color: var(--md-sys-color-primary);
 }
 
 .graphDetailsSwatch {
@@ -368,7 +368,7 @@
 .treeCard {
   border: 1px solid var(--color-border);
   border-radius: 18px;
-  background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+  background: var(--md-sys-color-surface-container-lowest);
   box-shadow: var(--shadow-soft);
   padding: 1rem;
   display: grid;
@@ -407,9 +407,9 @@
   align-items: center;
   border-radius: 999px;
   padding: 0.3rem 0.65rem;
-  background: #f3f7ff;
-  border: 1px solid #d8e4f8;
-  color: #335e9e;
+  background: var(--md-sys-color-surface-container-lowest);
+  border: 1px solid var(--md-sys-color-outline-variant);
+  color: var(--md-sys-color-primary);
   font-size: 0.8rem;
   font-weight: 700;
 }
@@ -428,9 +428,9 @@
 }
 
 .stepColumn {
-  border: 1px solid #dfe8f6;
+  border: 1px solid var(--md-sys-color-outline-variant);
   border-radius: 14px;
-  background: #f9fbff;
+  background: var(--md-sys-color-surface-container-lowest);
   padding: 0.8rem;
   display: grid;
   gap: 0.75rem;
@@ -446,7 +446,7 @@
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: #2957a1;
+  color: var(--md-sys-color-primary);
 }
 
 .stepMeta,
@@ -461,9 +461,9 @@
 }
 
 .nodeCard {
-  border: 1px solid #dbe5f4;
+  border: 1px solid var(--md-sys-color-outline-variant);
   border-radius: 12px;
-  background: #ffffff;
+  background: var(--md-sys-color-surface-container-lowest);
   padding: 0.75rem;
   display: grid;
   gap: 0.55rem;
@@ -491,8 +491,8 @@
   min-width: 2rem;
   border-radius: 999px;
   padding: 0.16rem 0.5rem;
-  background: #eaf2ff;
-  color: #2559a8;
+  background: var(--md-sys-color-surface-container-low);
+  color: var(--md-sys-color-primary);
   font-size: 0.78rem;
   font-weight: 800;
 }
@@ -503,7 +503,7 @@
 }
 
 .transitionsBlock {
-  border-top: 1px solid #e4ebf7;
+  border-top: 1px solid var(--md-sys-color-outline-variant);
   padding-top: 1rem;
   display: grid;
   gap: 0.8rem;
@@ -534,9 +534,9 @@
   align-items: center;
   justify-content: space-between;
   gap: 0.8rem;
-  border: 1px solid #dfe8f6;
+  border: 1px solid var(--md-sys-color-outline-variant);
   border-radius: 12px;
-  background: #fbfdff;
+  background: var(--md-sys-color-surface-container-lowest);
   padding: 0.75rem 0.9rem;
 }
 
@@ -550,14 +550,14 @@
 .edgeNode {
   font-family: var(--font-space-mono), monospace;
   font-size: 0.78rem;
-  color: #30548d;
+  color: var(--md-sys-color-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .edgeArrow {
-  color: #8da4cb;
+  color: var(--md-sys-color-primary);
   font-size: 0.95rem;
 }
 

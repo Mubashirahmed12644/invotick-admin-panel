@@ -24,7 +24,7 @@ function FlagBadge({ label, active, activeColor }: FlagBadgeProps) {
                         backgroundColor: activeColor + "15",
                     }
                     : {
-                        color: "#3d4a6b",
+                        color: "var(--md-sys-color-outline)",
                         borderColor: "#3d4a6b44",
                         backgroundColor: "transparent",
                     }
@@ -82,11 +82,11 @@ export function IpLookupResult({ record }: IpLookupResultProps) {
                     <Row label="Domain" value={record.domain} />
 
                     <div className={styles.flagContainer}>
-                        <FlagBadge label="PROXY" active={record.isProxy} activeColor="#ff4f6a" />
-                        <FlagBadge label="VPN" active={record.isVpn} activeColor="#ff4f6a" />
-                        <FlagBadge label="MOBILE" active={record.isMobile} activeColor="#ffb547" />
-                        <FlagBadge label="HOSTING" active={record.isHosting} activeColor="#ffb547" />
-                        <FlagBadge label="EU" active={record.isEu} activeColor="#00f0ff" />
+                        <FlagBadge label="PROXY" active={record.isProxy} activeColor="var(--md-sys-color-error)" />
+                        <FlagBadge label="VPN" active={record.isVpn} activeColor="var(--md-sys-color-error)" />
+                        <FlagBadge label="MOBILE" active={record.isMobile} activeColor="var(--md-sys-color-warning)" />
+                        <FlagBadge label="HOSTING" active={record.isHosting} activeColor="var(--md-sys-color-warning)" />
+                        <FlagBadge label="EU" active={record.isEu} activeColor="var(--md-sys-color-tertiary)" />
                     </div>
                 </div>
             </div>
@@ -105,12 +105,12 @@ export function IpLookupResult({ record }: IpLookupResultProps) {
                         style={
                             record.servedFrom === "database"
                                 ? {
-                                    color: "#00f0ff",
+                                    color: "var(--md-sys-color-tertiary)",
                                     borderColor: "#00f0ff44",
                                     backgroundColor: "#00f0ff15",
                                 }
                                 : {
-                                    color: "#ffb547",
+                                    color: "var(--md-sys-color-warning)",
                                     borderColor: "#ffb54744",
                                     backgroundColor: "#ffb54715",
                                 }

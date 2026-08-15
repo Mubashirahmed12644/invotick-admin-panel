@@ -3132,11 +3132,17 @@ h3 { font-size: var(--md-sys-typescale-title-medium-size); font-weight: 600; }
    stylesheet's theme, so they were the last block of contrast failures left
    after the sweep: light text on a light system face, and back again in dark.
 
-   Only `color` and `background-color` are set, and only as a floor: anything
-   with a class or an inline style still wins, so this changes nothing that was
-   already deliberate.
+   Both `color` and `background-color` apply to EVERY button, not only the
+   classless ones. A button that HAS a class but declares only one of the two
+   still falls back to a system colour for the other, and that is not a rare
+   case: ip-stats' close button set a colour and no background and came out at
+   1.8:1; live-events' menu button set a background and no colour and came out
+   at 1.0:1 — its text was exactly its own background.
+
+   An element selector is the lowest specificity there is, so any class or
+   inline style that does set these still wins and nothing deliberate changes.
    --------------------------------------------------------------------------- */
-button:not([class]) {
+button {
   color: var(--md-sys-color-on-surface);
   background-color: transparent;
   font: inherit;
