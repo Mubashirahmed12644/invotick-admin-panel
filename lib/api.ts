@@ -483,6 +483,23 @@ export const api = {
   },
 
   // The full bundled default allowlist the app should ship (every tracked event).
+  /**
+   * Events decided against — absent from the discovery feed, kept here so the decision can be seen
+   * and undone. Deliberately NOT the send-allowlist: that one says what a release build sends, while
+   * discovery must keep showing everything a debug build emits or it stops discovering.
+   */
+  getRemoveList() {
+    return apiRequest<RemovedEvent[]>("/v2/admin/analytics/remove-list");
+  },
+
+  /** Put a removed event back into the discovery feed. */
+  restoreRemoved(eventName: string) {
+    return apiRequest<RemovedEvent>(
+      `/v2/admin/analytics/event-config/${encodeURIComponent(eventName)}/suppress?suppress=false`,
+      { method: "POST" },
+    );
+  },
+
   getDefaultList() {
     return apiRequest<DefaultListTask[]>("/v2/admin/analytics/default-list");
   },
@@ -563,6 +580,22 @@ export interface EventConfigUpsert {
   planned?: boolean;
   identityType?: string | null;
   layer?: string | null;
+}
+
+/**
+ * One row of the remove list.
+ *
+ * Separate from DefaultListTask because that type's `status` is the DEFAULT-LIST task state — is the
+ * key baked into the app's bundled allowlist yet — which is unrelated to whether an event was
+ * decided against.
+ */
+export interface RemovedEvent {
+  eventName: string;
+  displayName: string | null;
+  /** PENDING = still firing, a developer has not stripped it. APPLIED = gone from source. */
+  suppressStatus: "PENDING" | "APPLIED";
+  suppressAppliedAt: string | null;
+  updatedAt: string;
 }
 
 export interface DefaultListTask {

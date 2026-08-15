@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { api, type EventDiscoveryItem, type DefaultListTask } from "@/lib/api";
+import { api, type EventDiscoveryItem, type DefaultListTask, type RemovedEvent } from "@/lib/api";
 
 // Per-row unsaved edits, so the live refresh never clobbers what the admin is typing.
 interface Draft {
@@ -280,6 +280,11 @@ export default function LiveEventConfigClient() {
   }
   const [showDefault, setShowDefault] = useState(false);
   const [defaultItems, setDefaultItems] = useState<DefaultListTask[]>([]);
+
+  // The remove list is its own thing, not a view of the allowlist — see api.getRemoveList.
+  const [showRemoved, setShowRemoved] = useState(false);
+  const [removedItems, setRemovedItems] = useState<RemovedEvent[]>([]);
+  const [removedLoading, setRemovedLoading] = useState(false);
   const [defaultLoading, setDefaultLoading] = useState(false);
   const [copiedKt, setCopiedKt] = useState(false);
 
@@ -321,6 +326,28 @@ export default function LiveEventConfigClient() {
       setError(e instanceof Error ? e.message : "Failed to load the default list.");
     } finally {
       setDefaultLoading(false);
+    }
+  }
+
+  async function openRemoveList() {
+    setShowRemoved(true);
+    setRemovedLoading(true);
+    try {
+      setRemovedItems(await api.getRemoveList());
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load the remove list.");
+    } finally {
+      setRemovedLoading(false);
+    }
+  }
+
+  async function restoreRemoved(eventName: string) {
+    try {
+      await api.restoreRemoved(eventName);
+      setRemovedItems((prev) => prev.filter((r) => r.eventName !== eventName));
+      await load(true); // it belongs back in the feed straight away
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Restore failed.");
     }
   }
 
@@ -900,6 +927,17 @@ export default function LiveEventConfigClient() {
         >
           {showDefault ? "Hide default list" : "Default list"}
         </button>
+        {/* Its own list, next to the allowlist rather than inside it. Discovery has to keep showing
+            everything the debug app emits, so "never show this again" cannot be expressed by leaving
+            an event off the send-allowlist — it needs somewhere of its own to live, and to come back
+            from. */}
+        <button
+          type="button"
+          onClick={() => (showRemoved ? setShowRemoved(false) : openRemoveList())}
+          style={{ padding: "6px 14px", borderRadius: 6, border: "1px solid var(--md-sys-color-outline-variant)", background: showRemoved ? "var(--md-sys-color-surface-container-low)" : "var(--md-sys-color-surface-container-lowest)", color: "var(--md-sys-color-error)", fontSize: 13, fontWeight: 500, cursor: "pointer" }}
+        >
+          {showRemoved ? "Hide remove list" : "Remove list"}
+        </button>
         <button
           type="button"
           onClick={() => load(true)}
@@ -936,6 +974,60 @@ export default function LiveEventConfigClient() {
           </button>
         ) : null}
       </div>
+
+      {showRemoved ? (
+        <div style={{ border: "1px solid var(--md-sys-color-outline-variant)", background: "var(--md-sys-color-surface-container-lowest)", borderRadius: 10, padding: 16, marginBottom: 16 }}>
+          <div style={{ marginBottom: 10 }}>
+            <div style={{ fontSize: 15, fontWeight: 600, color: "var(--md-sys-color-error)" }}>Remove list</div>
+            <div style={{ fontSize: 12, color: "var(--md-sys-color-on-surface)", marginTop: 2 }}>
+              Decided against, so they are kept out of the feed above. <b>{removedItems.length}</b>{" "}
+              {removedItems.length === 1 ? "event" : "events"}. <b>Removing</b> means the app still emits it and a
+              developer has not stripped it yet; <b>Removed</b> means it is gone from the source.
+            </div>
+          </div>
+          {removedLoading ? (
+            <div style={{ fontSize: 13, color: "var(--md-sys-color-on-surface-variant)" }}>Loading…</div>
+          ) : removedItems.length === 0 ? (
+            <div style={{ fontSize: 13, color: "var(--md-sys-color-on-surface-variant)" }}>
+              Nothing removed. Use the ⊘ on a row to take an event out of discovery.
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {removedItems.map((r) => (
+                <div
+                  key={r.eventName}
+                  style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", padding: "6px 8px", borderRadius: 6, background: "var(--md-sys-color-surface-container-low)" }}
+                >
+                  <code style={{ fontSize: 13, fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}>{r.eventName}</code>
+                  <span
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 600,
+                      padding: "1px 8px",
+                      borderRadius: 999,
+                      background: "var(--md-sys-color-surface-container-high)",
+                      color: r.suppressStatus === "APPLIED" ? "var(--md-sys-color-on-surface-variant)" : "var(--md-sys-color-warning)",
+                    }}
+                  >
+                    {r.suppressStatus === "APPLIED" ? "Removed" : "Removing"}
+                  </span>
+                  {r.displayName ? (
+                    <span style={{ fontSize: 12, color: "var(--md-sys-color-on-surface-variant)" }}>{r.displayName}</span>
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={() => void restoreRemoved(r.eventName)}
+                    title="Put this event back into the discovery feed"
+                    style={{ marginLeft: "auto", padding: "4px 12px", borderRadius: 6, border: "1px solid var(--md-sys-color-outline-variant)", background: "var(--md-sys-color-surface-container-lowest)", color: "var(--md-sys-color-primary)", fontSize: 12, cursor: "pointer" }}
+                  >
+                    Restore
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      ) : null}
 
       {showDefault ? (
         <div style={{ border: "1px solid var(--md-sys-color-outline-variant)", background: "var(--md-sys-color-surface-container-lowest)", borderRadius: 10, padding: 16, marginBottom: 16 }}>
