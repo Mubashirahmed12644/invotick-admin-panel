@@ -426,13 +426,24 @@ export default function LiveEventConfigClient() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debugOnly, showIgnored]);
 
-  // Events still visible after the "Clear" cutoff (content-only; configs are untouched).
+  /**
+   * Events still visible after the "Clear" cutoff (content-only; configs are untouched).
+   *
+   * The cutoff does NOT apply while Show ignored is on, and that is the point of this branch. Clear
+   * list hides the noise in the LIVE feed — events that have not fired since you pressed it are not
+   * interesting right now. But Show ignored is not the live feed: it is the list of decisions you
+   * have already made, and a decision does not stop existing because the event has been quiet.
+   *
+   * Measured 2026-08-16: the backend held six ignored events, the screen showed three. The other
+   * three had last fired before the cutoff, so the page silently answered "these are the ones you
+   * ignored" with a subset — the exact shape of wrong answer that reads as complete.
+   */
   const visibleItems = useMemo(
     () =>
-      clearedAt
+      clearedAt && !showIgnored
         ? items.filter((i) => (i.lastSeen ? new Date(i.lastSeen).getTime() > clearedAt : true))
         : items,
-    [items, clearedAt],
+    [items, clearedAt, showIgnored],
   );
 
   const filtered = useMemo(() => {
@@ -442,7 +453,11 @@ export default function LiveEventConfigClient() {
       (i) =>
         i.eventName.toLowerCase().includes(q) ||
         (i.screenName ?? "").toLowerCase().includes(q) ||
-        (i.displayName ?? "").toLowerCase().includes(q),
+        (i.displayName ?? "").toLowerCase().includes(q) ||
+        // Typing "auto" or "coded" narrows to one origin. Going through a few hundred rows deciding
+        // which of a duplicated pair to keep is the actual job, and it is far easier one kind at a
+        // time.
+        (typeof i.autoCaptured === "boolean" && (i.autoCaptured ? "auto" : "coded").includes(q)),
     );
   }, [visibleItems, search]);
 
@@ -888,7 +903,7 @@ export default function LiveEventConfigClient() {
 
       <div style={{ display: "flex", gap: 12, alignItems: "center", margin: "16px 0", flexWrap: "wrap" }}>
         <input
-          placeholder="Search event / identity / screen…"
+          placeholder="Search event / identity / screen / auto / coded…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           style={{ ...inputStyle, maxWidth: 320 }}
@@ -940,7 +955,9 @@ export default function LiveEventConfigClient() {
         >
           Clear list
         </button>
-        {clearedAt ? (
+        {/* Not while Show ignored is on: the cutoff does not apply there, so a button offering to
+            "show all" would claim something is hidden when nothing is. */}
+        {clearedAt && !showIgnored ? (
           <button
             type="button"
             onClick={showAll}
@@ -1067,6 +1084,42 @@ export default function LiveEventConfigClient() {
                         ) : (
                           <span style={{ flexShrink: 0, fontSize: 10.5, fontWeight: 600, color: "var(--md-sys-color-on-surface)", background: "var(--md-sys-color-surface-container-low)", borderRadius: 5, padding: "2px 6px", marginTop: 1 }}>action</span>
                         )}
+                        {/*
+                          Where the event came from — the thing that decides which lever it has, and
+                          until now the page never said it.
+
+                          Two rows can describe the SAME action twice: Topbar.topbar_back_1 is the
+                          codemod capturing a back press, Create_Invoice_Backpress_click is somebody
+                          having coded one deliberately. Choosing which to keep is impossible without
+                          knowing which is which, and the shape of the name is a poor guess — this
+                          reads `params.auto`, which only the auto-capture path stamps.
+
+                          Rendered only when the field is actually present: an older backend does not
+                          send it, and a missing value must not be drawn as "coded".
+                        */}
+                        {typeof i.autoCaptured === "boolean" ? (
+                          <span
+                            title={
+                              i.autoCaptured
+                                ? "Auto-captured by the codemod. Governed by the send-allowlist — it reaches production only if you add it, so there is nothing to remove from the app."
+                                : "Deliberately coded as analytics.trackClick(...). The allowlist does not gate it, so it always sends and only deleting the call stops it."
+                            }
+                            style={{
+                              flexShrink: 0,
+                              fontSize: 10.5,
+                              fontWeight: 600,
+                              borderRadius: 5,
+                              padding: "2px 6px",
+                              marginTop: 1,
+                              background: "var(--md-sys-color-surface-container-low)",
+                              color: i.autoCaptured
+                                ? "var(--md-sys-color-on-surface-variant)"
+                                : "var(--md-sys-color-primary)",
+                            }}
+                          >
+                            {i.autoCaptured ? "auto" : "coded"}
+                          </span>
+                        ) : null}
                         <span style={{ fontFamily: "monospace", fontSize: 12.5, fontWeight: 600, wordBreak: "break-all" }}>{i.eventName}</span>
                         <button
                           type="button"

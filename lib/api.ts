@@ -544,7 +544,7 @@ export interface EventDiscoveryItem {
    * production only if somebody adds it — there is nothing to remove from source. A coded event
    * bypasses the allowlist and always sends, so deleting the call is the only thing that stops it.
    */
-  autoCaptured: boolean;
+  autoCaptured?: boolean;
   displayName: string | null;
   replaceName: string | null;
   description: string | null;
