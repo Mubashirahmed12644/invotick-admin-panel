@@ -537,6 +537,14 @@ export interface EventDiscoveryItem {
   tracked: boolean;
   ignored: boolean;
   inList: boolean;
+  /**
+   * True for the auto-captured tap firehose, false for a deliberately-coded event.
+   *
+   * Decides which lever the row may offer. An auto tap is gated by the send-allowlist, so it reaches
+   * production only if somebody adds it — there is nothing to remove from source. A coded event
+   * bypasses the allowlist and always sends, so deleting the call is the only thing that stops it.
+   */
+  autoCaptured: boolean;
   displayName: string | null;
   replaceName: string | null;
   description: string | null;

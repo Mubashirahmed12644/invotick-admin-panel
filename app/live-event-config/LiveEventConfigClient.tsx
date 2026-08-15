@@ -705,17 +705,32 @@ export default function LiveEventConfigClient() {
                 Add row below
               </button>
               <span style={{ display: "block", height: 1, background: "var(--md-sys-color-surface-container-low)", margin: "4px 0" }} />
-              <button
-                type="button"
-                style={item}
-                title="Queues removing the emission from the app. Until that ships, the app keeps sending it."
-                onClick={() => {
-                  setMenuFor(null);
-                  void suppress(i, i.suppressStatus === "NONE");
-                }}
-              >
-                {i.suppressStatus === "NONE" ? "Stop sending from app" : "Keep sending it"}
-              </button>
+              {/*
+                Only for events that CAN be removed from the app.
+
+                An auto-captured tap cannot, and does not need to be: the send-allowlist is a
+                positive list, so one that is never added to it never reaches production. Offering
+                "stop sending from app" there asks a developer to delete tracking that is already
+                silent — which is exactly what happened once, and had to be reverted. Those rows get
+                "Never show again" instead, which takes them out of the way while the list is being
+                built.
+
+                A deliberately-coded event is the opposite: the allowlist does not gate it, it always
+                sends, and deleting the call is the only thing that stops it.
+              */}
+              {i.autoCaptured ? null : (
+                <button
+                  type="button"
+                  style={item}
+                  title="Queues removing the emission from the app source. Until that ships, the app keeps sending it."
+                  onClick={() => {
+                    setMenuFor(null);
+                    void suppress(i, i.suppressStatus === "NONE");
+                  }}
+                >
+                  {i.suppressStatus === "NONE" ? "Stop sending from app" : "Keep sending it"}
+                </button>
+              )}
               <button
                 type="button"
                 style={item}
