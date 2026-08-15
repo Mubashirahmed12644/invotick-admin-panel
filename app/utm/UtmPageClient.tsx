@@ -73,7 +73,7 @@ export default function UtmPageClient() {
               display: "inline-flex",
               gap: 4,
               padding: 4,
-              background: "#eef2f8",
+              background: "var(--md-sys-color-surface-container-low)",
               borderRadius: 999,
               marginBottom: 22,
             }}
@@ -93,7 +93,7 @@ export default function UtmPageClient() {
                     fontWeight: 600,
                     transition: "all .18s ease",
                     background: active ? "var(--color-primary)" : "transparent",
-                    color: active ? "#fff" : "var(--color-text-muted)",
+                    color: active ? "var(--md-sys-color-on-primary)" : "var(--color-text-muted)",
                     boxShadow: active ? "var(--shadow-soft)" : "none",
                   }}
                 >
@@ -307,16 +307,24 @@ function LinkBuilder({ onSaved }: { onSaved: () => void }) {
                 gap: 16,
                 marginTop: 12,
                 padding: 16,
-                background: "#f7f9fc",
+                background: "var(--md-sys-color-surface-container-lowest)",
                 borderRadius: 16,
                 border: "1px solid var(--color-border)",
               }}
             >
-              <div style={{ background: "#fff", padding: 10, borderRadius: 12, boxShadow: "var(--shadow-soft)" }}>
+              {/*
+                Deliberately NOT themed — the only place in the panel that is exempt.
+
+                A QR code is read by a camera, not by a person, and scanners expect dark modules on
+                a light quiet zone. Themed along with everything else this became a dark navy code
+                on a near-black surface in dark mode: still a picture of a QR code, and unscannable.
+                So the tile stays white and the modules stay dark whatever the theme is.
+              */}
+              <div style={{ background: "#ffffff", padding: 10, borderRadius: 12, boxShadow: "var(--shadow-soft)" }}>
                 <QRCodeSVG value={saved.shortUrl} size={104} fgColor="#0f3d8c" level="M" />
               </div>
               <div>
-                <p style={{ fontWeight: 700, color: "#1a7f4b", margin: 0, fontSize: 14 }}>
+                <p style={{ fontWeight: 700, color: "var(--md-sys-color-success)", margin: 0, fontSize: 14 }}>
                   ✓ Saved — code <code style={{ fontFamily: "var(--font-space-mono), monospace" }}>{saved.code}</code>
                 </p>
                 <p style={{ color: "var(--color-text-muted)", fontSize: 12.5, margin: "4px 0 0", maxWidth: 220 }}>
@@ -337,8 +345,8 @@ function LinkBuilder({ onSaved }: { onSaved: () => void }) {
                 borderRadius: 12,
                 border: "none",
                 cursor: saving || !campaignValid ? "not-allowed" : "pointer",
-                background: saving || !campaignValid ? "#9db3d6" : "var(--color-primary)",
-                color: "#fff",
+                background: saving || !campaignValid ? "var(--md-sys-color-primary)" : "var(--color-primary)",
+                color: "var(--md-sys-color-on-primary)",
                 fontSize: 14,
                 fontWeight: 700,
                 boxShadow: "var(--shadow-soft)",
@@ -546,7 +554,7 @@ function LinkRow({ label, value }: { label: string; value: string }) {
           fontSize: 12,
           fontFamily: "var(--font-space-mono), monospace",
           color: "var(--color-text-muted)",
-          background: "#f4f6fa",
+          background: "var(--md-sys-color-surface-container-lowest)",
           border: "1px solid var(--color-border)",
           borderRadius: 10,
           padding: "10px 12px",
@@ -575,7 +583,7 @@ function CopyInline({ value }: { value: string }) {
         border: "none",
         background: "none",
         cursor: "pointer",
-        color: copied ? "#1a7f4b" : "var(--color-primary)",
+        color: copied ? "var(--md-sys-color-success)" : "var(--color-primary)",
         fontFamily: "var(--font-space-mono), monospace",
         fontSize: 12.5,
         padding: 0,
@@ -611,7 +619,7 @@ function Breakdown({ title, data }: { title: string; data: [string, number][] })
               <span style={{ color: "var(--color-text)", fontWeight: 600 }}>{name}</span>
               <span style={{ color: "var(--color-text-muted)" }}>{clicks}</span>
             </div>
-            <div style={{ height: 8, background: "#eef2f8", borderRadius: 999 }}>
+            <div style={{ height: 8, background: "var(--md-sys-color-surface-container-low)", borderRadius: 999 }}>
               <div
                 style={{
                   height: "100%",
@@ -720,7 +728,7 @@ const cardStyle: React.CSSProperties = {
 const chipStyle: React.CSSProperties = {
   fontSize: 11.5,
   fontFamily: "var(--font-space-mono), monospace",
-  background: "#eef2f8",
+  background: "var(--md-sys-color-surface-container-low)",
   borderRadius: 8,
   padding: "4px 8px",
   color: "var(--color-text)",
@@ -732,7 +740,7 @@ function inputStyle(invalid = false): React.CSSProperties {
     padding: "10px 12px",
     borderRadius: 12,
     border: `1px solid ${invalid ? "var(--color-danger)" : "var(--color-border)"}`,
-    background: "#fbfcfe",
+    background: "var(--md-sys-color-surface-container-lowest)",
     color: "var(--color-text)",
     fontSize: 14,
     outline: "none",
@@ -752,8 +760,8 @@ const linkBtnStyle: React.CSSProperties = {
 function copyBtnStyle(copied: boolean): React.CSSProperties {
   return {
     border: "1px solid var(--color-border)",
-    background: copied ? "#e6f6ee" : "#fff",
-    color: copied ? "#1a7f4b" : "var(--color-primary)",
+    background: copied ? "var(--md-sys-color-surface-container-low)" : "var(--md-sys-color-surface-container-lowest)",
+    color: copied ? "var(--md-sys-color-success)" : "var(--color-primary)",
     borderRadius: 8,
     padding: "4px 12px",
     fontSize: 12,

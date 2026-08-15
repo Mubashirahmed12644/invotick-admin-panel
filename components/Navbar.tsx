@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { clearAccessToken } from "@/lib/auth";
+import ThemeToggle from "@/components/ThemeToggle";
 
 interface NavbarProps {
   title: string;
@@ -35,11 +36,16 @@ export default function Navbar({ title, showLogout = true, backHref, backLabel }
         )}
         <h1>{title}</h1>
       </div>
-      {showLogout ? (
-        <button type="button" className="btn btn-outline" onClick={onLogout}>
-          Logout
-        </button>
-      ) : null}
+      {/* The toggle sits on every screen, not on a settings page. Theme is something people change
+          because the room changed, and hunting for it is why they stop bothering. */}
+      <div className="navbar-actions">
+        <ThemeToggle />
+        {showLogout ? (
+          <button type="button" className="btn btn-outline" onClick={onLogout}>
+            Logout
+          </button>
+        ) : null}
+      </div>
     </header>
   );
 }

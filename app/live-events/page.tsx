@@ -261,7 +261,7 @@ export default function LiveEventsPage() {
         {/* The sidebar on this page is collapsible, and with it hidden there was no way out at all —
             no nav, no back. A link in the Navbar is unaffected by that toggle. */}
         <Navbar title="Live Events (DebugView)" backHref="/" backLabel="Home" />
-        <div style={{ padding: "2px 16px", fontSize: 11, color: "#94a3b8", textAlign: "right" }}>
+        <div style={{ padding: "2px 16px", fontSize: 11, color: "var(--md-sys-color-on-surface-variant)", textAlign: "right" }}>
           build {process.env.NEXT_PUBLIC_BUILD_ID ?? "?"}
         </div>
         <section className="content-wrap le-split">

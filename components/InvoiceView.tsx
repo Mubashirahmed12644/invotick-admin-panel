@@ -103,21 +103,21 @@ function Row({ label, value }: { label: string; value: ReactNode }) {
       alignItems: "baseline",
       gap: "12px",
       padding: "9px 0",
-      borderBottom: "1px solid #f1f5f9",
+      borderBottom: "1px solid var(--md-sys-color-outline-variant)",
     }}>
       <span style={{
         fontSize: "11px",
         fontWeight: 600,
         letterSpacing: "0.07em",
         textTransform: "uppercase",
-        color: "#94a3b8",
+        color: "var(--md-sys-color-on-surface-variant)",
         minWidth: "160px",
         flexShrink: 0,
         fontFamily: "'DM Mono', 'Fira Mono', monospace",
       }}>{label}</span>
       <span style={{
         fontSize: "13.5px",
-        color: "#1e293b",
+        color: "var(--md-sys-color-primary)",
         fontFamily: "'DM Sans', sans-serif",
         fontWeight: 400,
         wordBreak: "break-all",
@@ -142,7 +142,7 @@ function AssetCard({ label, alt, sourceValue, asset, imageStyle }: AssetCardData
             height: "auto",
             borderRadius: "6px",
             objectFit: "contain",
-            background: "#f8fafc",
+            background: "var(--md-sys-color-surface-container-lowest)",
             padding: "8px",
             ...imageStyle,
           }}
@@ -173,8 +173,8 @@ function FieldGrid({ fields }: { fields: KeyValueField[] }) {
 function Panel({ title, accent, children }: { title: string; accent?: string; children: ReactNode }) {
   return (
     <div style={{
-      background: "#ffffff",
-      border: "1px solid #e2e8f0",
+      background: "var(--md-sys-color-surface-container-lowest)",
+      border: "1px solid var(--md-sys-color-outline-variant)",
       borderRadius: "12px",
       padding: "24px 28px",
       position: "relative",
@@ -195,7 +195,7 @@ function Panel({ title, accent, children }: { title: string; accent?: string; ch
         fontWeight: 600,
         letterSpacing: "0.12em",
         textTransform: "uppercase",
-        color: "#6366f1",
+        color: "var(--md-sys-color-primary)",
         margin: "0 0 20px 0",
       }}>{title}</h3>
       {children}
@@ -216,7 +216,7 @@ function Section({ title, children, id }: { title: string; children: ReactNode; 
           fontFamily: "'Instrument Serif', Georgia, serif",
           fontSize: "22px",
           fontWeight: 400,
-          color: "#0f172a",
+          color: "var(--md-sys-color-primary)",
           margin: 0,
           letterSpacing: "-0.01em",
           whiteSpace: "nowrap",
@@ -235,13 +235,13 @@ function Section({ title, children, id }: { title: string; children: ReactNode; 
 function StatusBadge({ status }: { status: string | null | undefined }) {
   const s = (status || "").toLowerCase();
   const map: Record<string, { bg: string; color: string; dot: string; border: string }> = {
-    paid: { bg: "#f0fdf4", color: "#16a34a", dot: "#22c55e", border: "#bbf7d0" },
-    unpaid: { bg: "#fef2f2", color: "#dc2626", dot: "#ef4444", border: "#fecaca" },
-    draft: { bg: "#f8fafc", color: "#64748b", dot: "#94a3b8", border: "#e2e8f0" },
-    sent: { bg: "#eff6ff", color: "#2563eb", dot: "#3b82f6", border: "#bfdbfe" },
-    overdue: { bg: "#fffbeb", color: "#d97706", dot: "#f59e0b", border: "#fde68a" },
+    paid: { bg: "#f0fdf4", color: "var(--md-sys-color-success)", dot: "#22c55e", border: "var(--md-sys-color-outline-variant)" },
+    unpaid: { bg: "#fef2f2", color: "var(--md-sys-color-error)", dot: "#ef4444", border: "var(--md-sys-color-outline-variant)" },
+    draft: { bg: "#f8fafc", color: "var(--md-sys-color-primary)", dot: "#94a3b8", border: "var(--md-sys-color-outline-variant)" },
+    sent: { bg: "#eff6ff", color: "var(--md-sys-color-primary)", dot: "#3b82f6", border: "var(--md-sys-color-outline-variant)" },
+    overdue: { bg: "#fffbeb", color: "var(--md-sys-color-warning)", dot: "#f59e0b", border: "var(--md-sys-color-outline-variant)" },
   };
-  const st = map[s] || { bg: "#eef2ff", color: "#4f46e5", dot: "#6366f1", border: "#c7d2fe" };
+  const st = map[s] || { bg: "#eef2ff", color: "var(--md-sys-color-primary)", dot: "#6366f1", border: "var(--md-sys-color-outline-variant)" };
   return (
     <span style={{
       display: "inline-flex",
@@ -413,15 +413,15 @@ export default function InvoiceView({ data, assetAuthKey = null }: InvoiceViewPr
 
       <div style={{
         fontFamily: "'DM Sans', sans-serif",
-        background: "#f8fafc",
+        background: "var(--md-sys-color-surface-container-lowest)",
         minHeight: "100vh",
-        color: "#1e293b",
+        color: "var(--md-sys-color-primary)",
       }}>
 
         {/* ── Hero Header ── */}
         <div style={{
           background: "linear-gradient(135deg, #ffffff 0%, #fafbff 60%, #f5f3ff 100%)",
-          borderBottom: "1px solid #e2e8f0",
+          borderBottom: "1px solid var(--md-sys-color-outline-variant)",
           padding: "40px 48px 36px",
           position: "relative",
           overflow: "hidden",
@@ -447,12 +447,12 @@ export default function InvoiceView({ data, assetAuthKey = null }: InvoiceViewPr
               <p style={{
                 fontFamily: "'DM Mono', monospace", fontSize: "10.5px",
                 letterSpacing: "0.16em", textTransform: "uppercase",
-                color: "#6366f1", margin: "0 0 8px 0", fontWeight: 600,
+                color: "var(--md-sys-color-primary)", margin: "0 0 8px 0", fontWeight: 600,
               }}>Invoice Record</p>
               <h1 style={{
                 fontFamily: "'Instrument Serif', Georgia, serif",
                 fontSize: "clamp(28px, 4vw, 42px)", fontWeight: 400,
-                color: "#0f172a", margin: "0 0 14px 0",
+                color: "var(--md-sys-color-primary)", margin: "0 0 14px 0",
                 letterSpacing: "-0.02em", lineHeight: 1.1,
               }}>
                 {fallbackText(invoice.invoiceNumber, "Draft Invoice")}
@@ -462,39 +462,39 @@ export default function InvoiceView({ data, assetAuthKey = null }: InvoiceViewPr
                 {invoice.poNumber && (
                   <span style={{
                     fontFamily: "'DM Mono', monospace", fontSize: "11.5px",
-                    color: "#94a3b8", letterSpacing: "0.04em",
+                    color: "var(--md-sys-color-on-surface-variant)", letterSpacing: "0.04em",
                   }}>PO: {invoice.poNumber}</span>
                 )}
               </div>
             </div>
 
             <div style={{
-              background: "#ffffff", border: "1px solid #e0e7ff",
+              background: "var(--md-sys-color-surface-container-lowest)", border: "1px solid var(--md-sys-color-outline-variant)",
               borderRadius: "14px", padding: "22px 32px", textAlign: "right",
               boxShadow: "0 4px 16px rgba(99,102,241,0.08)",
             }}>
               <p style={{
                 fontFamily: "'DM Mono', monospace", fontSize: "10px",
                 letterSpacing: "0.12em", textTransform: "uppercase",
-                color: "#94a3b8", margin: "0 0 6px 0",
+                color: "var(--md-sys-color-on-surface-variant)", margin: "0 0 6px 0",
               }}>Total Amount</p>
               <p style={{
                 fontFamily: "'Instrument Serif', Georgia, serif",
-                fontSize: "clamp(26px, 3vw, 38px)", color: "#4f46e5",
+                fontSize: "clamp(26px, 3vw, 38px)", color: "var(--md-sys-color-primary)",
                 margin: "0 0 4px 0", letterSpacing: "-0.01em",
               }}>
                 {formatCurrency(invoice.totalAmount, currency)}
               </p>
               <p style={{
                 fontFamily: "'DM Mono', monospace", fontSize: "11px",
-                color: "#c7d2fe", margin: 0,
+                color: "var(--md-sys-color-on-surface-variant)", margin: 0,
               }}>{currency}</p>
             </div>
           </div>
 
           <div style={{
             display: "flex", gap: "36px", marginTop: "28px",
-            paddingTop: "24px", borderTop: "1px solid #f1f5f9", flexWrap: "wrap",
+            paddingTop: "24px", borderTop: "1px solid var(--md-sys-color-outline-variant)", flexWrap: "wrap",
           }}>
             {[
               { label: "Invoice Date", value: formatDate(invoice.invoiceDate) },
@@ -506,11 +506,11 @@ export default function InvoiceView({ data, assetAuthKey = null }: InvoiceViewPr
                 <p style={{
                   fontFamily: "'DM Mono', monospace", fontSize: "9.5px",
                   letterSpacing: "0.1em", textTransform: "uppercase",
-                  color: "#94a3b8", margin: "0 0 4px 0",
+                  color: "var(--md-sys-color-on-surface-variant)", margin: "0 0 4px 0",
                 }}>{item.label}</p>
                 <p style={{
                   fontFamily: "'DM Sans', sans-serif", fontSize: "13.5px",
-                  color: "#334155", margin: 0, fontWeight: 500,
+                  color: "var(--md-sys-color-primary)", margin: 0, fontWeight: 500,
                 }}>{item.value}</p>
               </div>
             ))}
@@ -647,7 +647,7 @@ export default function InvoiceView({ data, assetAuthKey = null }: InvoiceViewPr
 
           <Section title="Line Items">
             <div style={{
-              background: "#ffffff", border: "1px solid #e2e8f0",
+              background: "var(--md-sys-color-surface-container-lowest)", border: "1px solid var(--md-sys-color-outline-variant)",
               borderRadius: "12px", overflow: "hidden",
               boxShadow: "0 1px 4px rgba(0,0,0,0.05)",
             }}>
@@ -666,15 +666,15 @@ export default function InvoiceView({ data, assetAuthKey = null }: InvoiceViewPr
                     <tbody>
                       {invoice.items.map((item) => (
                         <tr key={item.id}>
-                          <td style={{ color: "#0f172a", fontWeight: 500 }}>{fallbackText(item.name)}</td>
+                          <td style={{ color: "var(--md-sys-color-primary)", fontWeight: 500 }}>{fallbackText(item.name)}</td>
                           <td>{fallbackText(item.description)}</td>
                           <td>{fallbackNumber(item.quantity, 0)}</td>
                           <td>{formatCurrency(item.unitPrice, currency)}</td>
                           <td>{formatCurrency(item.discountValue, currency)}</td>
                           <td>{fallbackText(item.discountType)}</td>
-                          <td style={{ color: "#4338ca", fontWeight: 600 }}>{formatCurrency(item.netPrice, currency)}</td>
-                          <td style={{ fontSize: "11px", color: "#94a3b8" }}>{fallbackText(item.inventoryItemId)}</td>
-                          <td style={{ fontSize: "11px", color: "#94a3b8" }}>{fallbackText(item.id)}</td>
+                          <td style={{ color: "var(--md-sys-color-primary)", fontWeight: 600 }}>{formatCurrency(item.netPrice, currency)}</td>
+                          <td style={{ fontSize: "11px", color: "var(--md-sys-color-on-surface-variant)" }}>{fallbackText(item.inventoryItemId)}</td>
+                          <td style={{ fontSize: "11px", color: "var(--md-sys-color-on-surface-variant)" }}>{fallbackText(item.id)}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -900,7 +900,7 @@ export default function InvoiceView({ data, assetAuthKey = null }: InvoiceViewPr
                   { label: "Stamp Scale", value: fallbackText(invoice.stampScale) },
                 ]} />
               </div>
-              <div style={{ marginTop: "16px", paddingTop: "16px", borderTop: "1px solid #f1f5f9" }}>
+              <div style={{ marginTop: "16px", paddingTop: "16px", borderTop: "1px solid var(--md-sys-color-outline-variant)" }}>
                 <FieldGrid fields={[
                   { label: "Created At", value: formatDateTime(invoice.createdAt) },
                   { label: "Updated At", value: formatDateTime(invoice.updatedAt) },
@@ -911,8 +911,8 @@ export default function InvoiceView({ data, assetAuthKey = null }: InvoiceViewPr
 
           <Section title="Notes">
             <div style={{
-              background: "#ffffff", border: "1px solid #e2e8f0",
-              borderLeft: "3px solid #6366f1", borderRadius: "0 10px 10px 0",
+              background: "var(--md-sys-color-surface-container-lowest)", border: "1px solid var(--md-sys-color-outline-variant)",
+              borderLeft: "3px solid var(--md-sys-color-outline-variant)", borderRadius: "0 10px 10px 0",
               padding: "20px 24px", boxShadow: "0 1px 4px rgba(0,0,0,0.04)",
             }}>
               <p style={{

@@ -82,7 +82,7 @@ function timeWithMillis(iso: string): string {
  */
 function EventTime({ iso }: { iso: string }) {
   const full = timeWithMillis(iso);
-  if (full === "—") return <span style={{ color: "#a1a1aa" }}>—</span>;
+  if (full === "—") return <span style={{ color: "var(--md-sys-color-on-surface-variant)" }}>—</span>;
   const [clock, fraction] = full.split(".");
   return (
     <span
@@ -91,7 +91,7 @@ function EventTime({ iso }: { iso: string }) {
         fontFamily: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
         fontVariantNumeric: "tabular-nums",
         letterSpacing: "-0.01em",
-        color: "#52525b",
+        color: "var(--md-sys-color-on-surface)",
         whiteSpace: "nowrap",
       }}
     >
@@ -100,7 +100,7 @@ function EventTime({ iso }: { iso: string }) {
           soft grey around #8e8e97, which comes out at 3.25:1 and would have left the milliseconds,
           the only part that differs between events from one tap, as the least legible thing on the
           row. Lighter must not mean unreadable. */}
-      <span style={{ color: "#71717a" }}>.{fraction}</span>
+      <span style={{ color: "var(--md-sys-color-on-surface-variant)" }}>.{fraction}</span>
     </span>
   );
 }
@@ -129,8 +129,8 @@ function InfoTooltip({ children }: { children: React.ReactNode }) {
           width: 15,
           height: 15,
           borderRadius: "50%",
-          border: "1px solid #9ca3af",
-          color: "#6b7280",
+          border: "1px solid var(--md-sys-color-outline-variant)",
+          color: "var(--md-sys-color-on-surface)",
           fontSize: 10,
           fontWeight: 700,
           fontStyle: "italic",
@@ -147,8 +147,8 @@ function InfoTooltip({ children }: { children: React.ReactNode }) {
             left: 0,
             zIndex: 20,
             width: 300,
-            background: "#111827",
-            color: "#f9fafb",
+            background: "var(--md-sys-color-primary-container)",
+            color: "var(--md-sys-color-on-primary-container)",
             fontSize: 12,
             fontWeight: 400,
             lineHeight: 1.55,
@@ -541,7 +541,7 @@ export default function LiveEventConfigClient() {
 
   const inp: React.CSSProperties = {
     width: "100%", padding: "6px 8px", borderRadius: 6,
-    border: "1px solid #e4e4e7", fontSize: 12.5,
+    border: "1px solid var(--md-sys-color-outline-variant)", fontSize: 12.5,
   };
 
   /** The layer select, grouped so the right answer needs no theory. */
@@ -554,8 +554,8 @@ export default function LiveEventConfigClient() {
           ...inp,
           // Uncategorised is a real state, not a default, and it should look unanswered rather than
           // quietly pass as one of the choices.
-          color: unset ? "#a16207" : undefined,
-          background: unset ? "#fffbeb" : undefined,
+          color: unset ? "var(--md-sys-color-warning)" : undefined,
+          background: unset ? "var(--md-sys-color-surface-container-lowest)" : undefined,
         }}
       >
         <option value="">— not set —</option>
@@ -575,8 +575,8 @@ export default function LiveEventConfigClient() {
   /** One authored row: the four things needed to build the event, and nothing else. */
   function renderPending(row: PendingRow) {
     return (
-      <tr key={row.id} style={{ background: "#fffbeb" }}>
-        <td style={{ ...td, textAlign: "center", color: "#a1a1aa", fontSize: 11 }}>—</td>
+      <tr key={row.id} style={{ background: "var(--md-sys-color-surface-container-lowest)" }}>
+        <td style={{ ...td, textAlign: "center", color: "var(--md-sys-color-on-surface-variant)", fontSize: 11 }}>—</td>
         <td style={td}>
           <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
             <select
@@ -608,7 +608,7 @@ export default function LiveEventConfigClient() {
               screen row is stored with this prefix. A mismatch would leave the row planned forever
               after the work was actually done. */}
           {row.identityType === "screen" && row.eventName.trim() ? (
-            <span style={{ fontSize: 10.5, color: "#a16207" }}>
+            <span style={{ fontSize: 10.5, color: "var(--md-sys-color-warning)" }}>
               saved as <code>screen: {row.eventName.trim()}</code>
             </span>
           ) : null}
@@ -617,7 +617,7 @@ export default function LiveEventConfigClient() {
           {layerSelect(row.layer, (v) => patchPending(row.id, { layer: v }), !row.layer)}
         </td>
         <td style={td}>
-          <span style={{ fontSize: 11, color: "#b45309", background: "#fef3c7", borderRadius: 6, padding: "3px 8px", whiteSpace: "nowrap" }}>
+          <span style={{ fontSize: 11, color: "var(--md-sys-color-warning)", background: "var(--md-sys-color-surface-container-low)", borderRadius: 6, padding: "3px 8px", whiteSpace: "nowrap" }}>
             ● planned
           </span>
         </td>
@@ -631,7 +631,7 @@ export default function LiveEventConfigClient() {
         </td>
         <td style={td}>
           {/* Renaming targets an identity that already exists in code. This one does not yet. */}
-          <input disabled placeholder="n/a until it exists" style={{ ...inp, background: "#fafafa", color: "#a1a1aa" }} />
+          <input disabled placeholder="n/a until it exists" style={{ ...inp, background: "var(--md-sys-color-surface-container-lowest)", color: "var(--md-sys-color-on-surface-variant)" }} />
         </td>
         <td style={td}>
           <input
@@ -648,8 +648,8 @@ export default function LiveEventConfigClient() {
             disabled={!row.eventName.trim() || savingRow === row.id}
             style={{
               padding: "6px 12px", borderRadius: 6, border: "none",
-              background: row.eventName.trim() ? "#0D4DC0" : "#d4d4d8",
-              color: "#fff", fontSize: 12.5, fontWeight: 600,
+              background: row.eventName.trim() ? "var(--md-sys-color-primary)" : "var(--md-sys-color-surface-container-high)",
+              color: "var(--md-sys-color-on-primary)", fontSize: 12.5, fontWeight: 600,
               cursor: row.eventName.trim() ? "pointer" : "not-allowed",
             }}
           >
@@ -658,7 +658,7 @@ export default function LiveEventConfigClient() {
           <button
             type="button"
             onClick={() => setPending((prev) => prev.filter((r) => r.id !== row.id))}
-            style={{ marginLeft: 6, padding: "6px 8px", borderRadius: 6, border: "1px solid #e4e4e7", background: "#fff", fontSize: 12.5, cursor: "pointer", color: "#71717a" }}
+            style={{ marginLeft: 6, padding: "6px 8px", borderRadius: 6, border: "1px solid var(--md-sys-color-outline-variant)", background: "var(--md-sys-color-surface-container-lowest)", fontSize: 12.5, cursor: "pointer", color: "var(--md-sys-color-on-surface)" }}
           >
             Cancel
           </button>
@@ -680,7 +680,7 @@ export default function LiveEventConfigClient() {
           type="button"
           aria-label={`Row actions for ${i.eventName}`}
           onClick={() => setMenuFor(open ? null : i.eventName)}
-          style={{ border: "none", background: "transparent", cursor: "pointer", padding: "2px 6px", color: "#a1a1aa", fontSize: 15, lineHeight: 1 }}
+          style={{ border: "none", background: "transparent", cursor: "pointer", padding: "2px 6px", color: "var(--md-sys-color-on-surface-variant)", fontSize: 15, lineHeight: 1 }}
         >
           ⋯
         </button>
@@ -694,7 +694,7 @@ export default function LiveEventConfigClient() {
             <span
               style={{
                 position: "absolute", right: 0, top: "100%", zIndex: 11, minWidth: 170,
-                background: "#fff", border: "1px solid #e4e4e7", borderRadius: 8,
+                background: "var(--md-sys-color-surface-container-lowest)", border: "1px solid var(--md-sys-color-outline-variant)", borderRadius: 8,
                 boxShadow: "0 8px 24px rgba(0,0,0,0.10)", padding: "4px 0",
               }}
             >
@@ -704,7 +704,7 @@ export default function LiveEventConfigClient() {
               <button type="button" style={item} onClick={() => addPending(i.eventName, "below")}>
                 Add row below
               </button>
-              <span style={{ display: "block", height: 1, background: "#f4f4f5", margin: "4px 0" }} />
+              <span style={{ display: "block", height: 1, background: "var(--md-sys-color-surface-container-low)", margin: "4px 0" }} />
               <button
                 type="button"
                 style={item}
@@ -732,7 +732,7 @@ export default function LiveEventConfigClient() {
                 onClick={() => void deleteRow(i)}
                 disabled={!i.planned}
                 title={i.planned ? undefined : "This event has fired — use Ignore to hide it"}
-                style={{ ...item, color: i.planned ? "#dc2626" : "#d4d4d8", cursor: i.planned ? "pointer" : "not-allowed" }}
+                style={{ ...item, color: i.planned ? "var(--md-sys-color-error)" : "var(--md-sys-color-on-surface-variant)", cursor: i.planned ? "pointer" : "not-allowed" }}
               >
                 Delete row
               </button>
@@ -791,7 +791,7 @@ export default function LiveEventConfigClient() {
   const inputStyle: React.CSSProperties = {
     width: "100%",
     padding: "6px 8px",
-    border: "1px solid #d4d4d8",
+    border: "1px solid var(--md-sys-color-outline-variant)",
     borderRadius: 6,
     fontSize: 13,
   };
@@ -800,17 +800,17 @@ export default function LiveEventConfigClient() {
     padding: "8px 10px",
     fontSize: 12,
     fontWeight: 700,
-    color: "#52525b",
-    borderBottom: "1px solid #e4e4e7",
+    color: "var(--md-sys-color-on-surface)",
+    borderBottom: "1px solid var(--md-sys-color-outline-variant)",
     whiteSpace: "nowrap",
     position: "sticky",
     top: 0,
-    background: "#f9fafb",
+    background: "var(--md-sys-color-surface-container-lowest)",
     zIndex: 1,
   };
   const td: React.CSSProperties = {
     padding: "8px 10px",
-    borderBottom: "1px solid #f1f1f4",
+    borderBottom: "1px solid var(--md-sys-color-outline-variant)",
     verticalAlign: "top",
   };
 
@@ -825,7 +825,7 @@ export default function LiveEventConfigClient() {
           height: 22,
           borderRadius: 22,
           border: "none",
-          background: on ? "#16a34a" : "#d4d4d8",
+          background: on ? "var(--md-sys-color-success)" : "var(--md-sys-color-surface-container-high)",
           padding: 2,
           cursor: "pointer",
           display: "inline-flex",
@@ -833,7 +833,7 @@ export default function LiveEventConfigClient() {
           alignItems: "center",
         }}
       >
-        <span style={{ width: 18, height: 18, borderRadius: "50%", background: "#fff", display: "block" }} />
+        <span style={{ width: 18, height: 18, borderRadius: "50%", background: "var(--md-sys-color-surface-container-lowest)", display: "block" }} />
       </button>
     );
   }
@@ -842,31 +842,31 @@ export default function LiveEventConfigClient() {
     <div style={{ padding: 24, maxWidth: 1280, margin: "0 auto" }}>
       <Link
         href="/"
-        style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, color: "#0D4DC0", textDecoration: "none", marginBottom: 12 }}
+        style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, color: "var(--md-sys-color-primary)", textDecoration: "none", marginBottom: 12 }}
       >
         ← Back to home
       </Link>
       <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
         <div>
-          <h1 style={{ fontSize: 22, fontWeight: 800, color: "#0D4DC0" }}>Live Event Discovery and Config</h1>
-          <p style={{ color: "#71717a", fontSize: 13, marginTop: 4, maxWidth: 720 }}>
+          <h1 style={{ fontSize: 22, fontWeight: 800, color: "var(--md-sys-color-primary)" }}>Live Event Discovery and Config</h1>
+          <p style={{ color: "var(--md-sys-color-on-surface)", fontSize: 13, marginTop: 4, maxWidth: 720 }}>
             Every event & UI-action the <b>debug</b> app emits, tagged <b>in-list</b> or <b>debug-only</b>. Turn
             <b> Track</b> on to send it from release builds + name it — the app&apos;s bundled default list stays primary.
           </p>
         </div>
-        <div style={{ fontSize: 13, color: "#52525b", textAlign: "right" }}>
+        <div style={{ fontSize: 13, color: "var(--md-sys-color-on-surface)", textAlign: "right" }}>
           <div>
             <b>{seenCount}</b> seen ·{" "}
             {plannedCount > 0 ? (
               <>
-                <b style={{ color: "#b45309" }}>{plannedCount}</b> planned ·{" "}
+                <b style={{ color: "var(--md-sys-color-warning)" }}>{plannedCount}</b> planned ·{" "}
               </>
             ) : null}
-            <b style={{ color: "#16a34a" }}>{inListCount}</b> in list ·{" "}
-            <b style={{ color: needNameCount ? "#d97706" : "#16a34a" }}>{needNameCount}</b> need name
+            <b style={{ color: "var(--md-sys-color-success)" }}>{inListCount}</b> in list ·{" "}
+            <b style={{ color: needNameCount ? "var(--md-sys-color-warning)" : "var(--md-sys-color-success)" }}>{needNameCount}</b> need name
           </div>
           {lastRefreshed ? (
-            <div style={{ fontSize: 11, color: "#a1a1aa", marginTop: 2 }}>updated {lastRefreshed.toLocaleTimeString()}</div>
+            <div style={{ fontSize: 11, color: "var(--md-sys-color-on-surface-variant)", marginTop: 2 }}>updated {lastRefreshed.toLocaleTimeString()}</div>
           ) : null}
         </div>
       </div>
@@ -878,32 +878,32 @@ export default function LiveEventConfigClient() {
           onChange={(e) => setSearch(e.target.value)}
           style={{ ...inputStyle, maxWidth: 320 }}
         />
-        <label style={{ fontSize: 13, display: "flex", alignItems: "center", gap: 6, color: "#3f3f46" }}>
+        <label style={{ fontSize: 13, display: "flex", alignItems: "center", gap: 6, color: "var(--md-sys-color-on-surface)" }}>
           <input type="checkbox" checked={debugOnly} onChange={(e) => setDebugOnly(e.target.checked)} />
           Debug builds only
         </label>
-        <label style={{ fontSize: 13, display: "flex", alignItems: "center", gap: 6, color: showIgnored ? "#b45309" : "#3f3f46" }}>
+        <label style={{ fontSize: 13, display: "flex", alignItems: "center", gap: 6, color: showIgnored ? "var(--md-sys-color-warning)" : "var(--md-sys-color-on-surface)" }}>
           <input type="checkbox" checked={showIgnored} onChange={(e) => setShowIgnored(e.target.checked)} />
           Show ignored
         </label>
-        <label style={{ fontSize: 13, display: "flex", alignItems: "center", gap: 6, color: "#3f3f46" }}>
+        <label style={{ fontSize: 13, display: "flex", alignItems: "center", gap: 6, color: "var(--md-sys-color-on-surface)" }}>
           <input type="checkbox" checked={live} onChange={(e) => setLive(e.target.checked)} />
           <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
-            <span style={{ width: 8, height: 8, borderRadius: "50%", background: live ? "#16a34a" : "#a1a1aa", display: "inline-block" }} />
+            <span style={{ width: 8, height: 8, borderRadius: "50%", background: live ? "var(--md-sys-color-success)" : "var(--md-sys-color-inverse-surface)", display: "inline-block" }} />
             Live ({REFRESH_MS / 1000}s)
           </span>
         </label>
         <button
           type="button"
           onClick={() => (showDefault ? setShowDefault(false) : openDefaultList())}
-          style={{ marginLeft: "auto", padding: "6px 14px", borderRadius: 6, border: "1px solid #0D4DC0", background: showDefault ? "#eff6ff" : "#fff", color: "#0D4DC0", fontSize: 13, fontWeight: 500, cursor: "pointer" }}
+          style={{ marginLeft: "auto", padding: "6px 14px", borderRadius: 6, border: "1px solid var(--md-sys-color-outline-variant)", background: showDefault ? "var(--md-sys-color-surface-container-low)" : "var(--md-sys-color-surface-container-lowest)", color: "var(--md-sys-color-primary)", fontSize: 13, fontWeight: 500, cursor: "pointer" }}
         >
           {showDefault ? "Hide default list" : "Default list"}
         </button>
         <button
           type="button"
           onClick={() => load(true)}
-          style={{ padding: "6px 14px", borderRadius: 6, border: "1px solid #d4d4d8", background: "#fff", fontSize: 13, cursor: "pointer" }}
+          style={{ padding: "6px 14px", borderRadius: 6, border: "1px solid var(--md-sys-color-outline-variant)", background: "var(--md-sys-color-surface-container-lowest)", fontSize: 13, cursor: "pointer" }}
         >
           Refresh
         </button>
@@ -912,7 +912,7 @@ export default function LiveEventConfigClient() {
             type="button"
             onClick={showAll}
             title={`Cleared at ${new Date(clearedAt).toLocaleTimeString()} — showing events since then`}
-            style={{ padding: "6px 14px", borderRadius: 6, border: "1px solid #b45309", background: "#fffbeb", color: "#b45309", fontSize: 13, cursor: "pointer" }}
+            style={{ padding: "6px 14px", borderRadius: 6, border: "1px solid var(--md-sys-color-outline-variant)", background: "var(--md-sys-color-surface-container-lowest)", color: "var(--md-sys-color-warning)", fontSize: 13, cursor: "pointer" }}
           >
             Show all (cleared {new Date(clearedAt).toLocaleTimeString()})
           </button>
@@ -921,7 +921,7 @@ export default function LiveEventConfigClient() {
             type="button"
             onClick={clearList}
             title="Hide all current events (noise). Configs are kept; new events still appear."
-            style={{ padding: "6px 14px", borderRadius: 6, border: "1px solid #d4d4d8", background: "#fff", fontSize: 13, cursor: "pointer" }}
+            style={{ padding: "6px 14px", borderRadius: 6, border: "1px solid var(--md-sys-color-outline-variant)", background: "var(--md-sys-color-surface-container-lowest)", fontSize: 13, cursor: "pointer" }}
           >
             Clear list
           </button>
@@ -929,11 +929,11 @@ export default function LiveEventConfigClient() {
       </div>
 
       {showDefault ? (
-        <div style={{ border: "1px solid #bfdbfe", background: "#f8fbff", borderRadius: 10, padding: 16, marginBottom: 16 }}>
+        <div style={{ border: "1px solid var(--md-sys-color-outline-variant)", background: "var(--md-sys-color-surface-container-lowest)", borderRadius: 10, padding: 16, marginBottom: 16 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 10 }}>
             <div>
-              <div style={{ fontSize: 15, fontWeight: 600, color: "#0D4DC0" }}>App bundled default list</div>
-              <div style={{ fontSize: 12, color: "#71717a", marginTop: 2 }}>
+              <div style={{ fontSize: 15, fontWeight: 600, color: "var(--md-sys-color-primary)" }}>App bundled default list</div>
+              <div style={{ fontSize: 12, color: "var(--md-sys-color-on-surface)", marginTop: 2 }}>
                 Every tracked event — ships in the app as <code>AnalyticsAllowlist.DEFAULT</code>. <b>{defaultItems.length}</b> keys.
               </div>
             </div>
@@ -943,7 +943,7 @@ export default function LiveEventConfigClient() {
                 onClick={resetDefaultList}
                 disabled={defaultItems.length === 0}
                 title="Untrack all events to build a fresh default list"
-                style={{ padding: "6px 12px", borderRadius: 6, border: "1px solid #dc2626", background: "#fff", color: "#dc2626", fontSize: 13, cursor: "pointer" }}
+                style={{ padding: "6px 12px", borderRadius: 6, border: "1px solid var(--md-sys-color-outline-variant)", background: "var(--md-sys-color-surface-container-lowest)", color: "var(--md-sys-color-error)", fontSize: 13, cursor: "pointer" }}
               >
                 Reset
               </button>
@@ -951,7 +951,7 @@ export default function LiveEventConfigClient() {
                 type="button"
                 onClick={copyKotlin}
                 disabled={defaultItems.length === 0}
-                style={{ padding: "6px 12px", borderRadius: 6, border: "1px solid #d4d4d8", background: "#fff", fontSize: 13, cursor: "pointer" }}
+                style={{ padding: "6px 12px", borderRadius: 6, border: "1px solid var(--md-sys-color-outline-variant)", background: "var(--md-sys-color-surface-container-lowest)", fontSize: 13, cursor: "pointer" }}
               >
                 {copiedKt ? "Copied ✓" : "Copy .kt"}
               </button>
@@ -959,31 +959,31 @@ export default function LiveEventConfigClient() {
                 type="button"
                 onClick={exportKotlin}
                 disabled={defaultItems.length === 0}
-                style={{ padding: "6px 12px", borderRadius: 6, border: "none", background: "#0D4DC0", color: "#fff", fontSize: 13, fontWeight: 500, cursor: "pointer" }}
+                style={{ padding: "6px 12px", borderRadius: 6, border: "none", background: "var(--md-sys-color-primary-container)", color: "var(--md-sys-color-on-primary-container)", fontSize: 13, fontWeight: 500, cursor: "pointer" }}
               >
                 Export .kt
               </button>
             </div>
           </div>
           {defaultLoading ? (
-            <p style={{ color: "#71717a", fontSize: 13 }}>Loading…</p>
+            <p style={{ color: "var(--md-sys-color-on-surface)", fontSize: 13 }}>Loading…</p>
           ) : defaultItems.length === 0 ? (
-            <p style={{ color: "#a1a1aa", fontSize: 13 }}>No tracked events yet. Turn Track on for an event to add it here.</p>
+            <p style={{ color: "var(--md-sys-color-on-surface-variant)", fontSize: 13 }}>No tracked events yet. Turn Track on for an event to add it here.</p>
           ) : (
-            <pre style={{ margin: 0, maxHeight: 260, overflow: "auto", background: "#fff", border: "1px solid #e4e4e7", borderRadius: 6, padding: 12, fontSize: 12.5, lineHeight: 1.7, whiteSpace: "pre" }}>
+            <pre style={{ margin: 0, maxHeight: 260, overflow: "auto", background: "var(--md-sys-color-surface-container-lowest)", border: "1px solid var(--md-sys-color-outline-variant)", borderRadius: 6, padding: 12, fontSize: 12.5, lineHeight: 1.7, whiteSpace: "pre" }}>
               {buildKotlin(defaultItems)}
             </pre>
           )}
         </div>
       ) : null}
 
-      {error ? <p style={{ color: "#dc2626", fontSize: 13, marginBottom: 12 }}>{error}</p> : null}
+      {error ? <p style={{ color: "var(--md-sys-color-error)", fontSize: 13, marginBottom: 12 }}>{error}</p> : null}
 
       {loading ? (
-        <p style={{ color: "#71717a" }}>Loading discovery feed…</p>
+        <p style={{ color: "var(--md-sys-color-on-surface)" }}>Loading discovery feed…</p>
       ) : (
-        <div style={{ overflowX: "auto", overflowY: "auto", maxHeight: "calc(100vh - 300px)", border: "1px solid #e4e4e7", borderRadius: 10 }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", background: "#fff" }}>
+        <div style={{ overflowX: "auto", overflowY: "auto", maxHeight: "calc(100vh - 300px)", border: "1px solid var(--md-sys-color-outline-variant)", borderRadius: 10 }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", background: "var(--md-sys-color-surface-container-lowest)" }}>
             <thead>
               <tr>
                 <th style={{ ...th, width: 64 }}>Track</th>
@@ -1003,7 +1003,7 @@ export default function LiveEventConfigClient() {
                     <br />• only a–z, 0–9, _ · start with a letter · ≤ 40 chars
                     <br />• no spaces, symbols, or personal data
                     <br />
-                    <span style={{ color: "#9ca3af" }}>Input auto-formats to this as you type.</span>
+                    <span style={{ color: "var(--md-sys-color-on-surface-variant)" }}>Input auto-formats to this as you type.</span>
                   </InfoTooltip>
                 </th>
                 <th style={{ ...th, width: 180 }}>
@@ -1031,7 +1031,7 @@ export default function LiveEventConfigClient() {
                   ...pending.filter((r) => r.anchor === i.eventName && r.position === "above").map(renderPending),
                   <tr
                     key={i.eventName}
-                    style={{ background: i.planned ? "#fffbeb" : on ? "#eff6ff" : undefined }}
+                    style={{ background: i.planned ? "var(--md-sys-color-surface-container-lowest)" : on ? "var(--md-sys-color-primary-container)" : undefined }}
                   >
                     <td style={{ ...td, textAlign: "center" }}>
                       <Toggle on={on} onChange={(v) => setDraft(i.eventName, { tracked: v })} />
@@ -1039,9 +1039,9 @@ export default function LiveEventConfigClient() {
                     <td style={td}>
                       <div style={{ display: "flex", alignItems: "flex-start", gap: 6 }}>
                         {eventType(i.eventName) === "screen" ? (
-                          <span style={{ flexShrink: 0, fontSize: 10.5, fontWeight: 600, color: "#6d28d9", background: "#f5f3ff", borderRadius: 5, padding: "2px 6px", marginTop: 1 }}>screen</span>
+                          <span style={{ flexShrink: 0, fontSize: 10.5, fontWeight: 600, color: "var(--md-sys-color-primary)", background: "var(--md-sys-color-surface-container-low)", borderRadius: 5, padding: "2px 6px", marginTop: 1 }}>screen</span>
                         ) : (
-                          <span style={{ flexShrink: 0, fontSize: 10.5, fontWeight: 600, color: "#3f3f46", background: "#f4f4f5", borderRadius: 5, padding: "2px 6px", marginTop: 1 }}>action</span>
+                          <span style={{ flexShrink: 0, fontSize: 10.5, fontWeight: 600, color: "var(--md-sys-color-on-surface)", background: "var(--md-sys-color-surface-container-low)", borderRadius: 5, padding: "2px 6px", marginTop: 1 }}>action</span>
                         )}
                         <span style={{ fontFamily: "monospace", fontSize: 12.5, fontWeight: 600, wordBreak: "break-all" }}>{i.eventName}</span>
                         <button
@@ -1057,7 +1057,7 @@ export default function LiveEventConfigClient() {
                             padding: "1px 4px",
                             fontSize: 11,
                             lineHeight: 1.4,
-                            color: copiedRow === i.eventName ? "#16a34a" : "#a1a1aa",
+                            color: copiedRow === i.eventName ? "var(--md-sys-color-success)" : "var(--md-sys-color-on-surface-variant)",
                           }}
                         >
                           {copiedRow === i.eventName ? "✓" : "⧉"}
@@ -1075,7 +1075,7 @@ export default function LiveEventConfigClient() {
                             padding: "1px 4px",
                             fontSize: 11,
                             lineHeight: 1.4,
-                            color: showIgnored ? "#16a34a" : "#c4c4c8",
+                            color: showIgnored ? "var(--md-sys-color-success)" : "var(--md-sys-color-on-surface-variant)",
                           }}
                         >
                           {showIgnored ? "↺" : "⊘"}
@@ -1094,7 +1094,7 @@ export default function LiveEventConfigClient() {
                         {/* Only when there is one. The old `?? "—"` printed a dash for every event
                             that has no screen, so most rows opened with a placeholder and the time
                             arrived after a separator that separated nothing. */}
-                        {i.screenName ? <span style={{ color: "#71717a" }}>{i.screenName}</span> : null}
+                        {i.screenName ? <span style={{ color: "var(--md-sys-color-on-surface)" }}>{i.screenName}</span> : null}
                         {i.lastSeen ? <EventTime iso={i.lastSeen} /> : null}
                       </div>
                     </td>
@@ -1108,25 +1108,25 @@ export default function LiveEventConfigClient() {
                       {i.stillFiringAfterRemoval ? (
                         /* We said this was removed and it arrived anyway. Loudest state on the row,
                            because it means a release did not do what it claimed. */
-                        <span style={{ fontSize: 11, color: "#991b1b", background: "#fee2e2", borderRadius: 6, padding: "3px 8px", whiteSpace: "nowrap" }}>● still firing</span>
+                        <span style={{ fontSize: 11, color: "var(--md-sys-color-error)", background: "var(--md-sys-color-surface-container)", borderRadius: 6, padding: "3px 8px", whiteSpace: "nowrap" }}>● still firing</span>
                       ) : i.suppressStatus === "PENDING" ? (
-                        <span style={{ fontSize: 11, color: "#9a3412", background: "#ffedd5", borderRadius: 6, padding: "3px 8px", whiteSpace: "nowrap" }}>● removing</span>
+                        <span style={{ fontSize: 11, color: "var(--md-sys-color-error)", background: "var(--md-sys-color-surface-container-low)", borderRadius: 6, padding: "3px 8px", whiteSpace: "nowrap" }}>● removing</span>
                       ) : i.planned ? (
-                        <span style={{ fontSize: 11, color: "#b45309", background: "#fef3c7", borderRadius: 6, padding: "3px 8px", whiteSpace: "nowrap" }}>● planned</span>
+                        <span style={{ fontSize: 11, color: "var(--md-sys-color-warning)", background: "var(--md-sys-color-surface-container-low)", borderRadius: 6, padding: "3px 8px", whiteSpace: "nowrap" }}>● planned</span>
                       ) : i.inList ? (
-                        <span style={{ fontSize: 11, color: "#15803d", background: "#f0fdf4", borderRadius: 6, padding: "3px 8px", whiteSpace: "nowrap" }}>● in list</span>
+                        <span style={{ fontSize: 11, color: "var(--md-sys-color-success)", background: "var(--md-sys-color-surface-container-lowest)", borderRadius: 6, padding: "3px 8px", whiteSpace: "nowrap" }}>● in list</span>
                       ) : (
-                        <span style={{ fontSize: 11, color: "#b45309", background: "#fffbeb", borderRadius: 6, padding: "3px 8px", whiteSpace: "nowrap" }}>● debug-only</span>
+                        <span style={{ fontSize: 11, color: "var(--md-sys-color-warning)", background: "var(--md-sys-color-surface-container-lowest)", borderRadius: 6, padding: "3px 8px", whiteSpace: "nowrap" }}>● debug-only</span>
                       )}
                       {i.defaultListStatus === "PENDING" ? (
-                        <div style={{ fontSize: 10.5, color: "#d97706", marginTop: 3 }}>task queued</div>
+                        <div style={{ fontSize: 10.5, color: "var(--md-sys-color-warning)", marginTop: 3 }}>task queued</div>
                       ) : i.defaultListStatus === "APPLIED" ? (
-                        <div style={{ fontSize: 10.5, color: "#16a34a", marginTop: 3 }}>✓ in default</div>
+                        <div style={{ fontSize: 10.5, color: "var(--md-sys-color-success)", marginTop: 3 }}>✓ in default</div>
                       ) : null}
                     </td>
                     <td style={td}>
                       <input
-                        style={{ ...inputStyle, background: on ? "#fff" : "#f4f4f5", color: on ? "#111" : "#a1a1aa", borderColor: needName ? "#f59e0b" : "#d4d4d8" }}
+                        style={{ ...inputStyle, background: on ? "var(--md-sys-color-surface-container-lowest)" : "var(--md-sys-color-surface-container-low)", color: on ? "var(--md-sys-color-on-surface)" : "var(--md-sys-color-on-surface-variant)", borderColor: needName ? "var(--md-sys-color-warning)" : "var(--md-sys-color-outline)" }}
                         placeholder={on ? "e.g. invoice_sent" : "Track on to name"}
                         disabled={!on}
                         value={nameVal(i)}
@@ -1158,8 +1158,8 @@ export default function LiveEventConfigClient() {
                           padding: "6px 12px",
                           borderRadius: 6,
                           border: "none",
-                          background: savedRow === i.eventName ? "#16a34a" : "#0D4DC0",
-                          color: "#fff",
+                          background: savedRow === i.eventName ? "var(--md-sys-color-success)" : "var(--md-sys-color-primary)",
+                          color: "var(--md-sys-color-on-primary)",
                           fontSize: 12.5,
                           fontWeight: 600,
                           cursor: "pointer",
@@ -1176,7 +1176,7 @@ export default function LiveEventConfigClient() {
               })}
               {filtered.length === 0 && pending.length === 0 ? (
                 <tr>
-                  <td style={{ ...td, color: "#a1a1aa", textAlign: "center" }} colSpan={8}>
+                  <td style={{ ...td, color: "var(--md-sys-color-on-surface-variant)", textAlign: "center" }} colSpan={8}>
                     {showIgnored
                       ? "No ignored events."
                       : `No events yet${debugOnly ? " from debug builds" : ""}. Interact with the debug app — actions appear here live.`}

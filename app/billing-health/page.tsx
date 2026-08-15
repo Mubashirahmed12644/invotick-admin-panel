@@ -145,7 +145,7 @@ function Stat({
   // -1 is how the API reports a count it could not take, so it is shown as unknown rather than as
   // a number that would be read as real.
   const display = value < 0 ? "—" : value.toLocaleString();
-  const color = tone === "bad" ? "#b42318" : tone === "warn" ? "#b54708" : undefined;
+  const color = tone === "bad" ? "var(--md-sys-color-error)" : tone === "warn" ? "var(--md-sys-color-warning)" : undefined;
 
   return (
     <div style={{ minWidth: 200, flex: "1 1 200px", padding: 16, border: "1px solid rgba(128,128,128,0.25)", borderRadius: 10 }}>

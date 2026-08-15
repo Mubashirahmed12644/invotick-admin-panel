@@ -46,7 +46,7 @@ function Stat({
       }}
     >
       <div style={{ fontSize: 13, opacity: 0.7, marginBottom: 6 }}>{label}</div>
-      <div style={{ fontSize: 30, fontWeight: 700, color: emphasis ? "#c2410c" : undefined }}>
+      <div style={{ fontSize: 30, fontWeight: 700, color: emphasis ? "var(--md-sys-color-error)" : undefined }}>
         {formatCount(value)}
       </div>
       <div style={{ fontSize: 12, opacity: 0.65, marginTop: 8, lineHeight: 1.45 }}>{hint}</div>

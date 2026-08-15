@@ -347,7 +347,7 @@ export default function SyncHealthPage() {
                           {row.occurrences}
                           {isRetryLoop(row.recordCount, row.occurrences) && (
                             <span title={`Worst: ${row.worstRecordId ?? "?"} refused ${row.worstRecordOccurrences}x`}
-                                  style={{ marginInlineStart: 6, color: "#b42318", fontWeight: 600 }}>
+                                  style={{ marginInlineStart: 6, color: "var(--md-sys-color-error)", fontWeight: 600 }}>
                               loop
                             </span>
                           )}
@@ -384,7 +384,7 @@ export default function SyncHealthPage() {
                                   // A refusal is red because a record is not landing. A repeat that
                                   // saved every time is not an emergency and must not borrow the
                                   // colour of one.
-                                  color: NON_REFUSAL_ERRORS.has(row.errorType) ? undefined : "#b42318",
+                                  color: NON_REFUSAL_ERRORS.has(row.errorType) ? undefined : "var(--md-sys-color-error)",
                                   opacity: NON_REFUSAL_ERRORS.has(row.errorType) ? 0.85 : undefined,
                                   marginTop: 2,
                                 }}

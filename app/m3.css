@@ -1,0 +1,337 @@
+/* ============================================================================
+   Material 3 design tokens for the Invotick admin panel.
+
+   The colours are not invented here. They are the SAME table the Android app
+   ships in core/ui/.../ColorSchemes.kt, generated from the brand seed #046EFB
+   (CAM16 hue 268.9). The app and the panel are one product; a second palette
+   drawn by eye would drift from it on the first change. When the app's scheme
+   moves, regenerate this block rather than hand-editing it.
+
+   Theming has three states, and all three are handled:
+     - no attribute            -> follow the OS via prefers-color-scheme
+     - [data-theme="dark"]     -> forced dark, must beat the media query
+     - [data-theme="light"]    -> forced light, must beat the media query
+   Every colour is defined on bare :root first, so nothing exists only inside a
+   media block — that is how a page ends up unstyled for the half of users whose
+   OS setting does not match the branch it was written in.
+   ============================================================================ */
+
+:root {
+  color-scheme: light dark;
+
+  --md-sys-color-primary: #0057ce;
+  --md-sys-color-on-primary: #ffffff;
+  --md-sys-color-primary-container: #d9e2ff;
+  --md-sys-color-on-primary-container: #001752;
+  --md-sys-color-secondary: #575e71;
+  --md-sys-color-on-secondary: #ffffff;
+  --md-sys-color-secondary-container: #dce2f9;
+  --md-sys-color-on-secondary-container: #141b2c;
+  --md-sys-color-tertiary: #9a28a9;
+  --md-sys-color-on-tertiary: #ffffff;
+  --md-sys-color-tertiary-container: #ffd6fc;
+  --md-sys-color-on-tertiary-container: #3c0047;
+  --md-sys-color-error: #bf0715;
+  --md-sys-color-on-error: #ffffff;
+  --md-sys-color-error-container: #ffdad6;
+  --md-sys-color-on-error-container: #490000;
+  --md-sys-color-background: #fbf8fd;
+  --md-sys-color-on-background: #1b1b1f;
+  --md-sys-color-surface: #fbf8fd;
+  --md-sys-color-on-surface: #1b1b1f;
+  --md-sys-color-surface-variant: #e1e2ec;
+  --md-sys-color-on-surface-variant: #44464f;
+  --md-sys-color-surface-tint: #0057ce;
+  --md-sys-color-inverse-surface: #303034;
+  --md-sys-color-inverse-on-surface: #f2f0f4;
+  --md-sys-color-inverse-primary: #b0c6ff;
+  --md-sys-color-outline: #757780;
+  --md-sys-color-outline-variant: #c5c6d0;
+  --md-sys-color-scrim: #000000;
+  --md-sys-color-surface-bright: #fbf8fd;
+  --md-sys-color-surface-dim: #dbd9dd;
+  --md-sys-color-surface-container-lowest: #ffffff;
+  --md-sys-color-surface-container-low: #f5f3f7;
+  --md-sys-color-surface-container: #efedf1;
+  --md-sys-color-surface-container-high: #e9e7ec;
+  --md-sys-color-surface-container-highest: #e3e2e6;
+  --md-sys-color-primary-fixed: #d9e2ff;
+  --md-sys-color-primary-fixed-dim: #b0c6ff;
+  --md-sys-color-on-primary-fixed: #001752;
+  --md-sys-color-on-primary-fixed-variant: #0041a1;
+  --md-sys-color-secondary-fixed: #dce2f9;
+  --md-sys-color-secondary-fixed-dim: #c0c6dc;
+  --md-sys-color-on-secondary-fixed: #141b2c;
+  --md-sys-color-on-secondary-fixed-variant: #404659;
+  --md-sys-color-tertiary-fixed: #ffd6fc;
+  --md-sys-color-tertiary-fixed-dim: #fcaaff;
+  --md-sys-color-on-tertiary-fixed: #3c0047;
+  --md-sys-color-on-tertiary-fixed-variant: #7e008e;
+
+  /* ---- Extended semantics: success + warning ----
+     Material 3 does not define these. It defines error, and everything else is
+     the designer's problem — but a dashboard whose whole job is saying "this is
+     fine / watch this / this is broken" cannot work with one of the three.
+
+     Written in oklch() with the hue and chroma held constant and only lightness
+     moving between themes. That is the same reasoning the app's palette uses:
+     hue drifts badly when you move lightness in CIELAB (the app measured its
+     blue sliding 12.5 degrees into violet), and oklch holds it. Values are
+     picked for contrast against their own ground and measured, not guessed. */
+  --md-sys-color-success: oklch(0.52 0.14 150);
+  --md-sys-color-on-success: #ffffff;
+  --md-sys-color-success-container: oklch(0.93 0.05 150);
+  --md-sys-color-on-success-container: oklch(0.28 0.09 150);
+  --md-sys-color-warning: oklch(0.51 0.13 75);
+  --md-sys-color-on-warning: #ffffff;
+  --md-sys-color-warning-container: oklch(0.93 0.06 75);
+  --md-sys-color-on-warning-container: oklch(0.30 0.08 75);
+
+  /* ---- Shape (M3 corner scale) ---- */
+  --md-sys-shape-corner-none: 0;
+  --md-sys-shape-corner-xs: 4px;
+  --md-sys-shape-corner-s: 8px;
+  --md-sys-shape-corner-m: 12px;
+  --md-sys-shape-corner-l: 16px;
+  --md-sys-shape-corner-xl: 28px;
+  --md-sys-shape-corner-full: 9999px;
+
+  /* ---- Motion. M3 easings are the point: standard-decelerate for things
+         arriving, standard-accelerate for things leaving, emphasized for a
+         change the user should notice. Linear reads as cheap. ---- */
+  --md-sys-motion-easing-standard: cubic-bezier(0.2, 0, 0, 1);
+  --md-sys-motion-easing-standard-accelerate: cubic-bezier(0.3, 0, 1, 1);
+  --md-sys-motion-easing-standard-decelerate: cubic-bezier(0, 0, 0, 1);
+  --md-sys-motion-easing-emphasized: cubic-bezier(0.2, 0, 0, 1);
+  --md-sys-motion-duration-short2: 100ms;
+  --md-sys-motion-duration-short4: 200ms;
+  --md-sys-motion-duration-medium2: 300ms;
+  --md-sys-motion-duration-long2: 500ms;
+
+  /* ---- Elevation. M3 uses tonal surfaces, not heavy shadows: the higher the
+         level the more surface-tint is mixed in. The shadows here stay faint
+         on purpose — depth comes from the surface-container roles. ---- */
+  --md-sys-elevation-0: none;
+  --md-sys-elevation-1: 0 1px 2px 0 rgb(0 0 0 / 0.30), 0 1px 3px 1px rgb(0 0 0 / 0.15);
+  --md-sys-elevation-2: 0 1px 2px 0 rgb(0 0 0 / 0.30), 0 2px 6px 2px rgb(0 0 0 / 0.15);
+  --md-sys-elevation-3: 0 4px 8px 3px rgb(0 0 0 / 0.15), 0 1px 3px 0 rgb(0 0 0 / 0.30);
+
+  /* ---- State layer opacities (M3 spec) ---- */
+  --md-sys-state-hover: 0.08;
+  --md-sys-state-focus: 0.10;
+  --md-sys-state-pressed: 0.10;
+
+  /* ---- Type scale ---- */
+  --md-sys-typescale-display-small-size: 2.25rem;
+  --md-sys-typescale-headline-large-size: 2rem;
+  --md-sys-typescale-headline-medium-size: 1.75rem;
+  --md-sys-typescale-headline-small-size: 1.5rem;
+  --md-sys-typescale-title-large-size: 1.375rem;
+  --md-sys-typescale-title-medium-size: 1rem;
+  --md-sys-typescale-title-small-size: 0.875rem;
+  --md-sys-typescale-body-large-size: 1rem;
+  --md-sys-typescale-body-medium-size: 0.875rem;
+  --md-sys-typescale-body-small-size: 0.75rem;
+  --md-sys-typescale-label-large-size: 0.875rem;
+  --md-sys-typescale-label-medium-size: 0.75rem;
+  --md-sys-typescale-label-small-size: 0.6875rem;
+}
+
+/* OS preference, only when the user has not chosen explicitly. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --md-sys-color-primary: #b0c6ff;
+    --md-sys-color-on-primary: #002b76;
+    --md-sys-color-primary-container: #0041a1;
+    --md-sys-color-on-primary-container: #d9e2ff;
+    --md-sys-color-secondary: #c0c6dc;
+    --md-sys-color-on-secondary: #293042;
+    --md-sys-color-secondary-container: #404659;
+    --md-sys-color-on-secondary-container: #dce2f9;
+    --md-sys-color-tertiary: #fcaaff;
+    --md-sys-color-on-tertiary: #5b0069;
+    --md-sys-color-tertiary-container: #7e008e;
+    --md-sys-color-on-tertiary-container: #ffd6fc;
+    --md-sys-color-error: #ffb4ab;
+    --md-sys-color-on-error: #6d0000;
+    --md-sys-color-error-container: #960006;
+    --md-sys-color-on-error-container: #ffdad6;
+    --md-sys-color-background: #121316;
+    --md-sys-color-on-background: #e3e2e6;
+    --md-sys-color-surface: #121316;
+    --md-sys-color-on-surface: #e3e2e6;
+    --md-sys-color-surface-variant: #44464f;
+    --md-sys-color-on-surface-variant: #c5c6d0;
+    --md-sys-color-surface-tint: #b0c6ff;
+    --md-sys-color-inverse-surface: #e3e2e6;
+    --md-sys-color-inverse-on-surface: #303034;
+    --md-sys-color-inverse-primary: #0057ce;
+    --md-sys-color-outline: #8f9099;
+    --md-sys-color-outline-variant: #44464f;
+    --md-sys-color-scrim: #000000;
+    --md-sys-color-surface-bright: #39393c;
+    --md-sys-color-surface-dim: #121316;
+    --md-sys-color-surface-container-lowest: #0d0e11;
+    --md-sys-color-surface-container-low: #1b1b1f;
+    --md-sys-color-surface-container: #1f1f23;
+    --md-sys-color-surface-container-high: #292a2d;
+    --md-sys-color-surface-container-highest: #343438;
+    --md-sys-color-primary-fixed: #d9e2ff;
+    --md-sys-color-primary-fixed-dim: #b0c6ff;
+    --md-sys-color-on-primary-fixed: #001752;
+    --md-sys-color-on-primary-fixed-variant: #0041a1;
+    --md-sys-color-secondary-fixed: #dce2f9;
+    --md-sys-color-secondary-fixed-dim: #c0c6dc;
+    --md-sys-color-on-secondary-fixed: #141b2c;
+    --md-sys-color-on-secondary-fixed-variant: #404659;
+    --md-sys-color-tertiary-fixed: #ffd6fc;
+    --md-sys-color-tertiary-fixed-dim: #fcaaff;
+    --md-sys-color-on-tertiary-fixed: #3c0047;
+    --md-sys-color-on-tertiary-fixed-variant: #7e008e;
+    /* Semantics in dark: the role lightens so it reads on a dark ground, the
+       container darkens, and the on-colour inverts with it. Same hue, same
+       chroma — a green that becomes a different green in dark is a new colour,
+       not the same status. */
+    --md-sys-color-success: oklch(0.80 0.14 150);
+    --md-sys-color-on-success: oklch(0.24 0.09 150);
+    --md-sys-color-success-container: oklch(0.36 0.09 150);
+    --md-sys-color-on-success-container: oklch(0.90 0.06 150);
+    --md-sys-color-warning: oklch(0.83 0.13 75);
+    --md-sys-color-on-warning: oklch(0.26 0.08 75);
+    --md-sys-color-warning-container: oklch(0.38 0.08 75);
+    --md-sys-color-on-warning-container: oklch(0.92 0.06 75);
+  }
+}
+
+/* Explicit choice beats the OS, in BOTH directions. */
+:root[data-theme="dark"] {
+  --md-sys-color-primary: #b0c6ff;
+  --md-sys-color-on-primary: #002b76;
+  --md-sys-color-primary-container: #0041a1;
+  --md-sys-color-on-primary-container: #d9e2ff;
+  --md-sys-color-secondary: #c0c6dc;
+  --md-sys-color-on-secondary: #293042;
+  --md-sys-color-secondary-container: #404659;
+  --md-sys-color-on-secondary-container: #dce2f9;
+  --md-sys-color-tertiary: #fcaaff;
+  --md-sys-color-on-tertiary: #5b0069;
+  --md-sys-color-tertiary-container: #7e008e;
+  --md-sys-color-on-tertiary-container: #ffd6fc;
+  --md-sys-color-error: #ffb4ab;
+  --md-sys-color-on-error: #6d0000;
+  --md-sys-color-error-container: #960006;
+  --md-sys-color-on-error-container: #ffdad6;
+  --md-sys-color-background: #121316;
+  --md-sys-color-on-background: #e3e2e6;
+  --md-sys-color-surface: #121316;
+  --md-sys-color-on-surface: #e3e2e6;
+  --md-sys-color-surface-variant: #44464f;
+  --md-sys-color-on-surface-variant: #c5c6d0;
+  --md-sys-color-surface-tint: #b0c6ff;
+  --md-sys-color-inverse-surface: #e3e2e6;
+  --md-sys-color-inverse-on-surface: #303034;
+  --md-sys-color-inverse-primary: #0057ce;
+  --md-sys-color-outline: #8f9099;
+  --md-sys-color-outline-variant: #44464f;
+  --md-sys-color-scrim: #000000;
+  --md-sys-color-surface-bright: #39393c;
+  --md-sys-color-surface-dim: #121316;
+  --md-sys-color-surface-container-lowest: #0d0e11;
+  --md-sys-color-surface-container-low: #1b1b1f;
+  --md-sys-color-surface-container: #1f1f23;
+  --md-sys-color-surface-container-high: #292a2d;
+  --md-sys-color-surface-container-highest: #343438;
+  --md-sys-color-primary-fixed: #d9e2ff;
+  --md-sys-color-primary-fixed-dim: #b0c6ff;
+  --md-sys-color-on-primary-fixed: #001752;
+  --md-sys-color-on-primary-fixed-variant: #0041a1;
+  --md-sys-color-secondary-fixed: #dce2f9;
+  --md-sys-color-secondary-fixed-dim: #c0c6dc;
+  --md-sys-color-on-secondary-fixed: #141b2c;
+  --md-sys-color-on-secondary-fixed-variant: #404659;
+  --md-sys-color-tertiary-fixed: #ffd6fc;
+  --md-sys-color-tertiary-fixed-dim: #fcaaff;
+  --md-sys-color-on-tertiary-fixed: #3c0047;
+  --md-sys-color-on-tertiary-fixed-variant: #7e008e;
+  /* Semantics in dark: the role lightens so it reads on a dark ground, the
+     container darkens, and the on-colour inverts with it. Same hue, same
+     chroma — a green that becomes a different green in dark is a new colour,
+     not the same status. */
+  --md-sys-color-success: oklch(0.80 0.14 150);
+  --md-sys-color-on-success: oklch(0.24 0.09 150);
+  --md-sys-color-success-container: oklch(0.36 0.09 150);
+  --md-sys-color-on-success-container: oklch(0.90 0.06 150);
+  --md-sys-color-warning: oklch(0.83 0.13 75);
+  --md-sys-color-on-warning: oklch(0.26 0.08 75);
+  --md-sys-color-warning-container: oklch(0.38 0.08 75);
+  --md-sys-color-on-warning-container: oklch(0.92 0.06 75);
+}
+
+:root[data-theme="light"] {
+  --md-sys-color-primary: #0057ce;
+  --md-sys-color-on-primary: #ffffff;
+  --md-sys-color-primary-container: #d9e2ff;
+  --md-sys-color-on-primary-container: #001752;
+  --md-sys-color-secondary: #575e71;
+  --md-sys-color-on-secondary: #ffffff;
+  --md-sys-color-secondary-container: #dce2f9;
+  --md-sys-color-on-secondary-container: #141b2c;
+  --md-sys-color-tertiary: #9a28a9;
+  --md-sys-color-on-tertiary: #ffffff;
+  --md-sys-color-tertiary-container: #ffd6fc;
+  --md-sys-color-on-tertiary-container: #3c0047;
+  --md-sys-color-error: #bf0715;
+  --md-sys-color-on-error: #ffffff;
+  --md-sys-color-error-container: #ffdad6;
+  --md-sys-color-on-error-container: #490000;
+  --md-sys-color-background: #fbf8fd;
+  --md-sys-color-on-background: #1b1b1f;
+  --md-sys-color-surface: #fbf8fd;
+  --md-sys-color-on-surface: #1b1b1f;
+  --md-sys-color-surface-variant: #e1e2ec;
+  --md-sys-color-on-surface-variant: #44464f;
+  --md-sys-color-surface-tint: #0057ce;
+  --md-sys-color-inverse-surface: #303034;
+  --md-sys-color-inverse-on-surface: #f2f0f4;
+  --md-sys-color-inverse-primary: #b0c6ff;
+  --md-sys-color-outline: #757780;
+  --md-sys-color-outline-variant: #c5c6d0;
+  --md-sys-color-scrim: #000000;
+  --md-sys-color-surface-bright: #fbf8fd;
+  --md-sys-color-surface-dim: #dbd9dd;
+  --md-sys-color-surface-container-lowest: #ffffff;
+  --md-sys-color-surface-container-low: #f5f3f7;
+  --md-sys-color-surface-container: #efedf1;
+  --md-sys-color-surface-container-high: #e9e7ec;
+  --md-sys-color-surface-container-highest: #e3e2e6;
+  --md-sys-color-primary-fixed: #d9e2ff;
+  --md-sys-color-primary-fixed-dim: #b0c6ff;
+  --md-sys-color-on-primary-fixed: #001752;
+  --md-sys-color-on-primary-fixed-variant: #0041a1;
+  --md-sys-color-secondary-fixed: #dce2f9;
+  --md-sys-color-secondary-fixed-dim: #c0c6dc;
+  --md-sys-color-on-secondary-fixed: #141b2c;
+  --md-sys-color-on-secondary-fixed-variant: #404659;
+  --md-sys-color-tertiary-fixed: #ffd6fc;
+  --md-sys-color-tertiary-fixed-dim: #fcaaff;
+  --md-sys-color-on-tertiary-fixed: #3c0047;
+  --md-sys-color-on-tertiary-fixed-variant: #7e008e;
+  /* ---- Extended semantics: success + warning ----
+     Material 3 does not define these. It defines error, and everything else is
+     the designer's problem — but a dashboard whose whole job is saying "this is
+     fine / watch this / this is broken" cannot work with one of the three.
+
+     Written in oklch() with the hue and chroma held constant and only lightness
+     moving between themes. That is the same reasoning the app's palette uses:
+     hue drifts badly when you move lightness in CIELAB (the app measured its
+     blue sliding 12.5 degrees into violet), and oklch holds it. Values are
+     picked for contrast against their own ground and measured, not guessed. */
+  --md-sys-color-success: oklch(0.52 0.14 150);
+  --md-sys-color-on-success: #ffffff;
+  --md-sys-color-success-container: oklch(0.93 0.05 150);
+  --md-sys-color-on-success-container: oklch(0.28 0.09 150);
+  --md-sys-color-warning: oklch(0.51 0.13 75);
+  --md-sys-color-on-warning: #ffffff;
+  --md-sys-color-warning-container: oklch(0.93 0.06 75);
+  --md-sys-color-on-warning-container: oklch(0.30 0.08 75);
+}
