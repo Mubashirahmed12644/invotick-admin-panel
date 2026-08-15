@@ -907,25 +907,34 @@ export default function LiveEventConfigClient() {
         >
           Refresh
         </button>
+        {/*
+          Two buttons, not one that swaps.
+
+          Clear list used to be REPLACED by "Show all" the moment it was pressed, so the control you
+          had just used vanished and its place was taken by one that undoes it. Clearing twice — hide
+          the noise, work a while, hide the new noise — needed an undo and a re-clear in between.
+
+          Clear list now only ever clears. Show all appears next to it while a cleared marker exists
+          and only ever brings the hidden events back.
+        */}
+        <button
+          type="button"
+          onClick={clearList}
+          title="Hide all current events (noise). Configs are kept; new events still appear."
+          style={{ padding: "6px 14px", borderRadius: 6, border: "1px solid var(--md-sys-color-outline-variant)", background: "var(--md-sys-color-surface-container-lowest)", fontSize: 13, cursor: "pointer" }}
+        >
+          Clear list
+        </button>
         {clearedAt ? (
           <button
             type="button"
             onClick={showAll}
-            title={`Cleared at ${new Date(clearedAt).toLocaleTimeString()} — showing events since then`}
+            title={`Cleared at ${new Date(clearedAt).toLocaleTimeString()} — bring the hidden events back`}
             style={{ padding: "6px 14px", borderRadius: 6, border: "1px solid var(--md-sys-color-outline-variant)", background: "var(--md-sys-color-surface-container-lowest)", color: "var(--md-sys-color-warning)", fontSize: 13, cursor: "pointer" }}
           >
             Show all (cleared {new Date(clearedAt).toLocaleTimeString()})
           </button>
-        ) : (
-          <button
-            type="button"
-            onClick={clearList}
-            title="Hide all current events (noise). Configs are kept; new events still appear."
-            style={{ padding: "6px 14px", borderRadius: 6, border: "1px solid var(--md-sys-color-outline-variant)", background: "var(--md-sys-color-surface-container-lowest)", fontSize: 13, cursor: "pointer" }}
-          >
-            Clear list
-          </button>
-        )}
+        ) : null}
       </div>
 
       {showDefault ? (
