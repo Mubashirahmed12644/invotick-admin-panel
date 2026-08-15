@@ -64,6 +64,47 @@ function timeWithMillis(iso: string): string {
   return `${hh}:${mm}:${ss}.${ms}`;
 }
 
+/**
+ * The time one event fired, built to be compared against the row above it.
+ *
+ * That comparison is the whole reason the time is on screen, and the first version made it hard in
+ * three ways at once. The digits sat in the page's proportional font, so `17:05:52.375` and
+ * `17:05:52.353` did not line up column-for-column and the eye had to read both numbers instead of
+ * spotting the one that differed. Everything was #a1a1aa on white — about 2.5:1, under the 4.5:1
+ * that small text needs — and the milliseconds, the only part that actually differs between events
+ * from the same tap, were the smallest, faintest thing in the row. And a leading "—" was printed
+ * for every event with no screen name, so the line usually opened with a placeholder.
+ *
+ * So: a monospace stack (guaranteed tabular figures — `font-variant-numeric` only helps if the
+ * font happens to carry them), readable contrast, and the fraction kept one step lighter than the
+ * clock rather than hidden. Alignment does most of the work; once the digits stack, the one that
+ * changed is the one that moves.
+ */
+function EventTime({ iso }: { iso: string }) {
+  const full = timeWithMillis(iso);
+  if (full === "—") return <span style={{ color: "#a1a1aa" }}>—</span>;
+  const [clock, fraction] = full.split(".");
+  return (
+    <span
+      title={new Date(iso).toISOString()}
+      style={{
+        fontFamily: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
+        fontVariantNumeric: "tabular-nums",
+        letterSpacing: "-0.01em",
+        color: "#52525b",
+        whiteSpace: "nowrap",
+      }}
+    >
+      {clock}
+      {/* One step lighter than the clock, but still 4.83:1 — measured. The obvious choice here is a
+          soft grey around #8e8e97, which comes out at 3.25:1 and would have left the milliseconds,
+          the only part that differs between events from one tap, as the least legible thing on the
+          row. Lighter must not mean unreadable. */}
+      <span style={{ color: "#71717a" }}>.{fraction}</span>
+    </span>
+  );
+}
+
 // Info tooltip that appears after ~2s of hover (matches the requested delay).
 function InfoTooltip({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
@@ -1043,14 +1084,18 @@ export default function LiveEventConfigClient() {
                       <div
                         style={{
                           fontSize: 11,
-                          color: "#a1a1aa",
                           marginTop: 2,
-                          // So the millisecond digits line up down the column instead of drifting.
-                          fontVariantNumeric: "tabular-nums",
+                          display: "flex",
+                          alignItems: "baseline",
+                          gap: 6,
+                          flexWrap: "wrap",
                         }}
                       >
-                        {i.screenName ?? "—"}
-                        {i.lastSeen ? ` · ${timeWithMillis(i.lastSeen)}` : ""}
+                        {/* Only when there is one. The old `?? "—"` printed a dash for every event
+                            that has no screen, so most rows opened with a placeholder and the time
+                            arrived after a separator that separated nothing. */}
+                        {i.screenName ? <span style={{ color: "#71717a" }}>{i.screenName}</span> : null}
+                        {i.lastSeen ? <EventTime iso={i.lastSeen} /> : null}
                       </div>
                     </td>
                     <td style={td}>
