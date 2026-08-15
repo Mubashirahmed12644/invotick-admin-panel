@@ -61,6 +61,73 @@ function isRetryLoop(records: number | undefined, occurrences: number): boolean 
   return records !== undefined && records > 0 && occurrences >= records * 5;
 }
 
+/**
+ * Error types where the server accepted the record and merely reported something about it.
+ *
+ * Everything else on this page is a refusal, so the loop wording was written for refusals — and then
+ * applied to every row, which put "record … refused 40 times" directly above CURRENCY_FILLED_FROM_
+ * CLIENT's own sentence saying "Nothing failed — the record saved". Both cannot be true, and the
+ * false one is the alarming one: it reads as a customer's invoice bouncing off the server forever.
+ *
+ * The repetition is still worth showing — the same record arriving 40 times with no currency is a
+ * real defect — it is just not a refusal, so it does not get a refusal's words.
+ */
+const NON_REFUSAL_ERRORS = new Set(["CURRENCY_FILLED_FROM_CLIENT"]);
+
+function loopSentence(row: SyncHealthSignature): string {
+  return NON_REFUSAL_ERRORS.has(row.errorType)
+    ? `Same record repeatedly: ${row.worstRecordId} arrived ${row.worstRecordOccurrences} times with the same defect (each one saved).`
+    : `Stuck in a loop: record ${row.worstRecordId} refused ${row.worstRecordOccurrences} times on its own.`;
+}
+
+/**
+ * The whole table as plain text, for pasting into a chat with whoever is going to fix it.
+ *
+ * Screenshots were how this page left the building, and a screenshot loses exactly what a fix needs:
+ * the full record ids (truncated to `35064b3d…63f74e68` on screen), the exact timestamps behind
+ * "1m ago", and any row below the fold. So this writes the values, not the rendering — full ids,
+ * absolute ISO times alongside the relative ones, and every row regardless of scroll position.
+ *
+ * The filters are stamped at the top because the same defect list means different things over 24
+ * hours and over 90 days, and a pasted block with no window is unreadable a day later.
+ */
+function buildClipboardReport(
+  rows: SyncHealthSignature[],
+  filters: { unresolvedOnly: boolean; days: number },
+): string {
+  const lines: string[] = [];
+  const totalDevices = rows.reduce((sum, r) => sum + r.deviceCount, 0);
+
+  lines.push("SYNC HEALTH");
+  lines.push(`Captured: ${new Date().toISOString()}`);
+  lines.push(`Window: last ${filters.days} days · ${filters.unresolvedOnly ? "unresolved only" : "all, including resolved"}`);
+  lines.push(`${rows.length} distinct defect(s) · ${totalDevices} affected device(s)`);
+  lines.push("");
+
+  rows.forEach((row, index) => {
+    const what = row.field ? `${row.entityType} · ${row.field}` : row.entityType;
+    lines.push(`── ${index + 1}. ${what} — ${row.errorType}`);
+    lines.push(`   op=${row.operations?.length ? row.operations.join(",") : "—"} source=${row.source}`);
+    lines.push(
+      `   devices=${row.deviceCount} users=${row.userCount} records=${row.recordCount ?? "?"} occurrences=${row.occurrences}`,
+    );
+    lines.push(`   first seen: ${row.firstSeenAt}  (${formatWhen(row.firstSeenAt)})`);
+    lines.push(`   last seen:  ${row.lastSeenAt}  (${formatWhen(row.lastSeenAt)})`);
+
+    // Full id, deliberately: the short form on screen cannot be looked up in a database.
+    if (isRetryLoop(row.recordCount, row.occurrences) && row.worstRecordId) {
+      lines.push(`   ${loopSentence(row)}`);
+    }
+    if (row.latestReason) lines.push(`   server said: ${row.latestReason}`);
+    const meaning = ERROR_MEANINGS[row.errorType];
+    if (meaning) lines.push(`   what it means: ${meaning}`);
+    lines.push(`   signature: ${row.signature}`);
+    lines.push("");
+  });
+
+  return lines.join("\n");
+}
+
 export default function SyncHealthPage() {
   const router = useRouter();
 
@@ -75,6 +142,7 @@ export default function SyncHealthPage() {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [busySignature, setBusySignature] = useState<string | null>(null);
+  const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
 
   const handleUnauthorized = useCallback(() => {
     clearAccessToken({ sessionExpired: true });
@@ -145,6 +213,34 @@ export default function SyncHealthPage() {
     [load, handleUnauthorized],
   );
 
+  const copyReport = useCallback(async () => {
+    const report = buildClipboardReport(signatures, { unresolvedOnly, days });
+    try {
+      await navigator.clipboard.writeText(report);
+      setCopyState("copied");
+    } catch {
+      // navigator.clipboard needs a secure context, and admin.invotick.com over plain HTTP or an
+      // IP-address preview would not have one. Falling back to the textarea+execCommand route keeps
+      // the button working there rather than failing silently on the one page whose whole job is
+      // handing this text to someone else.
+      try {
+        const scratch = document.createElement("textarea");
+        scratch.value = report;
+        scratch.setAttribute("readonly", "");
+        scratch.style.position = "fixed";
+        scratch.style.opacity = "0";
+        document.body.appendChild(scratch);
+        scratch.select();
+        const ok = document.execCommand("copy");
+        document.body.removeChild(scratch);
+        setCopyState(ok ? "copied" : "failed");
+      } catch {
+        setCopyState("failed");
+      }
+    }
+    setTimeout(() => setCopyState("idle"), 2500);
+  }, [signatures, unresolvedOnly, days]);
+
   const totalDevices = signatures.reduce((sum, s) => sum + s.deviceCount, 0);
 
   return (
@@ -175,6 +271,22 @@ export default function SyncHealthPage() {
 
             <button type="button" onClick={() => void load()} disabled={isLoading}>
               Refresh
+            </button>
+
+            {/* Copies the values rather than the view: full record ids, absolute timestamps, and
+                every row — the three things a screenshot of this table loses. */}
+            <button
+              type="button"
+              className="btn btn-outline"
+              onClick={() => void copyReport()}
+              disabled={isLoading || signatures.length === 0}
+              title="Copy every defect as text, ready to paste to whoever is fixing it"
+            >
+              {copyState === "copied"
+                ? "Copied ✓"
+                : copyState === "failed"
+                  ? "Copy failed — select the table instead"
+                  : `Copy all ${signatures.length || ""} as text`}
             </button>
 
             {!isLoading && signatures.length > 0 && (
@@ -267,9 +379,20 @@ export default function SyncHealthPage() {
                               </div>
                             )}
                             {isRetryLoop(row.recordCount, row.occurrences) && row.worstRecordId && (
-                              <div style={{ color: "#b42318", marginTop: 2 }}>
-                                Stuck in a loop: record {shortId(row.worstRecordId)} refused{" "}
-                                {row.worstRecordOccurrences} times on its own.
+                              <div
+                                style={{
+                                  // A refusal is red because a record is not landing. A repeat that
+                                  // saved every time is not an emergency and must not borrow the
+                                  // colour of one.
+                                  color: NON_REFUSAL_ERRORS.has(row.errorType) ? undefined : "#b42318",
+                                  opacity: NON_REFUSAL_ERRORS.has(row.errorType) ? 0.85 : undefined,
+                                  marginTop: 2,
+                                }}
+                                title={row.worstRecordId}
+                              >
+                                {NON_REFUSAL_ERRORS.has(row.errorType)
+                                  ? `Same record repeatedly: ${shortId(row.worstRecordId)} arrived ${row.worstRecordOccurrences} times with the same defect (each one saved).`
+                                  : `Stuck in a loop: record ${shortId(row.worstRecordId)} refused ${row.worstRecordOccurrences} times on its own.`}
                               </div>
                             )}
                           </td>
