@@ -2467,10 +2467,17 @@ th {
   font-size: 0.75rem;
 }
 
+/* The expanded event payload.
+ *
+ * This was `background: primary` with `color: on-surface-variant` — an accent ground carrying text
+ * meant for a surface. The two are not a pair, so the JSON came out dark-on-saturated-blue in light
+ * and light-on-light-periwinkle in dark: unreadable in both themes, which is the whole point of the
+ * block. `primary` is an attention colour, and a payload dump is not asking for attention; it sits
+ * one step above its row, which is `surface-container-low`. */
 .live-params {
   grid-column: 1 / -1;
-  background: var(--md-sys-color-primary);
-  color: var(--md-sys-color-on-surface-variant);
+  background: var(--md-sys-color-surface-container-highest);
+  color: var(--md-sys-color-on-surface);
   border-radius: 6px;
   padding: 0.5rem 0.7rem;
   margin: 0.3rem 0 0;
@@ -2781,7 +2788,11 @@ th {
 .sidebar-badge {
   margin-left: auto; min-width: 18px; height: 18px; padding: 0 5px;
   display: inline-flex; align-items: center; justify-content: center;
-  border-radius: 9px; background: var(--md-sys-color-error); color: var(--md-sys-color-on-primary);
+  /* `on-primary` sat here against an `error` ground. Both happen to be near-white in the current
+   * seed, so it looked correct — but the palette is generated from a seed at runtime, and the two
+   * on-colours are free to diverge the moment the seed changes. A pair that is only accidentally
+   * legible is a bug that has not surfaced yet. */
+  border-radius: 9px; background: var(--md-sys-color-error); color: var(--md-sys-color-on-error);
   font-size: 11px; font-weight: 700;
 }
 
