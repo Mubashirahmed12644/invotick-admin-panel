@@ -436,8 +436,11 @@ export default function LiveEventsPage() {
                       const detailCol = isScreenView ? "screen_view" : screenLabel;
                       return (
                       <div key={`${e.id}-${i}`} className={`live-row live-${eventKind(e.eventName)}`}>
-                        {/* Newest is 1, because that is the row being read when the page is open. */}
-                        <span className="live-idx">{i + 1}</span>
+                        {/* The newest event gets the HIGHEST number, so a row keeps the number it
+                            was given. Numbering from the top instead meant every row was renumbered
+                            each time an event arrived, which makes the number useless for the one
+                            thing it is for — pointing at a row. */}
+                        <span className="live-idx">{events.length - i}</span>
                         <span className="live-time"><EventTime iso={e.eventTimestamp} /></span>
                         <span className="live-name">{nameCol}</span>
                         <span className="live-screen">

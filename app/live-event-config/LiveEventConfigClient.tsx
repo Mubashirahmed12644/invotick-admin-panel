@@ -1059,7 +1059,7 @@ export default function LiveEventConfigClient() {
                     style={{ background: i.planned ? "var(--md-sys-color-surface-container-lowest)" : on ? "var(--md-sys-color-primary-container)" : undefined }}
                   >
                     <td style={{ ...td, textAlign: "right", color: "var(--md-sys-color-on-surface-variant)", fontVariantNumeric: "tabular-nums" }}>
-                      {idx + 1}
+                      {filtered.length - idx}
                     </td>
                     <td style={{ ...td, textAlign: "center" }}>
                       <Toggle on={on} onChange={(v) => setDraft(i.eventName, { tracked: v })} />
