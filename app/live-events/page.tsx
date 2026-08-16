@@ -102,6 +102,10 @@ export default function LiveEventsPage() {
   const seenRef = useRef<Set<string>>(new Set());
   /** Event names Event Discovery has marked ignored — the only thing this stream hides by choice. */
   const ignoredRef = useRef<Set<string>>(new Set());
+  // ident -> chosen name. Keyed by Event Discovery's ident, which for a screen is `screen: <route>`
+  // and not `screen_view` — looking it up by the raw event name would find nothing for every screen
+  // in the app, and look exactly like "renaming screens does not work".
+  const displayNamesRef = useRef<Map<string, string>>(new Map());
   const pausedRef = useRef(false);
   const selectedRef = useRef("");
 
@@ -111,8 +115,20 @@ export default function LiveEventsPage() {
     let cancelled = false;
     void (async () => {
       try {
-        const ignored = await api.getEventDiscovery(false, true);
-        if (!cancelled) ignoredRef.current = new Set(ignored.map((i) => i.eventName));
+        const [ignored, named] = await Promise.all([
+          api.getEventDiscovery(false, true),
+          api.getEventDiscovery(false, false),
+        ]);
+        if (cancelled) return;
+        ignoredRef.current = new Set(ignored.map((i) => i.eventName));
+        // The name somebody chose in Event Discovery is the name this stream should show. It was
+        // not being read at all: every row printed its raw identity, so renaming an event there
+        // changed the page it was typed on and nothing else, which reads as the rename not working.
+        const names = new Map<string, string>();
+        for (const i of [...named, ...ignored]) {
+          if (i.displayName) names.set(i.eventName, i.displayName);
+        }
+        displayNamesRef.current = names;
       } catch {
         // A stream showing too much beats a stream that silently shows nothing.
       }
@@ -409,7 +425,14 @@ export default function LiveEventsPage() {
                       const isScreenView = e.eventName === "screen_view";
                       const screenLabel =
                         e.screenName ?? (e.params?.screen as string | undefined) ?? "";
-                      const nameCol = isScreenView ? screenLabel || "screen_view" : e.eventName;
+                      // Same derivation the backend uses to key the config, so a name typed against
+                      // a screen row is found by the row it was typed against.
+                      const ident = isScreenView
+                        ? `screen: ${(e.params?.screen as string | undefined) || e.screenName || "?"}`
+                        : e.eventName;
+                      const chosen = displayNamesRef.current.get(ident);
+                      const nameCol =
+                        chosen ?? (isScreenView ? screenLabel || "screen_view" : e.eventName);
                       const detailCol = isScreenView ? "screen_view" : screenLabel;
                       return (
                       <div key={`${e.id}-${i}`} className={`live-row live-${eventKind(e.eventName)}`}>
