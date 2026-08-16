@@ -22,15 +22,11 @@ const USERS_POLL_MS = 5000;
  * `screen: <route>` per screen, so the raw name never appears there to be judged. On this stream it
  * would sit beside screen_view saying the same thing with worse names.
  *
- * `app_heartbeat` is the other. It is a 25-second timer that exists to keep the live dot green
- * while somebody sits on a screen without touching anything — it says "still here" and nothing else,
- * which is precisely what the dot already says. Shown as rows it was most of the feed: nine of the
- * fifty on the page this was noticed on. Hidden here rather than in Event Discovery because it is
- * not a decision about what is interesting; the event has no funnel meaning to weigh in the first
- * place. The cursor still advances on it, so the dot it exists for keeps working.
- *
- * How long somebody actually sat there is a real question, and it is answered on the event that
- * ends the silence rather than by a metronome — see `idle_ms`.
+ * `app_heartbeat` was added here too, and taken back out. It is noisy — nine of fifty rows on the
+ * page where that was noticed — but noisy is a judgement, and this file is not where judgements
+ * belong: the owner turned it on in Event Discovery, named it, and the page ignored them, because a
+ * hard-coded set beats any choice made anywhere else. Ignoring it with ⊘ hides it and turning it on
+ * shows it, which is the mechanism that already existed for exactly this.
  *
  * Everything else is decided in Event Discovery, not here. A hard-coded list in this file used to
  * hide app_cold_start, app_background, app_paused, app_foreground, app_resumed and install_referrer
@@ -39,7 +35,7 @@ const USERS_POLL_MS = 5000;
  * page — it is the only record of somebody giving up, and where. Two places deciding what is worth
  * seeing is how a list like that outlives its reason.
  */
-const ALWAYS_HIDDEN = new Set(["nav_screen_view", "app_heartbeat"]);
+const ALWAYS_HIDDEN = new Set(["nav_screen_view"]);
 
 type SortKey = "recent" | "email" | "count";
 
