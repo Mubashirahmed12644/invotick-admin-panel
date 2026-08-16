@@ -16,17 +16,22 @@ const USERS_POLL_MS = 5000;
 // funnel understanding — hidden from the live stream to keep the webpanel meaningful. The cursor +
 // seen-set still advance on them so they are not re-fetched, and they keep the live dot green.
 /**
- * The one event the stream hides on its own.
+ * The events that keep presence alive without being rows in it.
  *
  * `nav_screen_view` cannot be configured in Event Discovery: that page rewrites it into
  * `screen: <route>` per screen, so the raw name never appears there to be judged. On this stream it
  * would sit beside screen_view saying the same thing with worse names.
  *
- * `app_heartbeat` was added here too, and taken back out. It is noisy — nine of fifty rows on the
- * page where that was noticed — but noisy is a judgement, and this file is not where judgements
- * belong: the owner turned it on in Event Discovery, named it, and the page ignored them, because a
- * hard-coded set beats any choice made anywhere else. Ignoring it with ⊘ hides it and turning it on
- * shows it, which is the mechanism that already existed for exactly this.
+ * `app_heartbeat` is the other, and it took three attempts to place correctly. It is a 25-second
+ * presence ping — the thing that keeps the live light on while somebody sits reading a screen. It
+ * is not something the user did, so it does not belong in a feed of things the user did; but it was
+ * also, for a while, the only carrier of how long a pause had lasted, so hiding it hid real
+ * information and the owner rightly turned it back on. Removing the ping instead took the live
+ * light out with it.
+ *
+ * Both jobs exist now and neither is the other: this keeps the light on, and `session_break` — one
+ * row, when a pause ends, carrying `break_ms` — carries the meaning into the feed and is displayed
+ * like any other event.
  *
  * Everything else is decided in Event Discovery, not here. A hard-coded list in this file used to
  * hide app_cold_start, app_background, app_paused, app_foreground, app_resumed and install_referrer
@@ -35,7 +40,7 @@ const USERS_POLL_MS = 5000;
  * page — it is the only record of somebody giving up, and where. Two places deciding what is worth
  * seeing is how a list like that outlives its reason.
  */
-const ALWAYS_HIDDEN = new Set(["nav_screen_view"]);
+const PRESENCE_ONLY = new Set(["nav_screen_view", "app_heartbeat"]);
 
 type SortKey = "recent" | "email" | "count";
 
@@ -213,7 +218,7 @@ export default function LiveEventsPage() {
           // What to hide is decided in Event Discovery (see ALWAYS_HIDDEN) — kept in the
           // app-side recording, just not shown here. The cursor + seen set above already advanced.
           const visible = fresh.filter(
-            (e) => !ALWAYS_HIDDEN.has(e.eventName) && !ignoredRef.current.has(e.eventName),
+            (e) => !PRESENCE_ONLY.has(e.eventName) && !ignoredRef.current.has(e.eventName),
           );
           if (visible.length > 0) {
             // Keep the stream ordered by CLIENT eventTimestamp (true fire order) so late-arriving
