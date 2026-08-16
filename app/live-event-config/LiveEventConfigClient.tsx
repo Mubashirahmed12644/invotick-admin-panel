@@ -402,6 +402,9 @@ export default function LiveEventConfigClient() {
 
   // "Seen" must exclude planned rows. An event nobody built and an event that was built and stopped
   // firing are the same picture once those are counted together, and telling them apart is the point.
+  // Occurrences, not rows: this is the number that reconciles against the live stream, which the
+  // seen count never could.
+  const firedCount = filtered.reduce((n, i) => n + (i.firings ?? 0), 0);
   const seenCount = useMemo(() => visibleItems.filter((i) => !i.planned).length, [visibleItems]);
   const plannedCount = useMemo(() => visibleItems.filter((i) => i.planned).length, [visibleItems]);
   const inListCount = useMemo(() => visibleItems.filter((i) => i.inList).length, [visibleItems]);
@@ -570,6 +573,7 @@ export default function LiveEventConfigClient() {
             </span>
           ) : null}
         </td>
+        <td style={{ ...td, textAlign: "right", color: "var(--md-sys-color-on-surface-variant)", fontSize: 11 }}>—</td>
         <td style={td}>
           {layerSelect(row.layer, (v) => patchPending(row.id, { layer: v }), !row.layer)}
         </td>
@@ -870,6 +874,7 @@ export default function LiveEventConfigClient() {
         <div style={{ fontSize: 13, color: "var(--md-sys-color-on-surface)", textAlign: "right" }}>
           <div>
             <b>{seenCount}</b> seen ·{" "}
+            <b>{firedCount}</b> fired ·{" "}
             {plannedCount > 0 ? (
               <>
                 <b style={{ color: "var(--md-sys-color-warning)" }}>{plannedCount}</b> planned ·{" "}
@@ -1013,6 +1018,7 @@ export default function LiveEventConfigClient() {
                 <th style={{ ...th, width: 40, textAlign: "right" }}>#</th>
                 <th style={{ ...th, width: 64 }}>Track</th>
                 <th style={th}>Event / identity</th>
+                <th style={{ ...th, width: 44, textAlign: "right" }} title="How many times this fired — the row is one identity, this is its occurrences">×</th>
                 <th style={{ ...th, width: 150 }} title="Who caused this event — what a funnel cannot tell you about itself">
                   Layer
                 </th>
@@ -1161,6 +1167,13 @@ export default function LiveEventConfigClient() {
                         {i.screenName ? <span style={{ color: "var(--md-sys-color-on-surface)" }}>{i.screenName}</span> : null}
                         {i.lastSeen ? <EventTime iso={i.lastSeen} /> : null}
                       </div>
+                    </td>
+                    {/* Bold once it has fired more than once, because that is the case the live
+                        stream shows as several rows and this page shows as one. */}
+                    <td style={{ ...td, textAlign: "right", fontVariantNumeric: "tabular-nums",
+                                 color: (i.firings ?? 0) > 1 ? "var(--md-sys-color-on-surface)" : "var(--md-sys-color-on-surface-variant)",
+                                 fontWeight: (i.firings ?? 0) > 1 ? 700 : 400 }}>
+                      {i.firings ?? 0}
                     </td>
                     <td style={td}>
                       {layerSelect(layerVal(i), (v) => setDraft(i.eventName, { layer: v }), !layerVal(i))}

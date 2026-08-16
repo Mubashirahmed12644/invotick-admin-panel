@@ -545,6 +545,13 @@ export interface EventDiscoveryItem {
    * bypasses the allowlist and always sends, so deleting the call is the only thing that stops it.
    */
   autoCaptured?: boolean;
+  /**
+   * Times this event fired, as opposed to the one row it occupies here.
+   *
+   * This page groups by identity; the live stream has a row per firing. Comparing the two meant
+   * subtracting one list from the other by eye and guessing which rows had been folded together.
+   */
+  firings?: number;
   displayName: string | null;
   replaceName: string | null;
   description: string | null;
