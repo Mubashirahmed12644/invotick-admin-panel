@@ -7,6 +7,7 @@ import Sidebar from "@/components/Sidebar";
 import { api, getErrorMessage, isUnauthorizedError } from "@/lib/api";
 import { clearAccessToken, isLoggedIn } from "@/lib/auth";
 import type { ActiveUser, LiveEvent } from "@/lib/types";
+import { EventTime } from "@/lib/eventTime";
 
 const EVENT_POLL_MS = 1200;
 const USERS_POLL_MS = 5000;
@@ -412,7 +413,7 @@ export default function LiveEventsPage() {
                       const detailCol = isScreenView ? "screen_view" : screenLabel;
                       return (
                       <div key={`${e.id}-${i}`} className={`live-row live-${eventKind(e.eventName)}`}>
-                        <span className="live-time">{new Date(e.eventTimestamp).toLocaleTimeString()}</span>
+                        <span className="live-time"><EventTime iso={e.eventTimestamp} /></span>
                         <span className="live-name">{nameCol}</span>
                         <span className="live-screen">
                           {detailCol}
