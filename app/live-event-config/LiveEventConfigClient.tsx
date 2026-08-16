@@ -530,6 +530,9 @@ export default function LiveEventConfigClient() {
   function renderPending(row: PendingRow) {
     return (
       <tr key={row.id} style={{ background: "var(--md-sys-color-surface-container-lowest)" }}>
+        {/* An authored row is not part of the discovered feed, so it holds the column without a
+            number rather than borrowing one and shifting every row below it. */}
+        <td style={{ ...td, textAlign: "right", color: "var(--md-sys-color-on-surface-variant)", fontSize: 11 }}>—</td>
         <td style={{ ...td, textAlign: "center", color: "var(--md-sys-color-on-surface-variant)", fontSize: 11 }}>—</td>
         <td style={td}>
           <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
@@ -1007,6 +1010,7 @@ export default function LiveEventConfigClient() {
           <table style={{ width: "100%", borderCollapse: "collapse", background: "var(--md-sys-color-surface-container-lowest)" }}>
             <thead>
               <tr>
+                <th style={{ ...th, width: 40, textAlign: "right" }}>#</th>
                 <th style={{ ...th, width: 64 }}>Track</th>
                 <th style={th}>Event / identity</th>
                 <th style={{ ...th, width: 150 }} title="Who caused this event — what a funnel cannot tell you about itself">
@@ -1045,7 +1049,7 @@ export default function LiveEventConfigClient() {
             </thead>
             <tbody>
               {pending.filter((r) => r.anchor === null).map(renderPending)}
-              {filtered.flatMap((i) => {
+              {filtered.flatMap((i, idx) => {
                 const on = trackedOn(i);
                 const needName = on && !nameVal(i).trim();
                 return [
@@ -1054,6 +1058,9 @@ export default function LiveEventConfigClient() {
                     key={i.eventName}
                     style={{ background: i.planned ? "var(--md-sys-color-surface-container-lowest)" : on ? "var(--md-sys-color-primary-container)" : undefined }}
                   >
+                    <td style={{ ...td, textAlign: "right", color: "var(--md-sys-color-on-surface-variant)", fontVariantNumeric: "tabular-nums" }}>
+                      {idx + 1}
+                    </td>
                     <td style={{ ...td, textAlign: "center" }}>
                       <Toggle on={on} onChange={(v) => setDraft(i.eventName, { tracked: v })} />
                     </td>

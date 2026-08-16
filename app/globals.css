@@ -2441,7 +2441,9 @@ th {
 
 .live-row {
   display: grid;
-  grid-template-columns: 90px 1fr 1.2fr auto;
+  /* First column is the row number. Fixed width and right-aligned so 9 and 10 keep their last digit
+     in the same place — a column of numbers that shifts is harder to read than no numbers. */
+  grid-template-columns: 2.2rem 90px 1fr 1.2fr auto;
   gap: 0.6rem;
   align-items: baseline;
   padding: 0.32rem 0.5rem;
@@ -2454,6 +2456,12 @@ th {
 .live-row.live-click  { border-left-color: var(--md-sys-color-success); }
 .live-row.live-lifecycle { border-left-color: var(--md-sys-color-on-surface-variant); }
 .live-row.live-other  { border-left-color: var(--md-sys-color-warning); }
+
+.live-idx {
+  color: var(--md-sys-color-on-surface-variant);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
 
 .live-time { color: var(--color-text-muted); }
 .live-name { font-weight: 700; color: var(--color-text); }

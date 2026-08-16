@@ -436,6 +436,8 @@ export default function LiveEventsPage() {
                       const detailCol = isScreenView ? "screen_view" : screenLabel;
                       return (
                       <div key={`${e.id}-${i}`} className={`live-row live-${eventKind(e.eventName)}`}>
+                        {/* Newest is 1, because that is the row being read when the page is open. */}
+                        <span className="live-idx">{i + 1}</span>
                         <span className="live-time"><EventTime iso={e.eventTimestamp} /></span>
                         <span className="live-name">{nameCol}</span>
                         <span className="live-screen">
