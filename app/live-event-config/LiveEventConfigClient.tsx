@@ -856,7 +856,11 @@ export default function LiveEventConfigClient() {
   }
 
   return (
-    <div style={{ padding: 24, maxWidth: 1280, margin: "0 auto" }}>
+    // No max-width. 1280 was a sensible cap for a page of prose and the wrong one for a nine-column
+    // table: on a wide screen it left space unused on the right while squeezing the identity column
+    // until it broke words in half. The table scrolls inside its own container below, so a narrow
+    // window is handled there rather than by starving every window.
+    <div style={{ padding: 24, margin: "0 auto" }}>
       <Link
         href="/"
         style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, color: "var(--md-sys-color-primary)", textDecoration: "none", marginBottom: 12 }}
@@ -1017,13 +1021,15 @@ export default function LiveEventConfigClient() {
               <tr>
                 <th style={{ ...th, width: 40, textAlign: "right" }}>#</th>
                 <th style={{ ...th, width: 64 }}>Track</th>
-                <th style={th}>Event / identity</th>
+                {/* Bounded at both ends. Unbounded, an unbroken identity demanded 615px and starved
+                    the rest — Layer collapsed to 51px and Description to 88. */}
+                <th style={{ ...th, minWidth: 210 }}>Event / identity</th>
                 <th style={{ ...th, width: 44, textAlign: "right" }} title="How many times this fired — the row is one identity, this is its occurrences">×</th>
-                <th style={{ ...th, width: 150 }} title="Who caused this event — what a funnel cannot tell you about itself">
+                <th style={{ ...th, width: 150, minWidth: 150 }} title="Who caused this event — what a funnel cannot tell you about itself">
                   Layer
                 </th>
-                <th style={{ ...th, width: 108 }}>Status</th>
-                <th style={{ ...th, width: 180 }}>
+                <th style={{ ...th, width: 108, minWidth: 100 }}>Status</th>
+                <th style={{ ...th, width: 180, minWidth: 150 }}>
                   Display name
                   <InfoTooltip>
                     <b>Naming best practices</b>
@@ -1037,7 +1043,7 @@ export default function LiveEventConfigClient() {
                     <span style={{ color: "var(--md-sys-color-on-surface-variant)" }}>Input auto-formats to this as you type.</span>
                   </InfoTooltip>
                 </th>
-                <th style={{ ...th, width: 180 }}>
+                <th style={{ ...th, width: 180, minWidth: 150 }}>
                   Replace name
                   <InfoTooltip>
                     <b>Replace the code identity</b>
@@ -1071,7 +1077,7 @@ export default function LiveEventConfigClient() {
                       <Toggle on={on} onChange={(v) => setDraft(i.eventName, { tracked: v })} />
                     </td>
                     <td style={td}>
-                      <div style={{ display: "flex", alignItems: "flex-start", gap: 6 }}>
+                      <div style={{ display: "flex", alignItems: "flex-start", gap: 6, flexWrap: "wrap" }}>
                         {eventType(i.eventName) === "screen" ? (
                           <span style={{ flexShrink: 0, fontSize: 10.5, fontWeight: 600, color: "var(--md-sys-color-primary)", background: "var(--md-sys-color-surface-container-low)", borderRadius: 5, padding: "2px 6px", marginTop: 1 }}>screen</span>
                         ) : (
@@ -1113,7 +1119,10 @@ export default function LiveEventConfigClient() {
                             {i.autoCaptured ? "auto" : "coded"}
                           </span>
                         ) : null}
-                        <span style={{ fontFamily: "monospace", fontSize: 12.5, fontWeight: 600, wordBreak: "break-all" }}>{i.eventName}</span>
+                        {/* Never broken mid-word. `break-all` turned `ad_impression_value` into four lines that each
+                            read as nonsense, and an identity is the one string on this page that has to be read
+                            exactly — it is what gets typed into a query later. The table scrolls instead. */}
+                        <span style={{ fontFamily: "monospace", fontSize: 12.5, fontWeight: 600, whiteSpace: "nowrap" }}>{i.eventName}</span>
                         <button
                           type="button"
                           onClick={() => copyIdentity(i.eventName)}
