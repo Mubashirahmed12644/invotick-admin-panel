@@ -476,6 +476,13 @@ export const api = {
   },
 
   // Live Event Discovery — the live feed of events/UI-actions the debug app emits.
+  /** Devices on debug builds seen recently — the list a test round is picked from. */
+  getDebugDevices(withinMinutes = 720, limit = 50) {
+    return apiRequest<DebugDevice[]>(
+      `/v2/admin/analytics/debug-devices?withinMinutes=${withinMinutes}&limit=${limit}`,
+    );
+  },
+
   getEventDiscovery(debugOnly = true, showIgnored = false, userId?: string) {
     const params = new URLSearchParams({ debugOnly: String(debugOnly), showIgnored: String(showIgnored) });
     // Scoping to a user is what makes the firing count comparable to that user's live stream.
@@ -531,6 +538,18 @@ export const api = {
 };
 
 export type DefaultListStatus = "NONE" | "PENDING" | "APPLIED";
+
+/**
+ * One device sending debug builds. Version is deliberately absent: a debug build of 1.4.0 reports
+ * the same `1.4.0` every real user reports, so it would distinguish nothing.
+ */
+export interface DebugDevice {
+  userId: string;
+  invotickId: string | null;
+  email: string | null;
+  lastEventAt: string;
+  recentEventCount: number;
+}
 
 export interface EventDiscoveryItem {
   eventName: string;

@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { api, type EventDiscoveryItem, type DefaultListTask } from "@/lib/api";
-import { EventTime } from "@/lib/eventTime";
+import { api, type EventDiscoveryItem, type DefaultListTask, type DebugDevice } from "@/lib/api";
+import { EventTime, timeWithMillis } from "@/lib/eventTime";
 
 // Per-row unsaved edits, so the live refresh never clobbers what the admin is typing.
 interface Draft {
@@ -339,6 +339,23 @@ export default function LiveEventConfigClient() {
   );
   const userIdRef = useRef(userId);
   userIdRef.current = userId;
+
+  // The devices a test round can be picked from. Debug, because that is what separates the phone
+  // doing the testing from four thousand real users — the intuitive filter, "versions above the
+  // released one", returns nothing at all: a debug build of 1.4.0 reports `1.4.0` like everyone.
+  const [devices, setDevices] = useState<DebugDevice[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const d = await api.getDebugDevices();
+        if (!cancelled) setDevices(d);
+      } catch {
+        // A missing list leaves the page unscoped, which is the old behaviour and still usable.
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   const [debouncedUserId, setDebouncedUserId] = useState("");
   useEffect(() => {
@@ -917,14 +934,26 @@ export default function LiveEventConfigClient() {
           onChange={(e) => setSearch(e.target.value)}
           style={{ ...inputStyle, maxWidth: 320 }}
         />
-        <input
-          placeholder="User id — scope counts to one run"
-          title="Paste a user id from Live Events. The × column then counts only that user's firings, so the two pages tally."
+        <select
+          title="Pick the device whose run you are checking. The × column then counts only that device's firings, so this page and its live stream tally."
           value={userId}
           onChange={(e) => setUserId(e.target.value)}
-          style={{ ...inputStyle, maxWidth: 260,
+          style={{ ...inputStyle, maxWidth: 320,
                    borderColor: userId ? "var(--md-sys-color-primary)" : undefined }}
-        />
+        >
+          <option value="">All devices — not a single run</option>
+          {devices.map((d) => (
+            <option key={d.userId} value={d.userId}>
+              {(d.invotickId || d.email || d.userId.slice(0, 8)) +
+                ` · ${d.recentEventCount} events · ${timeWithMillis(d.lastEventAt).slice(0, 8)}`}
+            </option>
+          ))}
+          {/* A user arrived at by link may not be in the recent list — keep it selectable rather
+              than silently resetting the page to unscoped. */}
+          {userId && !devices.some((d) => d.userId === userId) ? (
+            <option value={userId}>{userId.slice(0, 8)} · from link</option>
+          ) : null}
+        </select>
         <label style={{ fontSize: 13, display: "flex", alignItems: "center", gap: 6, color: "var(--md-sys-color-on-surface)" }}>
           <input type="checkbox" checked={debugOnly} onChange={(e) => setDebugOnly(e.target.checked)} />
           Debug builds only
