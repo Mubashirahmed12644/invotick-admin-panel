@@ -476,10 +476,12 @@ export const api = {
   },
 
   // Live Event Discovery — the live feed of events/UI-actions the debug app emits.
-  getEventDiscovery(debugOnly = true, showIgnored = false) {
-    return apiRequest<EventDiscoveryItem[]>(
-      `/v2/admin/analytics/event-discovery?debugOnly=${debugOnly}&showIgnored=${showIgnored}`,
-    );
+  getEventDiscovery(debugOnly = true, showIgnored = false, userId?: string) {
+    const params = new URLSearchParams({ debugOnly: String(debugOnly), showIgnored: String(showIgnored) });
+    // Scoping to a user is what makes the firing count comparable to that user's live stream.
+    // Unscoped it counts the whole install base, which for a presence ping is tens of thousands.
+    if (userId) params.set("userId", userId);
+    return apiRequest<EventDiscoveryItem[]>(`/v2/admin/analytics/event-discovery?${params.toString()}`);
   },
 
   // The full bundled default allowlist the app should ship (every tracked event).

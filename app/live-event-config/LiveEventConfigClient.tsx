@@ -331,6 +331,21 @@ export default function LiveEventConfigClient() {
     }
   }
 
+  // Which user's run this page is describing. Empty means everyone, which is right for deciding
+  // what an event IS and wrong for checking what a test round produced — unscoped, the presence
+  // ping counts tens of thousands across the install base and cannot be tallied against anything.
+  const [userId, setUserId] = useState(() =>
+    typeof window === "undefined" ? "" : new URLSearchParams(window.location.search).get("userId") ?? "",
+  );
+  const userIdRef = useRef(userId);
+  userIdRef.current = userId;
+
+  const [debouncedUserId, setDebouncedUserId] = useState("");
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedUserId(userId.trim()), 400);
+    return () => clearTimeout(t);
+  }, [userId]);
+
   const debugOnlyRef = useRef(debugOnly);
   debugOnlyRef.current = debugOnly;
   const showIgnoredRef = useRef(showIgnored);
@@ -339,7 +354,7 @@ export default function LiveEventConfigClient() {
   const load = useCallback(async (showSpinner = false) => {
     if (showSpinner) setLoading(true);
     try {
-      const data = await api.getEventDiscovery(debugOnlyRef.current, showIgnoredRef.current);
+      const data = await api.getEventDiscovery(debugOnlyRef.current, showIgnoredRef.current, userIdRef.current.trim() || undefined);
       setItems(data);
       setError(null);
       setLastRefreshed(new Date());
@@ -363,7 +378,9 @@ export default function LiveEventConfigClient() {
   useEffect(() => {
     load(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debugOnly, showIgnored]);
+    // Debounced on userId: this is typed, not toggled, and a request per keystroke would fire eight
+    // times for one paste.
+  }, [debugOnly, showIgnored, debouncedUserId]);
 
   /**
    * Events still visible after the "Clear" cutoff (content-only; configs are untouched).
@@ -899,6 +916,14 @@ export default function LiveEventConfigClient() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           style={{ ...inputStyle, maxWidth: 320 }}
+        />
+        <input
+          placeholder="User id — scope counts to one run"
+          title="Paste a user id from Live Events. The × column then counts only that user's firings, so the two pages tally."
+          value={userId}
+          onChange={(e) => setUserId(e.target.value)}
+          style={{ ...inputStyle, maxWidth: 260,
+                   borderColor: userId ? "var(--md-sys-color-primary)" : undefined }}
         />
         <label style={{ fontSize: 13, display: "flex", alignItems: "center", gap: 6, color: "var(--md-sys-color-on-surface)" }}>
           <input type="checkbox" checked={debugOnly} onChange={(e) => setDebugOnly(e.target.checked)} />

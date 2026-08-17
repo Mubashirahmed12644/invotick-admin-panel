@@ -394,6 +394,19 @@ export default function LiveEventsPage() {
                     <h2>{selectedUser?.email && !selectedUser.email.endsWith("@guest.com") ? selectedUser.email : selectedUser?.invotickId ? `#${selectedUser.invotickId}` : selectedId.slice(0, 12) + "…"}</h2>
                     <span className="api-access-desc">
                       {selectedUser?.invotickId ? `Invotick ID ${selectedUser.invotickId} · ` : ""}{events.length} events streamed
+                      {selectedId ? (
+                        <>
+                          {" · "}
+                          {/* Carries the user across, because the counts on that page are only
+                              comparable to this stream when they describe the same person. */}
+                          <a
+                            href={`/live-event-config?userId=${encodeURIComponent(selectedId)}`}
+                            style={{ color: "var(--md-sys-color-primary)" }}
+                          >
+                            Discovery for this user →
+                          </a>
+                        </>
+                      ) : null}
                     </span>
                   </div>
                   <div className="api-access-controls" style={{ marginTop: 0 }}>
