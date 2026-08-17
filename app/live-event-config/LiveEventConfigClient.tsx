@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { api, type EventDiscoveryItem, type DefaultListTask, type DebugDevice } from "@/lib/api";
 import { EventTime, timeWithMillis } from "@/lib/eventTime";
+import { copyText } from "@/lib/clipboard";
 
 // Per-row unsaved edits, so the live refresh never clobbers what the admin is typing.
 interface Draft {
@@ -152,6 +153,40 @@ const LAYERS: { group: string; options: { value: string; label: string; hint: st
 const LAYER_LABEL: Record<string, string> = Object.fromEntries(
   LAYERS.flatMap((g) => g.options.map((o) => [o.value, `${g.group.split(" —")[0]} · ${o.label}`])),
 );
+
+/**
+ * The discovery table as text, for pasting somewhere it can be read.
+ *
+ * Row order and columns as shown, plus the scope and filters at the top — a list of events without
+ * "which device, debug only, ignored shown" is not reproducible, and the first question about any
+ * of these numbers is which slice of data produced them.
+ */
+function buildDiscoveryReport(
+  items: EventDiscoveryItem[],
+  ctx: { device: string; debugOnly: boolean; showIgnored: boolean; search: string; fired: number },
+): string {
+  const head = [
+    `# Event Discovery — device: ${ctx.device || "all devices"}`,
+    `# debugOnly=${ctx.debugOnly} showIgnored=${ctx.showIgnored}${ctx.search ? ` search="${ctx.search}"` : ""}`,
+    `# ${items.length} identities, ${ctx.fired} firings, copied ${new Date().toISOString()}`,
+    "",
+    ["#", "fired", "kind", "src", "identity", "layer", "status", "display name", "description"].join(" | "),
+  ];
+  const rows = items.map((i, idx) =>
+    [
+      items.length - idx,
+      i.firings ?? 0,
+      eventType(i.eventName),
+      i.autoCaptured ? "auto" : "coded",
+      i.eventName,
+      i.layer || "-",
+      i.planned ? "planned" : i.inList ? "in list" : "debug-only",
+      i.displayName || "-",
+      (i.description || "-").replace(/\s+/g, " "),
+    ].join(" | "),
+  );
+  return [...head, ...rows].join("\n");
+}
 
 interface PendingRow {
   id: string;
@@ -343,6 +378,7 @@ export default function LiveEventConfigClient() {
   // The devices a test round can be picked from. Debug, because that is what separates the phone
   // doing the testing from four thousand real users — the intuitive filter, "versions above the
   // released one", returns nothing at all: a debug build of 1.4.0 reports `1.4.0` like everyone.
+  const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
   const [devices, setDevices] = useState<DebugDevice[]>([]);
   useEffect(() => {
     let cancelled = false;
@@ -982,6 +1018,24 @@ export default function LiveEventConfigClient() {
           style={{ marginLeft: "auto", padding: "6px 14px", borderRadius: 6, border: "1px solid var(--md-sys-color-outline-variant)", background: showDefault ? "var(--md-sys-color-surface-container-low)" : "var(--md-sys-color-surface-container-lowest)", color: "var(--md-sys-color-primary)", fontSize: 13, fontWeight: 500, cursor: "pointer" }}
         >
           {showDefault ? "Hide default list" : "Default list"}
+        </button>
+        <button
+          className="btn btn-outline"
+          onClick={async () => {
+            const r = await copyText(
+              buildDiscoveryReport(visibleItems, {
+                device: userId,
+                debugOnly,
+                showIgnored,
+                search,
+                fired: firedCount,
+              }),
+            );
+            setCopyState(r);
+            setTimeout(() => setCopyState("idle"), 2500);
+          }}
+        >
+          {copyState === "copied" ? "Copied ✓" : copyState === "failed" ? "Copy failed" : "Copy list"}
         </button>
         <button
           type="button"

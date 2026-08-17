@@ -6,6 +6,7 @@ import ErrorState from "@/components/ErrorState";
 import LoadingState from "@/components/LoadingState";
 import Navbar from "@/components/Navbar";
 import Sidebar from "@/components/Sidebar";
+import { copyText } from "@/lib/clipboard";
 import { api, getErrorMessage, isUnauthorizedError } from "@/lib/api";
 import { clearAccessToken } from "@/lib/auth";
 import type { SyncHealthOccurrence, SyncHealthSignature } from "@/lib/types";
@@ -215,29 +216,7 @@ export default function SyncHealthPage() {
 
   const copyReport = useCallback(async () => {
     const report = buildClipboardReport(signatures, { unresolvedOnly, days });
-    try {
-      await navigator.clipboard.writeText(report);
-      setCopyState("copied");
-    } catch {
-      // navigator.clipboard needs a secure context, and admin.invotick.com over plain HTTP or an
-      // IP-address preview would not have one. Falling back to the textarea+execCommand route keeps
-      // the button working there rather than failing silently on the one page whose whole job is
-      // handing this text to someone else.
-      try {
-        const scratch = document.createElement("textarea");
-        scratch.value = report;
-        scratch.setAttribute("readonly", "");
-        scratch.style.position = "fixed";
-        scratch.style.opacity = "0";
-        document.body.appendChild(scratch);
-        scratch.select();
-        const ok = document.execCommand("copy");
-        document.body.removeChild(scratch);
-        setCopyState(ok ? "copied" : "failed");
-      } catch {
-        setCopyState("failed");
-      }
-    }
+    setCopyState(await copyText(report));
     setTimeout(() => setCopyState("idle"), 2500);
   }, [signatures, unresolvedOnly, days]);
 

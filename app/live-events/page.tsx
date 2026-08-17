@@ -7,7 +7,8 @@ import Sidebar from "@/components/Sidebar";
 import { api, getErrorMessage, isUnauthorizedError } from "@/lib/api";
 import { clearAccessToken, isLoggedIn } from "@/lib/auth";
 import type { ActiveUser, LiveEvent } from "@/lib/types";
-import { EventTime } from "@/lib/eventTime";
+import { EventTime, timeWithMillis } from "@/lib/eventTime";
+import { copyText } from "@/lib/clipboard";
 
 const EVENT_POLL_MS = 1200;
 const USERS_POLL_MS = 5000;
@@ -41,6 +42,38 @@ const USERS_POLL_MS = 5000;
  * seeing is how a list like that outlives its reason.
  */
 const PRESENCE_ONLY = new Set(["nav_screen_view", "app_heartbeat"]);
+
+/**
+ * The whole stream as text, for pasting somewhere it can be read by someone who is not looking at
+ * this screen.
+ *
+ * Every event, oldest first — reading order, not the newest-first order the page shows — with the
+ * millisecond, the identity as the app sent it, the display name only when one differs from it, the
+ * screen, and the full params. The params are the point: they carry `method`, `break_ms`,
+ * `had_input` and the rest, and they are exactly what is behind the "params" toggle nobody can
+ * paste.
+ */
+function buildStreamReport(
+  events: LiveEvent[],
+  ctx: { userId: string; invotickId?: string | null; names: Map<string, string> },
+): string {
+  const head = [
+    `# Live Events — ${ctx.invotickId ? `Invotick ID ${ctx.invotickId}, ` : ""}user ${ctx.userId}`,
+    `# ${events.length} events, oldest first, copied ${new Date().toISOString()}`,
+    "",
+  ];
+  const body = [...events].reverse().map((e, i) => {
+    const isScreen = e.eventName === "screen_view";
+    const screen = e.screenName ?? (e.params?.screen as string | undefined) ?? "";
+    const ident = isScreen ? `screen: ${(e.params?.screen as string | undefined) || e.screenName || "?"}` : e.eventName;
+    const shown = ctx.names.get(ident);
+    const label = shown && shown !== ident ? `${ident}  [shown as ${shown}]` : ident;
+    const params = e.params && Object.keys(e.params).length ? JSON.stringify(e.params) : "-";
+    return `${String(i + 1).padStart(3)}  ${timeWithMillis(e.eventTimestamp)}  ${label}\n      screen=${screen || "-"}  params=${params}`;
+  });
+  return [...head, ...body].join("\n");
+}
+
 
 type SortKey = "recent" | "email" | "count";
 
@@ -95,6 +128,7 @@ export default function LiveEventsPage() {
 
   // right: selected user debug stream
   const [selectedId, setSelectedId] = useState("");
+  const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
   const [events, setEvents] = useState<LiveEvent[]>([]);
   const [paused, setPaused] = useState(false);
   const [streamError, setStreamError] = useState("");
@@ -410,6 +444,23 @@ export default function LiveEventsPage() {
                     </span>
                   </div>
                   <div className="api-access-controls" style={{ marginTop: 0 }}>
+                    <button
+                      className="btn btn-outline"
+                      disabled={!events.length}
+                      onClick={async () => {
+                        const r = await copyText(
+                          buildStreamReport(events, {
+                            userId: selectedId,
+                            invotickId: selectedUser?.invotickId,
+                            names: displayNamesRef.current,
+                          }),
+                        );
+                        setCopyState(r);
+                        setTimeout(() => setCopyState("idle"), 2500);
+                      }}
+                    >
+                      {copyState === "copied" ? "Copied ✓" : copyState === "failed" ? "Copy failed" : "Copy stream"}
+                    </button>
                     <button className="btn btn-outline" onClick={() => setPaused((p) => !p)}>
                       {paused ? "Resume" : "Pause"}
                     </button>
