@@ -346,15 +346,22 @@ export default function LiveEventConfigClient() {
   const [devices, setDevices] = useState<DebugDevice[]>([]);
   useEffect(() => {
     let cancelled = false;
-    void (async () => {
+    const pull = async () => {
       try {
-        const d = await api.getDebugDevices();
+        // Five minutes, the same boundary Live Events stops calling a user recent at. A device
+        // that stopped sending five minutes ago is not a run anyone is watching, and listing it
+        // only makes the live one harder to find.
+        const d = await api.getDebugDevices(5);
         if (!cancelled) setDevices(d);
       } catch {
         // A missing list leaves the page unscoped, which is the old behaviour and still usable.
       }
-    })();
-    return () => { cancelled = true; };
+    };
+    void pull();
+    // Re-pulled, because a five-minute window and a one-time fetch is an empty dropdown: the phone
+    // that starts a run after this page was opened would never appear in it.
+    const t = setInterval(pull, 15_000);
+    return () => { cancelled = true; clearInterval(t); };
   }, []);
 
   const [debouncedUserId, setDebouncedUserId] = useState("");
@@ -1084,11 +1091,8 @@ export default function LiveEventConfigClient() {
                   style={{ ...th, width: 56, textAlign: "right" }}
                   title="How many times this fired — the row is one identity, this is its occurrences"
                 >
-                  <div style={{ lineHeight: 1.15 }}>
-                    <div>×</div>
-                    <div style={{ fontVariantNumeric: "tabular-nums", fontWeight: 700, color: "var(--md-sys-color-on-surface)" }}>
-                      {firedCount}
-                    </div>
+                  <div style={{ fontVariantNumeric: "tabular-nums", fontWeight: 700, color: "var(--md-sys-color-on-surface)" }}>
+                    {firedCount}
                   </div>
                 </th>
                 <th style={{ ...th, width: 150, minWidth: 150 }} title="Who caused this event — what a funnel cannot tell you about itself">
