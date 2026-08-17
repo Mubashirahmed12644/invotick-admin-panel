@@ -1023,7 +1023,7 @@ export default function LiveEventConfigClient() {
           className="btn btn-outline"
           onClick={async () => {
             const r = await copyText(
-              buildDiscoveryReport(visibleItems, {
+              buildDiscoveryReport(filtered, {
                 device: userId,
                 debugOnly,
                 showIgnored,
@@ -1043,7 +1043,7 @@ export default function LiveEventConfigClient() {
           onClick={() =>
             downloadText(
               `discovery-${(userId || "all").slice(0, 8)}-${fileStamp()}.txt`,
-              buildDiscoveryReport(visibleItems, {
+              buildDiscoveryReport(filtered, {
                 device: userId,
                 debugOnly,
                 showIgnored,
