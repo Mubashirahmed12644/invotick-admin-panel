@@ -30,3 +30,29 @@ export async function copyText(text: string): Promise<"copied" | "failed"> {
     }
   }
 }
+
+/**
+ * Save the same text as a file.
+ *
+ * The clipboard is fine for a dozen rows and awkward for a few hundred: a long report pasted into a
+ * chat is one wall of text, while a file keeps its line breaks and can be read with the tools that
+ * read files. Same report either way — this only changes how it leaves the page.
+ */
+export function downloadText(filename: string, text: string): void {
+  const url = URL.createObjectURL(new Blob([text], { type: "text/plain;charset=utf-8" }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  // Revoked on the next tick, not immediately: Safari has not necessarily started reading the blob
+  // when click() returns, and a revoked URL there saves an empty file.
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/** `2026-08-17_1250` — sortable, filename-safe, and enough to tell two runs apart. */
+export function fileStamp(d = new Date()): string {
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}`;
+}

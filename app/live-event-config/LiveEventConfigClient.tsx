@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { api, type EventDiscoveryItem, type DefaultListTask, type DebugDevice } from "@/lib/api";
 import { EventTime, timeWithMillis } from "@/lib/eventTime";
-import { copyText } from "@/lib/clipboard";
+import { copyText, downloadText, fileStamp } from "@/lib/clipboard";
 
 // Per-row unsaved edits, so the live refresh never clobbers what the admin is typing.
 interface Draft {
@@ -1036,6 +1036,24 @@ export default function LiveEventConfigClient() {
           }}
         >
           {copyState === "copied" ? "Copied ✓" : copyState === "failed" ? "Copy failed" : "Copy list"}
+        </button>
+        <button
+          className="btn btn-outline"
+          title="Same report as a .txt file — easier to hand over than a wall of pasted text"
+          onClick={() =>
+            downloadText(
+              `discovery-${(userId || "all").slice(0, 8)}-${fileStamp()}.txt`,
+              buildDiscoveryReport(visibleItems, {
+                device: userId,
+                debugOnly,
+                showIgnored,
+                search,
+                fired: firedCount,
+              }),
+            )
+          }
+        >
+          Download
         </button>
         <button
           type="button"

@@ -8,7 +8,7 @@ import { api, getErrorMessage, isUnauthorizedError } from "@/lib/api";
 import { clearAccessToken, isLoggedIn } from "@/lib/auth";
 import type { ActiveUser, LiveEvent } from "@/lib/types";
 import { EventTime, timeWithMillis } from "@/lib/eventTime";
-import { copyText } from "@/lib/clipboard";
+import { copyText, downloadText, fileStamp } from "@/lib/clipboard";
 
 const EVENT_POLL_MS = 1200;
 const USERS_POLL_MS = 5000;
@@ -460,6 +460,23 @@ export default function LiveEventsPage() {
                       }}
                     >
                       {copyState === "copied" ? "Copied ✓" : copyState === "failed" ? "Copy failed" : "Copy stream"}
+                    </button>
+                    <button
+                      className="btn btn-outline"
+                      disabled={!events.length}
+                      title="Same report as a .txt file — easier to hand over than a wall of pasted text"
+                      onClick={() =>
+                        downloadText(
+                          `live-events-${selectedUser?.invotickId || selectedId.slice(0, 8)}-${fileStamp()}.txt`,
+                          buildStreamReport(events, {
+                            userId: selectedId,
+                            invotickId: selectedUser?.invotickId,
+                            names: displayNamesRef.current,
+                          }),
+                        )
+                      }
+                    >
+                      Download
                     </button>
                     <button className="btn btn-outline" onClick={() => setPaused((p) => !p)}>
                       {paused ? "Resume" : "Pause"}
