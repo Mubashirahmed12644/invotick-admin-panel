@@ -1078,7 +1078,19 @@ export default function LiveEventConfigClient() {
                 {/* Bounded at both ends. Unbounded, an unbroken identity demanded 615px and starved
                     the rest — Layer collapsed to 51px and Description to 88. */}
                 <th style={{ ...th, minWidth: 210 }}>Event / identity</th>
-                <th style={{ ...th, width: 44, textAlign: "right" }} title="How many times this fired — the row is one identity, this is its occurrences">×</th>
+                {/* The total belongs over the column it totals. It was only in the summary line at
+                    the far right of the page, which is nowhere near the numbers it adds up. */}
+                <th
+                  style={{ ...th, width: 56, textAlign: "right" }}
+                  title="How many times this fired — the row is one identity, this is its occurrences"
+                >
+                  <div style={{ lineHeight: 1.15 }}>
+                    <div>×</div>
+                    <div style={{ fontVariantNumeric: "tabular-nums", fontWeight: 700, color: "var(--md-sys-color-on-surface)" }}>
+                      {firedCount}
+                    </div>
+                  </div>
+                </th>
                 <th style={{ ...th, width: 150, minWidth: 150 }} title="Who caused this event — what a funnel cannot tell you about itself">
                   Layer
                 </th>
