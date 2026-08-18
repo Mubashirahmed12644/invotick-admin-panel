@@ -483,6 +483,19 @@ export const api = {
     );
   },
 
+  /**
+   * Accept an event as correct, recording the shape it had — or withdraw that.
+   *
+   * The baseline is sent from the page because only the page has both halves: the firing count comes
+   * from the discovery feed and the parameter keys from the live stream.
+   */
+  setEventTested(eventName: string, tested: boolean, baseline?: { firings?: number; paramKeys?: string[]; screen?: string }) {
+    return apiRequest<unknown>(
+      `/v2/admin/analytics/event-config/${encodeURIComponent(eventName)}/tested?tested=${tested}`,
+      { method: "POST", body: JSON.stringify(baseline ?? {}) },
+    );
+  },
+
   getEventDiscovery(debugOnly = true, showIgnored = false, userId?: string) {
     const params = new URLSearchParams({ debugOnly: String(debugOnly), showIgnored: String(showIgnored) });
     // Scoping to a user is what makes the firing count comparable to that user's live stream.
@@ -573,6 +586,13 @@ export interface EventDiscoveryItem {
    * subtracting one list from the other by eye and guessing which rows had been folded together.
    */
   firings?: number;
+  /** When this event was accepted as correct. Null means never tested. */
+  testedAt?: string | null;
+  /**
+   * What it looked like then. Compared against the current run so "tested" can mean "and still
+   * behaving" rather than "and no longer being looked at".
+   */
+  baseline?: { firings?: number; paramKeys?: string[]; screen?: string } | null;
   displayName: string | null;
   replaceName: string | null;
   description: string | null;

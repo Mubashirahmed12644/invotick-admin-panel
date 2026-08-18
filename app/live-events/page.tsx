@@ -53,6 +53,13 @@ const PRESENCE_ONLY = new Set(["nav_screen_view", "app_heartbeat"]);
  * `had_input` and the rest, and they are exactly what is behind the "params" toggle nobody can
  * paste.
  */
+/** Event Discovery's identity for a row — `screen: <route>` for a screen view, the name otherwise. */
+function identityOf(e: LiveEvent): string {
+  return e.eventName === "screen_view"
+    ? `screen: ${(e.params?.screen as string | undefined) || e.screenName || "?"}`
+    : e.eventName;
+}
+
 function buildStreamReport(
   events: LiveEvent[],
   ctx: { userId: string; invotickId?: string | null; names: Map<string, string> },
@@ -151,6 +158,11 @@ export default function LiveEventsPage() {
   // and not `screen_view` — looking it up by the raw event name would find nothing for every screen
   // in the app, and look exactly like "renaming screens does not work".
   const displayNamesRef = useRef<Map<string, string>>(new Map());
+  // Identities already accepted as correct. Hidden while walking a flow, so what is on screen is
+  // what still needs checking — the reason this exists is that a run from cleared data reprints
+  // everything verified so far and the eye stops working.
+  const testedRef = useRef<Set<string>>(new Set());
+  const [hideTested, setHideTested] = useState(true);
   const pausedRef = useRef(false);
   const selectedRef = useRef("");
 
@@ -169,6 +181,9 @@ export default function LiveEventsPage() {
         // The name somebody chose in Event Discovery is the name this stream should show. It was
         // not being read at all: every row printed its raw identity, so renaming an event there
         // changed the page it was typed on and nothing else, which reads as the rename not working.
+        const tested = new Set<string>();
+        for (const i of [...named, ...ignored]) if (i.testedAt) tested.add(i.eventName);
+        testedRef.current = tested;
         const names = new Map<string, string>();
         for (const i of [...named, ...ignored]) {
           if (i.displayName) names.set(i.eventName, i.displayName);
@@ -478,6 +493,14 @@ export default function LiveEventsPage() {
                     >
                       Download
                     </button>
+                    <label
+                      className="le-check"
+                      title="Hide events already accepted as correct, so a run from cleared data shows only what still needs checking"
+                      style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}
+                    >
+                      <input type="checkbox" checked={hideTested} onChange={(e) => setHideTested(e.target.checked)} />
+                      Hide tested
+                    </label>
                     <button className="btn btn-outline" onClick={() => setPaused((p) => !p)}>
                       {paused ? "Resume" : "Pause"}
                     </button>
@@ -511,7 +534,7 @@ export default function LiveEventsPage() {
                   </p>
                 ) : (
                   <div className="live-stream">
-                    {events.map((e, i) => {
+                    {(hideTested ? events.filter((e) => !testedRef.current.has(identityOf(e))) : events).map((e, i) => {
                       // Keep all meaningful names in ONE column (2nd): for a screen_view row show the
                       // screen name in the name column and the literal "screen_view" in the detail column.
                       const isScreenView = e.eventName === "screen_view";
@@ -540,16 +563,52 @@ export default function LiveEventsPage() {
                           {e.previousScreen ? ` ← ${e.previousScreen}` : ""}
                           {e.sessionId ? "" : " · ⚠️no-session"}
                         </span>
-                        {e.params && Object.keys(e.params).length > 0 ? (
+                        <span style={{ display: "inline-flex", gap: 10, alignItems: "center" }}>
+                          {/* Accepting from here, rather than only from Discovery, because this is
+                              the page that has the parameters — the richer half of the baseline. */}
                           <button
                             className="live-params-btn"
-                            onClick={() => setExpanded(expanded === `${e.id}-${i}` ? null : `${e.id}-${i}`)}
+                            title={
+                              testedRef.current.has(identityOf(e))
+                                ? "Accepted. Click to withdraw."
+                                : "Accept this event as correct, recording its parameter keys and how many times it fired in this run"
+                            }
+                            onClick={async () => {
+                              const ident = identityOf(e);
+                              const already = testedRef.current.has(ident);
+                              try {
+                                await api.setEventTested(
+                                  ident,
+                                  !already,
+                                  already
+                                    ? undefined
+                                    : {
+                                        firings: events.filter((x) => identityOf(x) === ident).length,
+                                        paramKeys: Object.keys(e.params ?? {}),
+                                        screen: e.screenName ?? undefined,
+                                      },
+                                );
+                                const next = new Set(testedRef.current);
+                                if (already) next.delete(ident);
+                                else next.add(ident);
+                                testedRef.current = next;
+                                forceTick((n) => n + 1);
+                              } catch (err) {
+                                if (!handleUnauthorized(err)) setStreamError(getErrorMessage(err, "Could not save."));
+                              }
+                            }}
                           >
-                            {expanded === `${e.id}-${i}` ? "hide" : "params"}
+                            {testedRef.current.has(identityOf(e)) ? "✓ tested" : "mark tested"}
                           </button>
-                        ) : (
-                          <span />
-                        )}
+                          {e.params && Object.keys(e.params).length > 0 ? (
+                            <button
+                              className="live-params-btn"
+                              onClick={() => setExpanded(expanded === `${e.id}-${i}` ? null : `${e.id}-${i}`)}
+                            >
+                              {expanded === `${e.id}-${i}` ? "hide" : "params"}
+                            </button>
+                          ) : null}
+                        </span>
                         {expanded === `${e.id}-${i}` && e.params ? (
                           <pre className="live-params">{JSON.stringify(e.params, null, 2)}</pre>
                         ) : null}

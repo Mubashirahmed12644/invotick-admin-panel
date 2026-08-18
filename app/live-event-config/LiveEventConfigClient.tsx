@@ -188,6 +188,26 @@ function buildDiscoveryReport(
   return [...head, ...rows].join("\n");
 }
 
+/**
+ * How a tested event differs from the shape it was accepted with, or null when it matches.
+ *
+ * Hiding a verified event is only safe if something is still watching it. An event that stops
+ * firing, starts firing twice, or drops a parameter would otherwise be invisible precisely because
+ * somebody checked it once.
+ *
+ * Only meaningful when a device is scoped: unscoped counts are the whole install base and would
+ * report a deviation for every tested row on the page.
+ */
+function deviationOf(i: EventDiscoveryItem, scoped: boolean): string | null {
+  if (!i.testedAt || !i.baseline || !scoped) return null;
+  const was = i.baseline.firings;
+  const now = i.firings ?? 0;
+  if (typeof was === "number" && was !== now) {
+    return now === 0 ? `did not fire (was ${was}×)` : `fired ${now}× (was ${was}×)`;
+  }
+  return null;
+}
+
 interface PendingRow {
   id: string;
   anchor: string | null;
@@ -379,6 +399,9 @@ export default function LiveEventConfigClient() {
   // doing the testing from four thousand real users — the intuitive filter, "versions above the
   // released one", returns nothing at all: a debug build of 1.4.0 reports `1.4.0` like everyone.
   const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
+  // Default ON. The whole reason this exists is that a fresh run reprints everything already
+  // verified, so the useful default is the short list — the one with work left in it.
+  const [hideTested, setHideTested] = useState(true);
   const [devices, setDevices] = useState<DebugDevice[]>([]);
   useEffect(() => {
     let cancelled = false;
@@ -481,7 +504,27 @@ export default function LiveEventConfigClient() {
   // firing are the same picture once those are counted together, and telling them apart is the point.
   // Occurrences, not rows: this is the number that reconciles against the live stream, which the
   // seen count never could.
-  const firedCount = filtered.reduce((n, i) => n + (i.firings ?? 0), 0);
+  // Everything that changed since it was accepted. Computed BEFORE the hide filter, or the rows it
+  // is meant to warn about would be the exact rows it could not see.
+  const deviations = useMemo(
+    () =>
+      filtered
+        .map((i) => ({ item: i, why: deviationOf(i, Boolean(userId)) }))
+        .filter((d): d is { item: EventDiscoveryItem; why: string } => d.why !== null),
+    [filtered, userId],
+  );
+
+  // What the table actually shows. Deviating rows stay visible even when hidden is asked for: an
+  // event that changed is the one thing on this page that has not been dealt with.
+  const shown = useMemo(
+    () =>
+      hideTested
+        ? filtered.filter((i) => !i.testedAt || deviationOf(i, Boolean(userId)) !== null)
+        : filtered,
+    [filtered, hideTested, userId],
+  );
+
+  const firedCount = shown.reduce((n, i) => n + (i.firings ?? 0), 0);
   const seenCount = useMemo(() => visibleItems.filter((i) => !i.planned).length, [visibleItems]);
   const plannedCount = useMemo(() => visibleItems.filter((i) => i.planned).length, [visibleItems]);
   const inListCount = useMemo(() => visibleItems.filter((i) => i.inList).length, [visibleItems]);
@@ -489,6 +532,26 @@ export default function LiveEventConfigClient() {
     () => visibleItems.filter((i) => (drafts[i.eventName]?.tracked ?? i.tracked) && !(drafts[i.eventName]?.displayName ?? i.displayName)).length,
     [visibleItems, drafts],
   );
+
+  /**
+   * Accept an event, or withdraw that.
+   *
+   * The baseline is what this page can see — the firing count for the scoped device. Ticking with no
+   * device scoped stores no count, so the event is marked but not comparable; that is stated on the
+   * control rather than silently allowed to look like a checked event.
+   */
+  async function setTested(i: EventDiscoveryItem, tested: boolean) {
+    try {
+      await api.setEventTested(
+        i.eventName,
+        tested,
+        tested && userId ? { firings: i.firings ?? 0, screen: i.screenName ?? undefined } : undefined,
+      );
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to update the tested mark.");
+    }
+  }
 
   const trackedOn = (i: EventDiscoveryItem) => drafts[i.eventName]?.tracked ?? i.tracked;
   const nameVal = (i: EventDiscoveryItem) => drafts[i.eventName]?.displayName ?? i.displayName ?? "";
@@ -613,6 +676,7 @@ export default function LiveEventConfigClient() {
         {/* An authored row is not part of the discovered feed, so it holds the column without a
             number rather than borrowing one and shifting every row below it. */}
         <td style={{ ...td, textAlign: "right", color: "var(--md-sys-color-on-surface-variant)", fontSize: 11 }}>—</td>
+        <td style={{ ...td, textAlign: "center", color: "var(--md-sys-color-on-surface-variant)", fontSize: 11 }}>—</td>
         <td style={{ ...td, textAlign: "center", color: "var(--md-sys-color-on-surface-variant)", fontSize: 11 }}>—</td>
         <td style={td}>
           <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
@@ -970,6 +1034,36 @@ export default function LiveEventConfigClient() {
         </div>
       </div>
 
+      {deviations.length > 0 ? (
+        <div
+          style={{
+            margin: "16px 0 0",
+            padding: "10px 12px",
+            borderRadius: 10,
+            border: "1px solid var(--md-sys-color-warning)",
+            background: "var(--md-sys-color-surface-container-low)",
+            color: "var(--md-sys-color-on-surface)",
+            fontSize: 13,
+          }}
+        >
+          <b>{deviations.length} accepted {deviations.length === 1 ? "event has" : "events have"} changed in this run.</b>{" "}
+          They stay in the list below even with “Hide tested” on — an event that was verified and then
+          changed is the one thing here nobody has looked at yet.
+          <ul style={{ margin: "6px 0 0", paddingLeft: 18 }}>
+            {deviations.slice(0, 8).map((d) => (
+              <li key={d.item.eventName} style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 12.5 }}>
+                {d.item.eventName} — {d.why}
+              </li>
+            ))}
+          </ul>
+          {deviations.length > 8 ? (
+            <div style={{ marginTop: 4, color: "var(--md-sys-color-on-surface-variant)" }}>
+              …and {deviations.length - 8} more.
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
       <div style={{ display: "flex", gap: 12, alignItems: "center", margin: "16px 0", flexWrap: "wrap" }}>
         <input
           placeholder="Search event / identity / screen / auto / coded…"
@@ -1001,6 +1095,13 @@ export default function LiveEventConfigClient() {
           <input type="checkbox" checked={debugOnly} onChange={(e) => setDebugOnly(e.target.checked)} />
           Debug builds only
         </label>
+        <label
+          style={{ fontSize: 13, display: "flex", alignItems: "center", gap: 6, color: hideTested ? "var(--md-sys-color-primary)" : "var(--md-sys-color-on-surface)" }}
+          title="Hide events already accepted as correct, so what is left is what still needs checking. Anything hidden that has changed is still reported above."
+        >
+          <input type="checkbox" checked={hideTested} onChange={(e) => setHideTested(e.target.checked)} />
+          Hide tested
+        </label>
         <label style={{ fontSize: 13, display: "flex", alignItems: "center", gap: 6, color: showIgnored ? "var(--md-sys-color-warning)" : "var(--md-sys-color-on-surface)" }}>
           <input type="checkbox" checked={showIgnored} onChange={(e) => setShowIgnored(e.target.checked)} />
           Show ignored
@@ -1023,7 +1124,7 @@ export default function LiveEventConfigClient() {
           className="btn btn-outline"
           onClick={async () => {
             const r = await copyText(
-              buildDiscoveryReport(filtered, {
+              buildDiscoveryReport(shown, {
                 device: userId,
                 debugOnly,
                 showIgnored,
@@ -1043,7 +1144,7 @@ export default function LiveEventConfigClient() {
           onClick={() =>
             downloadText(
               `discovery-${(userId || "all").slice(0, 8)}-${fileStamp()}.txt`,
-              buildDiscoveryReport(filtered, {
+              buildDiscoveryReport(shown, {
                 device: userId,
                 debugOnly,
                 showIgnored,
@@ -1153,6 +1254,12 @@ export default function LiveEventConfigClient() {
             <thead>
               <tr>
                 <th style={{ ...th, width: 40, textAlign: "right" }}>#</th>
+                <th
+                  style={{ ...th, width: 62, textAlign: "center" }}
+                  title="Accepted as correct. Ticking records what the event looked like, so a later run that differs is reported instead of hidden."
+                >
+                  Tested
+                </th>
                 <th style={{ ...th, width: 64 }}>Track</th>
                 {/* Bounded at both ends. Unbounded, an unbroken identity demanded 615px and starved
                     the rest — Layer collapsed to 51px and Description to 88. */}
@@ -1203,7 +1310,7 @@ export default function LiveEventConfigClient() {
             </thead>
             <tbody>
               {pending.filter((r) => r.anchor === null).map(renderPending)}
-              {filtered.flatMap((i, idx) => {
+              {shown.flatMap((i, idx) => {
                 const on = trackedOn(i);
                 const needName = on && !nameVal(i).trim();
                 return [
@@ -1214,6 +1321,22 @@ export default function LiveEventConfigClient() {
                   >
                     <td style={{ ...td, textAlign: "right", color: "var(--md-sys-color-on-surface-variant)", fontVariantNumeric: "tabular-nums" }}>
                       {filtered.length - idx}
+                    </td>
+                    <td style={{ ...td, textAlign: "center" }}>
+                      <input
+                        type="checkbox"
+                        checked={Boolean(i.testedAt)}
+                        onChange={(e) => void setTested(i, e.target.checked)}
+                        title={
+                          i.testedAt
+                            ? `Accepted ${new Date(i.testedAt).toLocaleString()}${
+                                i.baseline?.firings != null ? ` · fired ${i.baseline.firings}× then` : " · no baseline recorded"
+                              }`
+                            : userId
+                              ? "Accept this event and record how it behaved in this run"
+                              : "Accept this event. With no device selected there is no run to record, so it cannot be compared later."
+                        }
+                      />
                     </td>
                     <td style={{ ...td, textAlign: "center" }}>
                       <Toggle on={on} onChange={(v) => setDraft(i.eventName, { tracked: v })} />
