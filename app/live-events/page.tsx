@@ -12,6 +12,10 @@ import { copyText, downloadText, fileStamp } from "@/lib/clipboard";
 
 const EVENT_POLL_MS = 1200;
 const USERS_POLL_MS = 5000;
+// Names and the ignored set change when a person decides they do, not on a stream's schedule — but
+// they DO change while a stream is open, which is the normal way to work: Discovery in one window,
+// this in another. Re-read on a slow beat rather than once at mount.
+const CONFIG_POLL_MS = 15000;
 
 // Lifecycle / attribution pings that are recorded app-side (SessionTraceRecorder) but are noise for
 // funnel understanding — hidden from the live stream to keep the webpanel meaningful. The cursor +
@@ -166,11 +170,16 @@ export default function LiveEventsPage() {
   const pausedRef = useRef(false);
   const selectedRef = useRef("");
 
-  // Whatever Event Discovery marks "ignored" is what this stream hides. Fetched once: the set
-  // changes when somebody decides it does, not while a stream is running.
+  // Whatever Event Discovery marks "ignored" is what this stream hides, and whatever it names is
+  // what this stream shows.
+  //
+  // This used to run once, at mount, and that is exactly the case it fails: Discovery in one window
+  // and this in another, which is how the page is actually used. A name typed there never reached a
+  // stream that was already open, so the rename looked like it had not worked at all — the page it
+  // was typed on changed and nothing else did.
   useEffect(() => {
     let cancelled = false;
-    void (async () => {
+    const load = async () => {
       try {
         const [ignored, named] = await Promise.all([
           api.getEventDiscovery(false, true),
@@ -178,9 +187,6 @@ export default function LiveEventsPage() {
         ]);
         if (cancelled) return;
         ignoredRef.current = new Set(ignored.map((i) => i.eventName));
-        // The name somebody chose in Event Discovery is the name this stream should show. It was
-        // not being read at all: every row printed its raw identity, so renaming an event there
-        // changed the page it was typed on and nothing else, which reads as the rename not working.
         const tested = new Set<string>();
         for (const i of [...named, ...ignored]) if (i.testedAt) tested.add(i.eventName);
         testedRef.current = tested;
@@ -188,19 +194,24 @@ export default function LiveEventsPage() {
         for (const i of [...named, ...ignored]) {
           if (i.displayName) names.set(i.eventName, i.displayName);
         }
+        // Only redraw when something actually changed. The rows are rendered from refs, so without
+        // this a new name would sit in the map until some unrelated thing forced a render.
+        const changed =
+          names.size !== displayNamesRef.current.size ||
+          [...names].some(([k, v]) => displayNamesRef.current.get(k) !== v);
         displayNamesRef.current = names;
+        if (changed) forceTick((n) => n + 1);
       } catch {
         // A stream showing too much beats a stream that silently shows nothing.
       }
-    })();
+    };
+    void load();
+    const t = setInterval(load, CONFIG_POLL_MS);
     return () => {
       cancelled = true;
+      clearInterval(t);
     };
   }, []);
-
-  useEffect(() => {
-    pausedRef.current = paused;
-  }, [paused]);
 
   // re-render every 5s so relative times refresh
   useEffect(() => {
