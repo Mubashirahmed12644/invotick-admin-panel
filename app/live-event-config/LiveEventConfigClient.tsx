@@ -406,6 +406,7 @@ export default function LiveEventConfigClient() {
   // verified, so the useful default is the short list — the one with work left in it.
   const [hideTested, setHideTested] = useState(true);
   const [bulkBusy, setBulkBusy] = useState(false);
+  const [movingRow, setMovingRow] = useState<string | null>(null);
   const [devices, setDevices] = useState<DebugDevice[]>([]);
   useEffect(() => {
     let cancelled = false;
@@ -640,6 +641,27 @@ export default function LiveEventConfigClient() {
       await load();
     } finally {
       setBulkBusy(false);
+    }
+  }
+
+  /**
+   * Move a row to the name the code now uses.
+   *
+   * Asks first, and names both sides: this deletes the old row, and pressing it before the app is
+   * sending the new name leaves the metadata sitting on an identity nothing has fired yet.
+   */
+  async function applyRename(i: EventDiscoveryItem) {
+    const to = replaceVal(i).trim();
+    if (!to || to === i.eventName) return;
+    if (!window.confirm(`Move everything recorded against ${i.eventName} to ${to}?\n\nDo this once the app is actually sending ${to}. The old row is removed.`)) return;
+    setMovingRow(i.eventName);
+    try {
+      await api.applyEventRename(i.eventName, to);
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to carry the row over.");
+    } finally {
+      setMovingRow(null);
     }
   }
 
@@ -1603,6 +1625,25 @@ export default function LiveEventConfigClient() {
                         value={replaceVal(i)}
                         onChange={(e) => setDraft(i.eventName, { replaceName: sanitizeName(e.target.value) })}
                       />
+                      {/* Typing the new name only queues the work; the rename lands in a release.
+                          This is the other half — press it once the app is sending the new name, and
+                          everything recorded here follows the identity instead of being stranded on
+                          a name nothing will send again. */}
+                      {replaceVal(i).trim() && replaceVal(i).trim() !== i.eventName && (
+                        <button
+                          type="button"
+                          disabled={movingRow === i.eventName}
+                          onClick={() => void applyRename(i)}
+                          title={`Move everything recorded here — name, description, layer, allowlist, tested mark and baseline — from ${i.eventName} to ${replaceVal(i).trim()}. Press once the app is actually sending the new name.`}
+                          style={{
+                            marginTop: 4, fontSize: 11, padding: "3px 8px", borderRadius: 6, cursor: "pointer",
+                            border: "1px solid var(--md-sys-color-outline)",
+                            background: "transparent", color: "var(--md-sys-color-primary)",
+                          }}
+                        >
+                          {movingRow === i.eventName ? "moving…" : "rename shipped → carry over"}
+                        </button>
+                      )}
                     </td>
                     <td style={td}>
                       <input

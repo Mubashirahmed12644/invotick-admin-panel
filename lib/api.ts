@@ -496,6 +496,21 @@ export const api = {
     );
   },
 
+  /**
+   * The rename has shipped — move this row to the identity the code now uses.
+   *
+   * Renaming an event in the app creates a NEW identity, and the config table is keyed by event
+   * name, so without this everything typed against the old one is orphaned. Omit `to` to use the
+   * Replace name already recorded.
+   */
+  applyEventRename(eventName: string, to?: string) {
+    const q = to ? `?to=${encodeURIComponent(to)}` : "";
+    return apiRequest<unknown>(
+      `/v2/admin/analytics/event-config/${encodeURIComponent(eventName)}/rename-applied${q}`,
+      { method: "POST" },
+    );
+  },
+
   getEventDiscovery(debugOnly = true, showIgnored = false, userId?: string) {
     const params = new URLSearchParams({ debugOnly: String(debugOnly), showIgnored: String(showIgnored) });
     // Scoping to a user is what makes the firing count comparable to that user's live stream.
