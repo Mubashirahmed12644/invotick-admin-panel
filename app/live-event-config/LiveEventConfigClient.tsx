@@ -402,6 +402,7 @@ export default function LiveEventConfigClient() {
   // Default ON. The whole reason this exists is that a fresh run reprints everything already
   // verified, so the useful default is the short list — the one with work left in it.
   const [hideTested, setHideTested] = useState(true);
+  const [bulkBusy, setBulkBusy] = useState(false);
   const [devices, setDevices] = useState<DebugDevice[]>([]);
   useEffect(() => {
     let cancelled = false;
@@ -524,6 +525,17 @@ export default function LiveEventConfigClient() {
     [filtered, hideTested, userId],
   );
 
+  // The select-all reflects what is on screen, so with "Hide tested" on it reads as unticked even
+  // after a whole round was accepted — the rows it ticked left the view. That is the intended
+  // reading: it acts on what can be seen.
+  const shownTested = shown.filter((i) => Boolean(i.testedAt)).length;
+  const allShownTested = shown.length > 0 && shownTested === shown.length;
+  const someShownTested = shownTested > 0 && !allShownTested;
+  const allTestedRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (allTestedRef.current) allTestedRef.current.indeterminate = someShownTested;
+  }, [someShownTested]);
+
   const firedCount = shown.reduce((n, i) => n + (i.firings ?? 0), 0);
   const seenCount = useMemo(() => visibleItems.filter((i) => !i.planned).length, [visibleItems]);
   const plannedCount = useMemo(() => visibleItems.filter((i) => i.planned).length, [visibleItems]);
@@ -540,16 +552,86 @@ export default function LiveEventConfigClient() {
    * device scoped stores no count, so the event is marked but not comparable; that is stated on the
    * control rather than silently allowed to look like a checked event.
    */
+  /**
+   * Apply the tick locally. The server is still the authority — a failure puts the rows back.
+   *
+   * It used to be applied only after the POST *and* a full reload of the feed had both returned,
+   * so for two round trips the row looked untouched and the click read as not having landed. The
+   * box is small enough to doubt anyway; making it slow as well meant clicking it again.
+   */
+  function applyTested(names: Set<string>, tested: boolean) {
+    const at = new Date().toISOString();
+    setItems((prev) =>
+      prev.map((it) =>
+        names.has(it.eventName)
+          ? tested
+            ? {
+                ...it,
+                testedAt: at,
+                // Same rule as the request: with no device selected there is no run to record.
+                baseline: userId ? { firings: it.firings ?? 0, screen: it.screenName ?? undefined } : it.baseline,
+              }
+            : { ...it, testedAt: null, baseline: null }
+          : it,
+      ),
+    );
+  }
+
+  const baselineFor = (i: EventDiscoveryItem, tested: boolean) =>
+    tested && userId ? { firings: i.firings ?? 0, screen: i.screenName ?? undefined } : undefined;
+
   async function setTested(i: EventDiscoveryItem, tested: boolean) {
+    const before = items;
+    applyTested(new Set([i.eventName]), tested);
     try {
-      await api.setEventTested(
-        i.eventName,
-        tested,
-        tested && userId ? { firings: i.firings ?? 0, screen: i.screenName ?? undefined } : undefined,
-      );
-      await load();
+      await api.setEventTested(i.eventName, tested, baselineFor(i, tested));
+      void load();
     } catch (e) {
+      setItems(before);
       setError(e instanceof Error ? e.message : "Failed to update the tested mark.");
+    }
+  }
+
+  /**
+   * Tick, or clear, every row the table is currently showing.
+   *
+   * Deliberately "in view" rather than "everything": the list is already filtered by search, by
+   * device and by the hide, and those filters are how a round of testing is scoped. A button that
+   * silently reached past them would accept events that were never on screen.
+   *
+   * The endpoint takes one event, so this is still one request per row — a few at a time, because
+   * two hundred at once is a burst the panel has no reason to make.
+   */
+  async function setTestedBulk(rows: EventDiscoveryItem[], tested: boolean) {
+    const targets = rows.filter((r) => Boolean(r.testedAt) !== tested);
+    if (!targets.length || bulkBusy) return;
+    // Only the clearing direction asks. Ticking is undone by clicking again; clearing throws away
+    // the recorded baselines, which is the part that cannot be clicked back.
+    if (!tested && !window.confirm(`Clear the tested mark on ${targets.length} row(s)? The baselines recorded with them go too.`)) return;
+
+    const before = items;
+    applyTested(new Set(targets.map((t) => t.eventName)), tested);
+    setBulkBusy(true);
+    const queue = [...targets];
+    const failed: string[] = [];
+    const worker = async () => {
+      for (let next = queue.pop(); next; next = queue.pop()) {
+        try {
+          await api.setEventTested(next.eventName, tested, baselineFor(next, tested));
+        } catch {
+          failed.push(next.eventName);
+        }
+      }
+    };
+    try {
+      await Promise.all(Array.from({ length: Math.min(6, targets.length) }, worker));
+      if (failed.length) {
+        setItems(before);
+        setError(`${failed.length} of ${targets.length} rows could not be updated. Nothing was changed.`);
+      }
+      await load();
+    } finally {
+      setBulkBusy(false);
     }
   }
 
@@ -1254,11 +1336,25 @@ export default function LiveEventConfigClient() {
             <thead>
               <tr>
                 <th style={{ ...th, width: 40, textAlign: "right" }}>#</th>
-                <th
-                  style={{ ...th, width: 62, textAlign: "center" }}
-                  title="Accepted as correct. Ticking records what the event looked like, so a later run that differs is reported instead of hidden."
-                >
-                  Tested
+                <th style={{ ...th, width: 78, textAlign: "center", padding: 0 }}>
+                  <label
+                    style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "8px 10px", cursor: bulkBusy ? "progress" : "pointer" }}
+                    title={
+                      shown.length
+                        ? `Accepted as correct. Ticking records what the event looked like, so a later run that differs is reported instead of hidden.\n\nThis box applies to the ${shown.length} row(s) in view.`
+                        : "Accepted as correct. Nothing is in view to tick."
+                    }
+                  >
+                    <input
+                      ref={allTestedRef}
+                      type="checkbox"
+                      disabled={bulkBusy || shown.length === 0}
+                      checked={allShownTested}
+                      onChange={(e) => void setTestedBulk(shown, e.target.checked)}
+                      style={{ width: 16, height: 16, cursor: "inherit", margin: 0 }}
+                    />
+                    Tested
+                  </label>
                 </th>
                 <th style={{ ...th, width: 64 }}>Track</th>
                 {/* Bounded at both ends. Unbounded, an unbroken identity demanded 615px and starved
@@ -1322,11 +1418,12 @@ export default function LiveEventConfigClient() {
                     <td style={{ ...td, textAlign: "right", color: "var(--md-sys-color-on-surface-variant)", fontVariantNumeric: "tabular-nums" }}>
                       {filtered.length - idx}
                     </td>
-                    <td style={{ ...td, textAlign: "center" }}>
-                      <input
-                        type="checkbox"
-                        checked={Boolean(i.testedAt)}
-                        onChange={(e) => void setTested(i, e.target.checked)}
+                    {/* The whole cell is the target. A bare 13px checkbox is a tap that has to be
+                        aimed: on a trackpad a light tap two pixels off does nothing at all, which
+                        reads as needing a firmer click rather than a better-aimed one. */}
+                    <td style={{ ...td, textAlign: "center", padding: 0 }}>
+                      <label
+                        style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "10px 8px", minHeight: 34, cursor: "pointer" }}
                         title={
                           i.testedAt
                             ? `Accepted ${new Date(i.testedAt).toLocaleString()}${
@@ -1336,7 +1433,14 @@ export default function LiveEventConfigClient() {
                               ? "Accept this event and record how it behaved in this run"
                               : "Accept this event. With no device selected there is no run to record, so it cannot be compared later."
                         }
-                      />
+                      >
+                        <input
+                          type="checkbox"
+                          checked={Boolean(i.testedAt)}
+                          onChange={(e) => void setTested(i, e.target.checked)}
+                          style={{ width: 16, height: 16, cursor: "inherit", margin: 0 }}
+                        />
+                      </label>
                     </td>
                     <td style={{ ...td, textAlign: "center" }}>
                       <Toggle on={on} onChange={(v) => setDraft(i.eventName, { tracked: v })} />
