@@ -202,9 +202,12 @@ function deviationOf(i: EventDiscoveryItem, scoped: boolean): string | null {
   if (!i.testedAt || !i.baseline || !scoped) return null;
   const was = i.baseline.firings;
   const now = i.firings ?? 0;
-  if (typeof was === "number" && was !== now) {
-    return now === 0 ? `did not fire (was ${was}×)` : `fired ${now}× (was ${was}×)`;
-  }
+  // Only silence counts. How MANY times an event fires is a property of the route the tester
+  // walked, not of the event: opening a form, cancelling it part-way and then completing it later
+  // is one deliberate flow that fires the same event twice, and reporting that as a change turned
+  // a correct run into three warnings. An event that has stopped firing altogether is the one
+  // thing a tick could otherwise hide, and that is what this still catches.
+  if (typeof was === "number" && was > 0 && now === 0) return `did not fire (was ${was}×)`;
   return null;
 }
 
@@ -536,7 +539,12 @@ export default function LiveEventConfigClient() {
     if (allTestedRef.current) allTestedRef.current.indeterminate = someShownTested;
   }, [someShownTested]);
 
-  const firedCount = shown.reduce((n, i) => n + (i.firings ?? 0), 0);
+  // Two numbers, because they answer two questions and were previously one number answering
+  // neither: the totals row summed only the rows on screen while the # column numbered them out of
+  // the unfiltered list, so with "Hide tested" on the page showed 34 against 16. The scope total is
+  // the one that reconciles against the live stream, which has a row per firing.
+  const firedShown = shown.reduce((n, i) => n + (i.firings ?? 0), 0);
+  const firedCount = filtered.reduce((n, i) => n + (i.firings ?? 0), 0);
   const seenCount = useMemo(() => visibleItems.filter((i) => !i.planned).length, [visibleItems]);
   const plannedCount = useMemo(() => visibleItems.filter((i) => i.planned).length, [visibleItems]);
   const inListCount = useMemo(() => visibleItems.filter((i) => i.inList).length, [visibleItems]);
@@ -1367,7 +1375,7 @@ export default function LiveEventConfigClient() {
                   title="How many times this fired — the row is one identity, this is its occurrences"
                 >
                   <div style={{ fontVariantNumeric: "tabular-nums", fontWeight: 700, color: "var(--md-sys-color-on-surface)" }}>
-                    {firedCount}
+                    {firedShown === firedCount ? firedCount : `${firedShown}/${firedCount}`}
                   </div>
                 </th>
                 <th style={{ ...th, width: 150, minWidth: 150 }} title="Who caused this event — what a funnel cannot tell you about itself">
@@ -1416,7 +1424,7 @@ export default function LiveEventConfigClient() {
                     style={{ background: i.planned ? "var(--md-sys-color-surface-container-lowest)" : on ? "var(--md-sys-color-primary-container)" : undefined }}
                   >
                     <td style={{ ...td, textAlign: "right", color: "var(--md-sys-color-on-surface-variant)", fontVariantNumeric: "tabular-nums" }}>
-                      {filtered.length - idx}
+                      {shown.length - idx}
                     </td>
                     {/* The whole cell is the target. A bare 13px checkbox is a tap that has to be
                         aimed: on a trackpad a light tap two pixels off does nothing at all, which
