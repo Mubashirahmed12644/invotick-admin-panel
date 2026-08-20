@@ -410,15 +410,28 @@ export default function LiveEventConfigClient() {
   const [devices, setDevices] = useState<DebugDevice[]>([]);
   useEffect(() => {
     let cancelled = false;
+    // The same rule as the discovery poll below, for the same reason: this one was queueing behind
+    // it and holding connections of its own while the server was already out of them.
+    let devicesInFlight = false;
+    let devicesNextAt = 0;
+    let devicesFailures = 0;
     const pull = async () => {
+      if (devicesInFlight || Date.now() < devicesNextAt) return;
+      devicesInFlight = true;
       try {
         // Five minutes, the same boundary Live Events stops calling a user recent at. A device
         // that stopped sending five minutes ago is not a run anyone is watching, and listing it
         // only makes the live one harder to find.
         const d = await api.getDebugDevices(5);
         if (!cancelled) setDevices(d);
+        devicesFailures = 0;
+        devicesNextAt = 0;
       } catch {
         // A missing list leaves the page unscoped, which is the old behaviour and still usable.
+        devicesFailures += 1;
+        devicesNextAt = Date.now() + Math.min(60_000, 15_000 * 2 ** devicesFailures);
+      } finally {
+        devicesInFlight = false;
       }
     };
     void pull();
@@ -439,17 +452,45 @@ export default function LiveEventConfigClient() {
   const showIgnoredRef = useRef(showIgnored);
   showIgnoredRef.current = showIgnored;
 
-  const load = useCallback(async (showSpinner = false) => {
-    if (showSpinner) setLoading(true);
+  // A poll must never overtake the one before it.
+  //
+  // This is what turned a slow query into an unreachable server. The interval fires every four
+  // seconds whether or not the last request has come back, so once discovery started taking eight,
+  // every tick added another in-flight request holding another database connection. Measured at the
+  // worst of it: 10 connections active, 0 idle, 48 queued behind them — at which point the JWT
+  // filter could not get a connection either, and the panel started answering 503 to itself.
+  //
+  // The panel was making the server slower in exact proportion to how slow it already was.
+  const inFlight = useRef(false);
+  const consecutiveFailures = useRef(0);
+  const nextAttemptAt = useRef(0);
+
+  const load = useCallback(async (userInitiated = false) => {
+    if (inFlight.current) return;
+    // Backing off a struggling server rather than leaning on it. A pressed button still goes
+    // through — a person asking is not the traffic that caused this.
+    if (!userInitiated && Date.now() < nextAttemptAt.current) return;
+
+    inFlight.current = true;
+    if (userInitiated) setLoading(true);
     try {
       const data = await api.getEventDiscovery(debugOnlyRef.current, showIgnoredRef.current, userIdRef.current.trim() || undefined);
       setItems(data);
       setError(null);
       setLastRefreshed(new Date());
+      consecutiveFailures.current = 0;
+      nextAttemptAt.current = 0;
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load the discovery feed.");
+      consecutiveFailures.current += 1;
+      const wait = Math.min(60_000, REFRESH_MS * 2 ** consecutiveFailures.current);
+      nextAttemptAt.current = Date.now() + wait;
+      setError(
+        `${e instanceof Error ? e.message : "Failed to load the discovery feed."}` +
+          ` — retrying in ${Math.round(wait / 1000)}s`,
+      );
     } finally {
-      if (showSpinner) setLoading(false);
+      inFlight.current = false;
+      if (userInitiated) setLoading(false);
     }
   }, []);
 
