@@ -261,16 +261,28 @@ export default function LiveEventsPage() {
       return;
     }
     let cancelled = false;
+    // Same guard, same reason. This one polls every 5s and was stacking alongside the events poll.
+    let usersInFlight = false;
+    let usersNextAt = 0;
+    let usersFailures = 0;
     async function poll() {
+      if (usersInFlight || Date.now() < usersNextAt) return;
+      usersInFlight = true;
       try {
         const list = await api.getActiveUsers(30, 200);
         if (!cancelled) {
           setActiveUsers(list);
           setUsersError("");
         }
+        usersFailures = 0;
+        usersNextAt = 0;
       } catch (err) {
+        usersFailures += 1;
+        usersNextAt = Date.now() + Math.min(30_000, USERS_POLL_MS * 2 ** usersFailures);
         if (!cancelled && !handleUnauthorized(err))
           setUsersError(getErrorMessage(err, "Could not load active users."));
+      } finally {
+        usersInFlight = false;
       }
     }
     poll();
@@ -285,8 +297,20 @@ export default function LiveEventsPage() {
   useEffect(() => {
     if (!selectedId) return;
     let cancelled = false;
+    // A poll must never overtake the one before it — the same rule the Discovery page needed, and
+    // this page was left without it.
+    //
+    // 128 failures in six minutes came from here. The interval is 1.2 seconds; once the request
+    // started taking longer than that, every tick added another in-flight request holding another
+    // database connection, and `since` never advanced because nothing ever succeeded — so the same
+    // query was re-sent, over and over, against a server it was itself preventing from answering.
+    let inFlight = false;
+    let nextAttemptAt = 0;
+    let failures = 0;
     async function poll() {
       if (pausedRef.current || cancelled) return;
+      if (inFlight || Date.now() < nextAttemptAt) return;
+      inFlight = true;
       try {
         const batch = await api.getLiveEvents(selectedRef.current, sinceRef.current ?? undefined, 100);
         if (cancelled) return;
@@ -318,8 +342,19 @@ export default function LiveEventsPage() {
           }
         }
         setStreamError("");
+        failures = 0;
+        nextAttemptAt = 0;
       } catch (err) {
-        if (!handleUnauthorized(err)) setStreamError(getErrorMessage(err, "Poll failed — retrying…"));
+        failures += 1;
+        // Back off instead of leaning harder on a server that is already struggling. Without this,
+        // a failing poll is re-sent every 1.2s for as long as the failure lasts.
+        const wait = Math.min(30_000, EVENT_POLL_MS * 2 ** failures);
+        nextAttemptAt = Date.now() + wait;
+        if (!handleUnauthorized(err)) {
+          setStreamError(`${getErrorMessage(err, "Poll failed")} — retrying in ${Math.round(wait / 1000)}s`);
+        }
+      } finally {
+        inFlight = false;
       }
     }
     poll();
