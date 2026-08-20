@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import Sidebar from "@/components/Sidebar";
-import { api, getErrorMessage, isUnauthorizedError } from "@/lib/api";
+import { api, getErrorMessage, isUnauthorizedError, ApiError } from "@/lib/api";
 import { clearAccessToken, isLoggedIn } from "@/lib/auth";
 import type { ApiTokenResponse } from "@/lib/types";
 
@@ -27,7 +27,14 @@ export default function ApiAccessPage() {
 
   function handleUnauthorized(err: unknown): boolean {
     if (isUnauthorizedError(err)) {
-      clearAccessToken();
+      clearAccessToken({
+        reason: {
+          at: new Date().toISOString(),
+          status: err instanceof ApiError ? err.status : undefined,
+          url: err instanceof ApiError ? err.url : undefined,
+          message: err instanceof Error ? err.message : String(err),
+        },
+      });
       router.replace("/login");
       return true;
     }

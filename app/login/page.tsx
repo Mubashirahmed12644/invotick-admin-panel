@@ -4,7 +4,7 @@ import { FormEvent, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { api, getErrorMessage } from "@/lib/api";
-import { consumeSessionExpiredFlag, isLoggedIn, setAccessToken } from "@/lib/auth";
+import { consumeSessionExpiredFlag, consumeSignOutReason, isLoggedIn, setAccessToken } from "@/lib/auth";
 
 type Step = "credentials" | "otp";
 
@@ -48,7 +48,16 @@ export default function LoginPage() {
       return;
     }
 
-    if (consumeSessionExpiredFlag()) {
+    // The request that ended the session, if it left one. "Session expired" is a guess dressed as
+    // a fact — it is equally the sentence shown when a token was refused for some other reason
+    // entirely, and saying it anyway is how three different failures came to look like one.
+    const reason = consumeSignOutReason();
+    if (reason) {
+      const what = [reason.status && `HTTP ${reason.status}`, reason.url].filter(Boolean).join(" · ");
+      setError(
+        `Signed out by a failed request${what ? ` — ${what}` : ""}${reason.message ? `: ${reason.message}` : ""}`,
+      );
+    } else if (consumeSessionExpiredFlag()) {
       setError("Session expired. Please log in again.");
     }
   }, [router]);

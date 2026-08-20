@@ -49,16 +49,25 @@ export class ApiError extends Error {
   status: number;
   data: unknown;
   isNetworkError: boolean;
+  /**
+   * Which request this was.
+   *
+   * Without it an error is a status and a sentence, and every diagnosis starts by working out what
+   * was even being asked for — which is the question a sign-out makes hardest, because the request
+   * has left the screen by the time anybody reads the message.
+   */
+  url?: string;
 
   constructor(
     message: string,
-    options?: { status?: number; data?: unknown; isNetworkError?: boolean },
+    options?: { status?: number; data?: unknown; isNetworkError?: boolean; url?: string },
   ) {
     super(message);
     this.name = "ApiError";
     this.status = options?.status ?? 500;
     this.data = options?.data ?? null;
     this.isNetworkError = options?.isNetworkError ?? false;
+    this.url = options?.url;
   }
 }
 
@@ -124,6 +133,7 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     throw new ApiError(body?.message || `Request failed with status ${response.status}`, {
       status: response.status,
       data: body?.data,
+      url: path,
     });
   }
 
@@ -159,6 +169,7 @@ export async function apiRequestRaw<T>(path: string, options: RequestOptions = {
     throw new ApiError(message, {
       status: response.status,
       data: rawBody && typeof rawBody === "object" && "data" in rawBody ? rawBody.data : rawBody,
+      url: path,
     });
   }
 
