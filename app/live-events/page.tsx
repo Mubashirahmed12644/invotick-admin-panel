@@ -15,7 +15,7 @@ const USERS_POLL_MS = 5000;
 // Names and the ignored set change when a person decides they do, not on a stream's schedule — but
 // they DO change while a stream is open, which is the normal way to work: Discovery in one window,
 // this in another. Re-read on a slow beat rather than once at mount.
-const CONFIG_POLL_MS = 15000;
+const CONFIG_POLL_MS = 60000;
 
 // Lifecycle / attribution pings that are recorded app-side (SessionTraceRecorder) but are noise for
 // funnel understanding — hidden from the live stream to keep the webpanel meaningful. The cursor +
@@ -206,10 +206,26 @@ export default function LiveEventsPage() {
       }
     };
     void load();
-    const t = setInterval(load, CONFIG_POLL_MS);
+    // Refreshed on focus rather than by polling hard. The case this exists for is Discovery in one
+    // window and this in another: coming back to this window is exactly the moment a name typed
+    // over there needs to arrive, and it costs one read instead of four a minute. These are two
+    // unscoped aggregate queries against an admin endpoint, and the beat behind them is the slow
+    // backstop, not the mechanism.
+    const onFocus = () => {
+      if (document.visibilityState === "visible") void load();
+    };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onFocus);
+    const t = setInterval(() => {
+      // A hidden tab is not being read. Polling one only spends requests on an endpoint that is
+      // already the one failing.
+      if (document.visibilityState === "visible") void load();
+    }, CONFIG_POLL_MS);
     return () => {
       cancelled = true;
       clearInterval(t);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onFocus);
     };
   }, []);
 

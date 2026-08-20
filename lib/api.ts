@@ -183,8 +183,16 @@ export function getErrorMessage(error: unknown, fallback = "Something went wrong
   return fallback;
 }
 
+/**
+ * Is this the session being over — as opposed to this one thing being off limits?
+ *
+ * 403 used to count, and it is not the same claim. The backend says 403 "Insufficient permissions"
+ * when the token is perfectly good and the account simply may not call that endpoint; treating it as
+ * a dead session logs a working login out, and does it again on the next poll. Only 401 means the
+ * token itself was not accepted.
+ */
 export function isUnauthorizedError(error: unknown): boolean {
-  return error instanceof ApiError && (error.status === 401 || error.status === 403);
+  return error instanceof ApiError && error.status === 401;
 }
 
 export const api = {
