@@ -35,6 +35,7 @@ import type {
   IpRecordResponse,
   SuspiciousIpFullResponse,
 } from "@/features/ip-stats/types";
+import { recordApiFailure } from "./diagnostics";
 
 // In the browser, call same-origin "/backend" (proxied to the backend by the
 // next.config rewrite) so the panel works even where the backend origin isn't
@@ -110,12 +111,34 @@ async function requestWithAuth(path: string, options: RequestOptions = {}): Prom
     headers.set("Authorization", `Bearer ${token}`);
   }
 
+  // Recorded here because this is the one place every request in the panel passes through. Doing it
+  // at the call sites would mean the diagnostics were only as complete as whoever remembered.
+  const method = (options.method ?? "GET").toUpperCase();
   try {
-    return await fetch(buildUrl(path), {
+    const response = await fetch(buildUrl(path), {
       ...options,
       headers,
     });
+    if (!response.ok) {
+      recordApiFailure({
+        at: new Date().toISOString(),
+        method,
+        url: path,
+        status: response.status,
+        message: response.statusText || `HTTP ${response.status}`,
+      });
+    }
+    return response;
   } catch (error) {
+    // Status 0: the request never got an answer. A refused connection and a 502 from the proxy look
+    // the same from here, and both are worth keeping — they are what "the errors flash past" is.
+    recordApiFailure({
+      at: new Date().toISOString(),
+      method,
+      url: path,
+      status: 0,
+      message: error instanceof Error ? error.message : String(error),
+    });
     throw new ApiError("Network error. Please check your connection and retry.", {
       status: 0,
       data: error,

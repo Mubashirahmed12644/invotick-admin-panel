@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Manrope, Space_Mono } from "next/font/google";
 import "./globals.css";
 import AuthGuard from "@/components/AuthGuard";
+import ApiFailureBadge from "./ApiFailureBadge";
 
 const manrope = Manrope({
   variable: "--font-manrope",
@@ -46,6 +47,9 @@ export default function RootLayout({
       </head>
       <body className={`${manrope.variable} ${spaceMono.variable}`}>
         <AuthGuard>{children}</AuthGuard>
+        {/* Every page, because the failures worth catching are the ones that happen while you are
+            looking at something else. */}
+        <ApiFailureBadge />
       </body>
     </html>
   );
