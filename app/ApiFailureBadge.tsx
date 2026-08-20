@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { clearApiFailures, formatApiFailures, readApiFailures, type ApiFailure } from "@/lib/diagnostics";
+import { clearApiFailures, formatApiFailures, msSinceNewestFailure, readApiFailures, type ApiFailure } from "@/lib/diagnostics";
 import { copyText } from "@/lib/clipboard";
 
 /**
@@ -23,10 +23,14 @@ export default function ApiFailureBadge() {
 
   useEffect(() => {
     refresh();
+    // So "last 4m ago" keeps counting up while the page sits open, and so entries age out of the
+    // window without needing a request to arrive first.
+    const t = setInterval(refresh, 30_000);
     window.addEventListener("webpanel:api-failure", refresh);
     // Another tab's failures count too — the panel is used in two windows at once.
     window.addEventListener("storage", refresh);
     return () => {
+      clearInterval(t);
       window.removeEventListener("webpanel:api-failure", refresh);
       window.removeEventListener("storage", refresh);
     };
@@ -94,10 +98,22 @@ export default function ApiFailureBadge() {
           fontWeight: 700,
         }}
       >
-        ⚠ {failures.length} failed request{failures.length === 1 ? "" : "s"}
+        ⚠ {failures.length} failed · last {ageLabel(msSinceNewestFailure())}
       </button>
     </div>
   );
+}
+
+/**
+ * How long ago the most recent one was — the difference between "this is happening" and "this
+ * happened". Without it a standing count says nothing about whether anything is still wrong.
+ */
+function ageLabel(ms: number | null): string {
+  if (ms === null) return "—";
+  const s = Math.round(ms / 1000);
+  if (s < 60) return `${s}s ago`;
+  const m = Math.round(s / 60);
+  return m < 60 ? `${m}m ago` : `${Math.round(m / 60)}h ago`;
 }
 
 const btn: React.CSSProperties = {

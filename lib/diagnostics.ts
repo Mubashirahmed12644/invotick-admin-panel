@@ -22,6 +22,15 @@ export interface ApiFailure {
 
 const KEY = "webpanel_api_failures";
 const CAPACITY = 200;
+/**
+ * How long a failure stays worth looking at.
+ *
+ * Kept because a count that only grows stops meaning anything. Fifty-seven failures sitting there
+ * from a fault fixed hours ago reads exactly like fifty-seven happening now, and the first version of
+ * this had no window at all — the same mistake as a banner that reports a changed firing count: it
+ * teaches you to ignore it, which is the one thing a warning must never do.
+ */
+const MAX_AGE_MS = 2 * 60 * 60 * 1000;
 
 function hasWindow(): boolean {
   return typeof window !== "undefined";
@@ -44,10 +53,20 @@ export function readApiFailures(): ApiFailure[] {
   if (!hasWindow()) return [];
   try {
     const raw = window.localStorage.getItem(KEY);
-    return raw ? (JSON.parse(raw) as ApiFailure[]) : [];
+    if (!raw) return [];
+    const all = JSON.parse(raw) as ApiFailure[];
+    const cutoff = Date.now() - MAX_AGE_MS;
+    return all.filter((f) => Date.parse(f.at) >= cutoff);
   } catch {
     return [];
   }
+}
+
+/** Milliseconds since the most recent failure, or null when there are none. */
+export function msSinceNewestFailure(): number | null {
+  const all = readApiFailures();
+  if (!all.length) return null;
+  return Date.now() - Date.parse(all[0].at);
 }
 
 export function clearApiFailures(): void {
