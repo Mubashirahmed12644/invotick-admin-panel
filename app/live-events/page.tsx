@@ -179,7 +179,12 @@ export default function LiveEventsPage() {
   // was typed on changed and nothing else did.
   useEffect(() => {
     let cancelled = false;
+    // Guarded like the rest. Sixty seconds is slow enough that overlap is unlikely — but "unlikely"
+    // is what the 1.2s poll was assumed to be too, and each of these reads is two unscoped queries.
+    let configInFlight = false;
     const load = async () => {
+      if (configInFlight) return;
+      configInFlight = true;
       try {
         const [ignored, named] = await Promise.all([
           api.getEventDiscovery(false, true),
@@ -203,6 +208,8 @@ export default function LiveEventsPage() {
         if (changed) forceTick((n) => n + 1);
       } catch {
         // A stream showing too much beats a stream that silently shows nothing.
+      } finally {
+        configInFlight = false;
       }
     };
     void load();
