@@ -17,6 +17,52 @@ interface Draft {
 
 const REFRESH_MS = 4000;
 
+/** The editable half of a row — everything a person types, as opposed to what the app reports. */
+type SavedConfig = {
+  tracked: boolean;
+  layer: string | null;
+  displayName: string | null;
+  replaceName: string | null;
+  description: string | null;
+};
+
+const norm = (v: string | null | undefined) => (v ?? "").trim();
+
+/**
+ * Keep a just-saved row showing what was saved until a poll actually returns it.
+ *
+ * Config changes when a person types; firings and lastSeen change every second. Hanging both on the
+ * same 4-second poll meant the fast half overwrote the slow half: `save()` cleared the draft, the
+ * next poll replaced the list, and the row fell back to whatever discovery said. If the read did not
+ * find the config the write had stored, the field went blank with no error anywhere — the write had
+ * succeeded, so nothing had failed loudly enough to report.
+ *
+ * So hold the saved values, compare them against each poll, and drop them the moment the server
+ * agrees. While they disagree the row keeps the saved value and is marked, which turns a silent
+ * blanking into a visible statement about which side is wrong.
+ */
+function applyPending(
+  rows: EventDiscoveryItem[],
+  pending: Record<string, SavedConfig>,
+): EventDiscoveryItem[] {
+  if (Object.keys(pending).length === 0) return rows;
+  return rows.map((row) => {
+    const saved = pending[row.eventName];
+    if (!saved) return row;
+    const echoed =
+      row.tracked === saved.tracked &&
+      norm(row.layer) === norm(saved.layer) &&
+      norm(row.displayName) === norm(saved.displayName) &&
+      norm(row.replaceName) === norm(saved.replaceName) &&
+      norm(row.description) === norm(saved.description);
+    if (echoed) {
+      delete pending[row.eventName];
+      return row;
+    }
+    return { ...row, ...saved, unconfirmed: true };
+  });
+}
+
 // Classify a discovered event: screen-view vs a click/action event. Screen views are emitted as
 // screen_view / nav_screen_view, or named "<Something>_Scr" via trackScreen.
 function eventType(name: string): "screen" | "action" {
@@ -461,6 +507,9 @@ export default function LiveEventConfigClient() {
   // filter could not get a connection either, and the panel started answering 503 to itself.
   //
   // The panel was making the server slower in exact proportion to how slow it already was.
+  // Saved rows waiting for the poll to agree. A ref, not state: it must not itself cause a render.
+  const pendingConfirm = useRef<Record<string, SavedConfig>>({});
+
   const inFlight = useRef(false);
   const consecutiveFailures = useRef(0);
   const nextAttemptAt = useRef(0);
@@ -475,7 +524,7 @@ export default function LiveEventConfigClient() {
     if (userInitiated) setLoading(true);
     try {
       const data = await api.getEventDiscovery(debugOnlyRef.current, showIgnoredRef.current, userIdRef.current.trim() || undefined);
-      setItems(data);
+      setItems(applyPending(data, pendingConfirm.current));
       setError(null);
       setLastRefreshed(new Date());
       consecutiveFailures.current = 0;
@@ -1062,16 +1111,24 @@ export default function LiveEventConfigClient() {
   async function save(i: EventDiscoveryItem) {
     setSavingRow(i.eventName);
     setError(null);
+    // Read once, before the draft is cleared: these accessors fall back to the row, so reading them
+    // afterwards would return the old values rather than what is being saved.
+    const edited: SavedConfig = {
+      tracked: trackedOn(i),
+      layer: layerVal(i) || null,
+      displayName: nameVal(i).trim() || null,
+      replaceName: replaceVal(i).trim() || null,
+      description: descVal(i).trim() || null,
+    };
     try {
       const task = await api.saveEventConfig({
         eventName: i.eventName,
-        layer: layerVal(i) || null,
-        tracked: trackedOn(i),
-        displayName: nameVal(i).trim() || null,
-        replaceName: replaceVal(i).trim() || null,
-        description: descVal(i).trim() || null,
+        ...edited,
         screenName: i.screenName,
       });
+      // Hold it until a poll returns it. Without this the row goes back to the feed four seconds
+      // later, and a read that cannot find the write shows up as an empty field instead of a fault.
+      pendingConfirm.current[i.eventName] = edited;
       setDrafts((prev) => {
         const next = { ...prev };
         delete next[i.eventName];
@@ -1082,9 +1139,7 @@ export default function LiveEventConfigClient() {
           it.eventName === i.eventName
             ? {
                 ...it,
-                tracked: trackedOn(i),
-                displayName: task.displayName,
-                description: task.description,
+                ...edited,
                 defaultListStatus: task.status,
               }
             : it,
@@ -1615,6 +1670,16 @@ export default function LiveEventConfigClient() {
                             arrived after a separator that separated nothing. */}
                         {i.screenName ? <span style={{ color: "var(--md-sys-color-on-surface)" }}>{i.screenName}</span> : null}
                         {i.lastSeen ? <EventTime iso={i.lastSeen} /> : null}
+                        {/* The write said yes and the read disagrees. Shown rather than swallowed:
+                            this row is displaying what was saved, not what discovery returned. */}
+                        {i.unconfirmed ? (
+                          <span
+                            title="Saved successfully, but the discovery feed keeps returning a different value for this row. What you see here is what was saved. The write is fine; the read is not finding it."
+                            style={{ fontSize: 10.5, color: "var(--md-sys-color-error)", border: "1px solid var(--md-sys-color-error)", borderRadius: 6, padding: "1px 6px", whiteSpace: "nowrap" }}
+                          >
+                            saved · server not returning it
+                          </span>
+                        ) : null}
                       </div>
                     </td>
                     {/* Bold once it has fired more than once, because that is the case the live

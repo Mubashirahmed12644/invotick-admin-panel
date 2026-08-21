@@ -57,9 +57,24 @@ const PRESENCE_ONLY = new Set(["nav_screen_view", "app_heartbeat"]);
  * `had_input` and the rest, and they are exactly what is behind the "params" toggle nobody can
  * paste.
  */
+/**
+ * The names a screen view arrives under. Android sends `nav_screen_view`; `screen_view` is the iOS
+ * spelling.
+ *
+ * This page tested `=== "screen_view"` in three places, so on Android it never matched. Every screen
+ * row was therefore keyed by the literal `nav_screen_view` instead of `screen: <route>`, and two
+ * things followed silently: a display name typed against a screen row in Event Discovery was looked
+ * up under a key nothing here produced and never appeared, and "mark tested" filed every screen in
+ * the app under one shared identity, so ticking one screen ticked all of them.
+ *
+ * Kept identical to the backend's `event_name IN ('nav_screen_view', 'screen_view')`. The two
+ * derivations have to agree exactly — that is the whole contract — so they belong in one place each.
+ */
+const SCREEN_VIEW_EVENTS = new Set(["nav_screen_view", "screen_view"]);
+
 /** Event Discovery's identity for a row — `screen: <route>` for a screen view, the name otherwise. */
 function identityOf(e: LiveEvent): string {
-  return e.eventName === "screen_view"
+  return SCREEN_VIEW_EVENTS.has(e.eventName)
     ? `screen: ${(e.params?.screen as string | undefined) || e.screenName || "?"}`
     : e.eventName;
 }
@@ -74,9 +89,9 @@ function buildStreamReport(
     "",
   ];
   const body = [...events].reverse().map((e, i) => {
-    const isScreen = e.eventName === "screen_view";
+    const isScreen = SCREEN_VIEW_EVENTS.has(e.eventName);
     const screen = e.screenName ?? (e.params?.screen as string | undefined) ?? "";
-    const ident = isScreen ? `screen: ${(e.params?.screen as string | undefined) || e.screenName || "?"}` : e.eventName;
+    const ident = identityOf(e);
     const shown = ctx.names.get(ident);
     const label = shown && shown !== ident ? `${ident}  [shown as ${shown}]` : ident;
     const params = e.params && Object.keys(e.params).length ? JSON.stringify(e.params) : "-";
@@ -89,7 +104,7 @@ function buildStreamReport(
 type SortKey = "recent" | "email" | "count";
 
 function eventKind(name: string): "screen" | "click" | "lifecycle" | "other" {
-  if (name === "screen_view") return "screen";
+  if (SCREEN_VIEW_EVENTS.has(name)) return "screen";
   if (name.startsWith("app_")) return "lifecycle";
   if (name.endsWith("_clicked") || name.endsWith("_add") || name.endsWith("_added") || name.includes("click"))
     return "click";
@@ -613,14 +628,12 @@ export default function LiveEventsPage() {
                     {(hideTested ? events.filter((e) => !testedRef.current.has(identityOf(e))) : events).map((e, i) => {
                       // Keep all meaningful names in ONE column (2nd): for a screen_view row show the
                       // screen name in the name column and the literal "screen_view" in the detail column.
-                      const isScreenView = e.eventName === "screen_view";
+                      const isScreenView = SCREEN_VIEW_EVENTS.has(e.eventName);
                       const screenLabel =
                         e.screenName ?? (e.params?.screen as string | undefined) ?? "";
                       // Same derivation the backend uses to key the config, so a name typed against
                       // a screen row is found by the row it was typed against.
-                      const ident = isScreenView
-                        ? `screen: ${(e.params?.screen as string | undefined) || e.screenName || "?"}`
-                        : e.eventName;
+                      const ident = identityOf(e);
                       const chosen = displayNamesRef.current.get(ident);
                       const nameCol =
                         chosen ?? (isScreenView ? screenLabel || "screen_view" : e.eventName);

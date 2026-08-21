@@ -623,6 +623,16 @@ export interface DebugDevice {
 
 export interface EventDiscoveryItem {
   eventName: string;
+  /**
+   * Client-side only: this row is showing what was just saved, and the discovery feed has not
+   * returned that value yet. The server never sends it.
+   *
+   * It exists because a disagreement between the write and the read used to be invisible. The
+   * editor read straight from the 4-second poll, so a saved value was replaced by whatever
+   * discovery returned — and when discovery returned nothing, the field simply went blank, which
+   * reads as "the save did nothing" rather than "the read is not finding what the write stored".
+   */
+  unconfirmed?: boolean;
   screenName: string | null;
   lastSeen: string | null;
   tracked: boolean;
