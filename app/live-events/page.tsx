@@ -179,7 +179,13 @@ export default function LiveEventsPage() {
   const [activeUsers, setActiveUsers] = useState<ActiveUser[]>([]);
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
-  const [liveOnly, setLiveOnly] = useState(false);
+  /**
+   * On by default: a user who stopped sending is not what this page is for.
+   *
+   * The list is already capped at thirty minutes, which is long enough to fill with runs that ended.
+   * The box is right there for the moment somebody wants one of them back.
+   */
+  const [liveOnly, setLiveOnly] = useState(true);
   /**
    * Only the phones doing the testing. On by default — this page exists to watch a run, and a run is
    * on a debug build; four thousand real users in the same list only make that one harder to find.
@@ -472,7 +478,16 @@ export default function LiveEventsPage() {
       if (inFlight || Date.now() < nextAttemptAt) return;
       inFlight = true;
       try {
-        const batch = await api.getLiveEvents(selectedRef.current, sinceRef.current ?? undefined, 100);
+        // The first fetch asks for the cap, every one after it for a page.
+        //
+        // Heartbeats dominate the raw stream and are dropped before anything is drawn — measured on
+        // this device, 85 of the newest 100 events were heartbeats, so the page opened holding 15
+        // while Event Discovery counted 74 for the same user and the two looked like they disagreed.
+        // At 500 the same request returns 343 rows, 269 of them heartbeats, and the 74 that remain
+        // are exactly what Discovery counts. Later polls are incremental and 100 is more than a few
+        // seconds can produce.
+        const first = sinceRef.current === null;
+        const batch = await api.getLiveEvents(selectedRef.current, sinceRef.current ?? undefined, first ? 500 : 100);
         if (cancelled) return;
         const fresh = batch.filter((e) => e.id && !seenRef.current.has(e.id));
         if (fresh.length > 0) {
