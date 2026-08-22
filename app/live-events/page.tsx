@@ -81,11 +81,20 @@ function identityOf(e: LiveEvent): string {
 
 function buildStreamReport(
   events: LiveEvent[],
-  ctx: { userId: string; invotickId?: string | null; names: Map<string, string> },
+  ctx: {
+    userId: string;
+    invotickId?: string | null;
+    names: Map<string, string>;
+    /** Rows the on-screen filters removed. Stated, never silently dropped. */
+    hidden?: number;
+  },
 ): string {
   const head = [
     `# Live Events — ${ctx.invotickId ? `Invotick ID ${ctx.invotickId}, ` : ""}user ${ctx.userId}`,
     `# ${events.length} events, oldest first, copied ${new Date().toISOString()}`,
+    // A report that quietly holds less than the page did is worse than one that holds nothing: the
+    // reader counts what is in front of them and concludes the rest never happened.
+    ...(ctx.hidden ? [`# ${ctx.hidden} more hidden by the filters on the page when this was copied`] : []),
     "",
   ];
   const body = [...events].reverse().map((e, i) => {
@@ -160,7 +169,7 @@ export default function LiveEventsPage() {
   const [streamError, setStreamError] = useState("");
   const [expanded, setExpanded] = useState<string | null>(null);
   const [copiedIid, setCopiedIid] = useState<string | null>(null);
-  const [, forceTick] = useState(0);
+  const [tick, forceTick] = useState(0);
 
   const copyInvotickId = useCallback((id: string) => {
     navigator.clipboard?.writeText(id).then(() => {
@@ -181,7 +190,43 @@ export default function LiveEventsPage() {
   // what still needs checking — the reason this exists is that a run from cleared data reprints
   // everything verified so far and the eye stops working.
   const testedRef = useRef<Set<string>>(new Set());
+  /**
+   * Identities with Track switched on in Event Discovery, and whether that answer has arrived yet.
+   *
+   * `loaded` matters more than the set. Config is fetched after the first events land, so filtering
+   * on an empty set would blank the stream for a second and read as "nothing is happening" — the
+   * one thing a live view must never say when it simply does not know yet.
+   */
+  const trackedRef = useRef<{ set: Set<string>; loaded: boolean }>({ set: new Set(), loaded: false });
   const [hideTested, setHideTested] = useState(true);
+  /**
+   * Show only what Track is on for — the ordinary view once an event vocabulary is being curated.
+   *
+   * A toggle rather than a permanent filter. This stream is where an event nobody has catalogued yet
+   * is first seen, and Discovery cannot offer a row for something it has never been told about. Off
+   * by default would bury the signal; removed altogether would remove the discovery.
+   */
+  const [trackedOnly, setTrackedOnly] = useState(true);
+
+  /**
+   * The rows actually drawn, after both filters.
+   *
+   * `tracked.loaded` is checked rather than assumed: until the config request comes back the set is
+   * empty, and filtering on it would show an empty stream to somebody watching a device emit events
+   * — which reads as "the app stopped sending", the most alarming thing this page can say wrongly.
+   */
+  const visibleEvents = useMemo(() => {
+    const tracked = trackedRef.current;
+    return events.filter((e) => {
+      if (hideTested && testedRef.current.has(identityOf(e))) return false;
+      if (trackedOnly && tracked.loaded && !tracked.set.has(identityOf(e))) return false;
+      return true;
+    });
+    // `tick` is the redraw signal from the config poll: the refs it fills are not state, so without
+    // it a Track switched on in the other window would not reach this list until something else
+    // forced a render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [events, hideTested, trackedOnly, tick]);
   const pausedRef = useRef(false);
   const selectedRef = useRef("");
 
@@ -211,15 +256,24 @@ export default function LiveEventsPage() {
         for (const i of [...named, ...ignored]) if (i.testedAt) tested.add(i.eventName);
         testedRef.current = tested;
         const names = new Map<string, string>();
+        const tracked = new Set<string>();
         for (const i of [...named, ...ignored]) {
           if (i.displayName) names.set(i.eventName, i.displayName);
+          if (i.tracked) tracked.add(i.eventName);
         }
         // Only redraw when something actually changed. The rows are rendered from refs, so without
         // this a new name would sit in the map until some unrelated thing forced a render.
+        //
+        // Compared before the refs are overwritten. Assigning first and comparing after is a check
+        // that can never be true — it would end up comparing each new value against itself.
         const changed =
           names.size !== displayNamesRef.current.size ||
-          [...names].some(([k, v]) => displayNamesRef.current.get(k) !== v);
+          [...names].some(([k, v]) => displayNamesRef.current.get(k) !== v) ||
+          !trackedRef.current.loaded ||
+          tracked.size !== trackedRef.current.set.size ||
+          [...tracked].some((k) => !trackedRef.current.set.has(k));
         displayNamesRef.current = names;
+        trackedRef.current = { set: tracked, loaded: true };
         if (changed) forceTick((n) => n + 1);
       } catch {
         // A stream showing too much beats a stream that silently shows nothing.
@@ -555,10 +609,11 @@ export default function LiveEventsPage() {
                       disabled={!events.length}
                       onClick={async () => {
                         const r = await copyText(
-                          buildStreamReport(events, {
+                          buildStreamReport(visibleEvents, {
                             userId: selectedId,
                             invotickId: selectedUser?.invotickId,
                             names: displayNamesRef.current,
+                            hidden: events.length - visibleEvents.length,
                           }),
                         );
                         setCopyState(r);
@@ -574,10 +629,11 @@ export default function LiveEventsPage() {
                       onClick={() =>
                         downloadText(
                           `live-events-${selectedUser?.invotickId || selectedId.slice(0, 8)}-${fileStamp()}.txt`,
-                          buildStreamReport(events, {
+                          buildStreamReport(visibleEvents, {
                             userId: selectedId,
                             invotickId: selectedUser?.invotickId,
                             names: displayNamesRef.current,
+                            hidden: events.length - visibleEvents.length,
                           }),
                         )
                       }
@@ -591,6 +647,14 @@ export default function LiveEventsPage() {
                     >
                       <input type="checkbox" checked={hideTested} onChange={(e) => setHideTested(e.target.checked)} />
                       Hide tested
+                    </label>
+                    <label
+                      className="le-check"
+                      title="Show only events with Track switched on in Event Discovery. Turn this off to see everything the debug build emits — including events not catalogued yet, which is the only place they can be spotted."
+                      style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}
+                    >
+                      <input type="checkbox" checked={trackedOnly} onChange={(e) => setTrackedOnly(e.target.checked)} />
+                      Tracked only
                     </label>
                     <button className="btn btn-outline" onClick={() => setPaused((p) => !p)}>
                       {paused ? "Resume" : "Pause"}
@@ -625,7 +689,7 @@ export default function LiveEventsPage() {
                   </p>
                 ) : (
                   <div className="live-stream">
-                    {(hideTested ? events.filter((e) => !testedRef.current.has(identityOf(e))) : events).map((e, i) => {
+                    {visibleEvents.map((e, i) => {
                       // Keep all meaningful names in ONE column (2nd): for a screen_view row show the
                       // screen name in the name column and the literal "screen_view" in the detail column.
                       const isScreenView = SCREEN_VIEW_EVENTS.has(e.eventName);
