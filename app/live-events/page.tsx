@@ -690,13 +690,30 @@ export default function LiveEventsPage() {
                             each time an event arrived, which makes the number useless for the one
                             thing it is for — pointing at a row. */}
                         <span className="live-idx">{events.length - i}</span>
-                        <span className="live-time"><EventTime iso={e.eventTimestamp} /></span>
-                        <span className="live-name">{nameCol}</span>
-                        <span className="live-screen">
-                          {detailCol}
-                          {e.previousScreen ? ` ← ${e.previousScreen}` : ""}
-                          {e.sessionId ? "" : " · ⚠️no-session"}
-                        </span>
+                        {/* Name on its own line, everything about it underneath. Five columns of
+                            equal weight made the eye hunt for the one thing being looked for — the
+                            event — and left the row too wide to sit beside Event Discovery on one
+                            screen. Time, screen and parameters are what you read *after* finding the
+                            row, so they belong under it rather than beside it. */}
+                        <div className="live-main">
+                          <span className="live-name">{nameCol}</span>
+                          <span className="live-meta">
+                            <EventTime iso={e.eventTimestamp} />
+                            {detailCol ? <span className="live-loc">{detailCol}</span> : null}
+                            {e.previousScreen ? <span className="live-loc">← {e.previousScreen}</span> : null}
+                            {/* Loud on purpose: an event with no session is missing the thing that
+                                joins it to everything else the user did. */}
+                            {e.sessionId ? null : <span className="live-nosession">⚠️ no-session</span>}
+                            {e.params && Object.keys(e.params).length > 0 ? (
+                              <button
+                                className="live-params-btn"
+                                onClick={() => setExpanded(expanded === `${e.id}-${i}` ? null : `${e.id}-${i}`)}
+                              >
+                                {expanded === `${e.id}-${i}` ? "hide" : "params"}
+                              </button>
+                            ) : null}
+                          </span>
+                        </div>
                         {/* Track's answer, shown where the events are — the switch stays in Event
                             Discovery. Showing it here and deciding it there is deliberate: one place
                             to change a thing and every place to see it, so the stream can be read
@@ -717,7 +734,7 @@ export default function LiveEventsPage() {
                         >
                           {trackedRef.current.set.has(ident) ? "● track on" : "○ track off"}
                         </span>
-                        <span style={{ display: "inline-flex", gap: 10, alignItems: "center" }}>
+                        <span className="live-actions">
                           {/* Accepting from here, rather than only from Discovery, because this is
                               the page that has the parameters — the richer half of the baseline. */}
                           <button
@@ -754,14 +771,6 @@ export default function LiveEventsPage() {
                           >
                             {testedRef.current.has(identityOf(e)) ? "✓ tested" : "mark tested"}
                           </button>
-                          {e.params && Object.keys(e.params).length > 0 ? (
-                            <button
-                              className="live-params-btn"
-                              onClick={() => setExpanded(expanded === `${e.id}-${i}` ? null : `${e.id}-${i}`)}
-                            >
-                              {expanded === `${e.id}-${i}` ? "hide" : "params"}
-                            </button>
-                          ) : null}
                         </span>
                         {expanded === `${e.id}-${i}` && e.params ? (
                           <pre className="live-params">{JSON.stringify(e.params, null, 2)}</pre>
