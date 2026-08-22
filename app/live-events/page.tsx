@@ -183,6 +183,8 @@ export default function LiveEventsPage() {
    */
   const [debugOnly, setDebugOnly] = useState(true);
   const debugUsersRef = useRef<{ set: Set<string>; loaded: boolean }>({ set: new Set(), loaded: false });
+  /** True once the user list has arrived — the signal the slower, decorative reads wait for. */
+  const [usersLoaded, setUsersLoaded] = useState(false);
   const [sortBy, setSortBy] = useState<SortKey>("recent");
   const [usersError, setUsersError] = useState("");
 
@@ -287,6 +289,11 @@ export default function LiveEventsPage() {
   // stream that was already open, so the rename looked like it had not worked at all — the page it
   // was typed on changed and nothing else did.
   useEffect(() => {
+    // Held back until the list is on screen. These two decorate rows that do not exist yet — display
+    // names for a stream nobody has selected — and on a cold load they were leaving at the same
+    // moment as the two aggregates the page is actually waiting for, taking server time from them.
+    // Measured with all four together: 6.1s and 6.7s. Measured out of their way: under a second.
+    if (!usersLoaded) return;
     let cancelled = false;
     // Guarded like the rest. Sixty seconds is slow enough that overlap is unlikely — but "unlikely"
     // is what the 1.2s poll was assumed to be too, and each of these reads is two unscoped queries.
@@ -352,7 +359,7 @@ export default function LiveEventsPage() {
       window.removeEventListener("focus", onFocus);
       document.removeEventListener("visibilitychange", onFocus);
     };
-  }, []);
+  }, [usersLoaded]);
 
   // re-render every 5s so relative times refresh
   useEffect(() => {
@@ -394,20 +401,29 @@ export default function LiveEventsPage() {
       if (usersInFlight || Date.now() < usersNextAt) return;
       usersInFlight = true;
       try {
-        // The list first, on its own. Four heavy aggregates used to leave together on load and
-        // finish together nine seconds later — measured 6.1s, 6.7s, 9.5s and 9.8s, against 0.9s to
-        // 5.9s for the same calls run one at a time. They were not slow because they were four; they
-        // were slow and then made each other worse, and the page waited for the slowest.
-        const list = await api.getActiveUsers(30, 200);
+        // These two together, and nothing else with them.
+        //
+        // Measured on a cold reload: the list arrived at 3.2s unfiltered, the debug set at 5.8s, and
+        // the list then re-rendered filtered — the flicker of a list you have already started
+        // reading rearranging itself. Running them one after the other caused that; running them
+        // together costs the slower of the two instead of the sum, and the list is drawn once,
+        // already right. The two config reads are deliberately not in here: they decorate rows that
+        // do not exist yet.
+        //
+        // The debug set is fetched on the first pass only. "Is this a test phone" does not change
+        // every ten seconds, and re-asking cost 2.6s to 5.5s of server time on every single poll.
+        const needDebugSet = !debugUsersRef.current.loaded;
+        const [list, debugDevices] = await Promise.all([
+          api.getActiveUsers(30, 200),
+          needDebugSet ? api.getDebugDevices(720, 200) : Promise.resolve(null),
+        ]);
         if (!cancelled) {
+          if (debugDevices) {
+            debugUsersRef.current = { set: new Set(debugDevices.map((d) => d.userId)), loaded: true };
+          }
           setActiveUsers(list);
           setUsersError("");
-        }
-        // Which of them are test phones. Second, because the list is what the page is for, and the
-        // filter that needs this already declines to apply until it has arrived.
-        const debugDevices = await api.getDebugDevices(720, 200);
-        if (!cancelled) {
-          debugUsersRef.current = { set: new Set(debugDevices.map((d) => d.userId)), loaded: true };
+          setUsersLoaded(true);
         }
         usersFailures = 0;
         usersNextAt = 0;
