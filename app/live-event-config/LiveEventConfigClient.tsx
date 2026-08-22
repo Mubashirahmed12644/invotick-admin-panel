@@ -296,6 +296,14 @@ export default function LiveEventConfigClient() {
   const [showIgnored, setShowIgnored] = useState(false);
   const [live, setLive] = useState(true);
   const [savingRow, setSavingRow] = useState<string | null>(null);
+  /**
+   * The one row whose name is open for editing.
+   *
+   * A box per row put every name behind a border and a caret, so a column meant to be read at a
+   * glance — and compared against the other window — looked like a form. Reading is the common act
+   * here and renaming is the rare one, so reading is what the column does until asked.
+   */
+  const [editingName, setEditingName] = useState<string | null>(null);
   const [savedRow, setSavedRow] = useState<string | null>(null);
   const [copiedRow, setCopiedRow] = useState<string | null>(null);
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
@@ -1591,24 +1599,70 @@ export default function LiveEventConfigClient() {
                         const detail = isScreen ? "screen_view" : i.screenName ?? "";
                         return (
                           <>
-                            {/* The name Live shows, and the place it is changed — one column instead
-                                of two. The placeholder is what Live displays while nothing has been
-                                typed, so an empty box is never a mystery: it says what is on the
-                                other screen right now. */}
-                            <input
-                              style={{
-                                ...inputStyle,
-                                fontFamily: "monospace",
-                                fontWeight: 700,
-                                background: on ? "var(--md-sys-color-surface-container-lowest)" : "var(--md-sys-color-surface-container-low)",
-                                color: on ? "var(--md-sys-color-on-surface)" : "var(--md-sys-color-on-surface-variant)",
-                                borderColor: needName ? "var(--md-sys-color-warning)" : "var(--md-sys-color-outline)",
-                              }}
-                              placeholder={on ? asLive : "Track on to name"}
-                              disabled={!on}
-                              value={nameVal(i)}
-                              onChange={(e) => setDraft(i.eventName, { displayName: sanitizeName(e.target.value) })}
-                            />
+                            {/* Read by default, edited on request. The placeholder while editing is
+                                what Live displays with no name set, so an empty box still says what
+                                is on the other screen rather than nothing. */}
+                            {editingName === i.eventName ? (
+                              <input
+                                autoFocus
+                                style={{
+                                  ...inputStyle,
+                                  fontFamily: "monospace",
+                                  fontWeight: 700,
+                                  background: "var(--md-sys-color-surface-container-lowest)",
+                                  color: "var(--md-sys-color-on-surface)",
+                                  borderColor: needName ? "var(--md-sys-color-warning)" : "var(--md-sys-color-outline)",
+                                }}
+                                placeholder={asLive}
+                                value={nameVal(i)}
+                                onChange={(e) => setDraft(i.eventName, { displayName: sanitizeName(e.target.value) })}
+                                onBlur={() => setEditingName(null)}
+                                onKeyDown={(ev) => {
+                                  // Enter closes, Escape closes. Neither saves — Save is still the
+                                  // row's own button, and a field that saved on Enter and not on
+                                  // blur would be two rules for one box.
+                                  if (ev.key === "Enter" || ev.key === "Escape") setEditingName(null);
+                                }}
+                              />
+                            ) : (
+                              <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+                                <span
+                                  style={{
+                                    fontFamily: "monospace",
+                                    fontSize: 12.5,
+                                    fontWeight: 700,
+                                    overflowWrap: "anywhere",
+                                    color: needName
+                                      ? "var(--md-sys-color-warning)"
+                                      : nameVal(i).trim()
+                                        ? "var(--md-sys-color-on-surface)"
+                                        : "var(--md-sys-color-on-surface-variant)",
+                                  }}
+                                >
+                                  {nameVal(i).trim() || asLive}
+                                </span>
+                                <button
+                                  type="button"
+                                  disabled={!on}
+                                  onClick={() => setEditingName(i.eventName)}
+                                  title={on ? "Rename for reporting" : "Track on to name"}
+                                  aria-label={`Rename ${i.eventName}`}
+                                  style={{
+                                    flexShrink: 0,
+                                    border: "none",
+                                    background: "transparent",
+                                    cursor: on ? "pointer" : "not-allowed",
+                                    padding: "1px 4px",
+                                    fontSize: 11,
+                                    lineHeight: 1.4,
+                                    opacity: on ? 1 : 0.35,
+                                    color: needName ? "var(--md-sys-color-warning)" : "var(--md-sys-color-on-surface-variant)",
+                                  }}
+                                >
+                                  ✎
+                                </button>
+                              </div>
+                            )}
                             <div style={{ fontSize: 11, marginTop: 2, display: "flex", alignItems: "baseline", gap: 6, flexWrap: "wrap", color: "var(--md-sys-color-on-surface-variant)" }}>
                               {detail ? <span>{detail}</span> : null}
                               {i.lastSeen ? <EventTime iso={i.lastSeen} /> : null}
