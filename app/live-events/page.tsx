@@ -223,7 +223,15 @@ export default function LiveEventsPage() {
    * one thing a live view must never say when it simply does not know yet.
    */
   const trackedRef = useRef<{ set: Set<string>; loaded: boolean }>({ set: new Set(), loaded: false });
-  const [hideTested, setHideTested] = useState(true);
+  /**
+   * Off by default, on the owner's instruction (2026-08-22) — the same call as on Event Discovery.
+   *
+   * It shipped on so a re-run showed only what still needed checking. That is right in the middle of
+   * a round and wrong on arrival: the page opened holding a fraction of the stream while the header
+   * counted all of it, and a list that hides most of itself before being asked is a list nobody
+   * trusts.
+   */
+  const [hideTested, setHideTested] = useState(false);
   /**
    * How many rows the tick-box is holding back.
    *
@@ -488,6 +496,30 @@ export default function LiveEventsPage() {
       clearInterval(t);
     };
   }, [selectedId, handleUnauthorized]);
+
+  /**
+   * Chosen once, and then left alone.
+   *
+   * Landing on "select a user" while a run is in the list is landing nowhere — so the live test
+   * phone is opened on arrival. But only ever once: a second phone joining while the first is being
+   * watched must not pull the stream out from under it, which is why this is a ref and not a
+   * dependency. Switching remains a click.
+   */
+  const autoSelected = useRef(false);
+  useEffect(() => {
+    if (autoSelected.current || selectedId || activeUsers.length === 0) return;
+    if (!debugUsersRef.current.loaded) return;
+    const candidates = activeUsers
+      .filter((u) => debugUsersRef.current.set.has(u.userId))
+      .sort((a, b) => (a.lastEventAt < b.lastEventAt ? 1 : -1));
+    const newest = candidates[0];
+    if (!newest || liveState(newest.lastEventAt) !== "live") return;
+    autoSelected.current = true;
+    selectUser(newest.userId);
+    // selectUser is stable enough for this: it closes over setters, and adding it would re-run the
+    // effect on every render — which is the one thing this must not do.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeUsers, selectedId]);
 
   function selectUser(id: string) {
     setSelectedId(id);
