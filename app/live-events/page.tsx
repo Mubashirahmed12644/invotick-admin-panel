@@ -85,16 +85,11 @@ function buildStreamReport(
     userId: string;
     invotickId?: string | null;
     names: Map<string, string>;
-    /** Rows the on-screen filters removed. Stated, never silently dropped. */
-    hidden?: number;
   },
 ): string {
   const head = [
     `# Live Events — ${ctx.invotickId ? `Invotick ID ${ctx.invotickId}, ` : ""}user ${ctx.userId}`,
     `# ${events.length} events, oldest first, copied ${new Date().toISOString()}`,
-    // A report that quietly holds less than the page did is worse than one that holds nothing: the
-    // reader counts what is in front of them and concludes the rest never happened.
-    ...(ctx.hidden ? [`# ${ctx.hidden} more hidden by the filters on the page when this was copied`] : []),
     "",
   ];
   const body = [...events].reverse().map((e, i) => {
@@ -169,7 +164,7 @@ export default function LiveEventsPage() {
   const [streamError, setStreamError] = useState("");
   const [expanded, setExpanded] = useState<string | null>(null);
   const [copiedIid, setCopiedIid] = useState<string | null>(null);
-  const [tick, forceTick] = useState(0);
+  const [, forceTick] = useState(0);
 
   const copyInvotickId = useCallback((id: string) => {
     navigator.clipboard?.writeText(id).then(() => {
@@ -199,34 +194,8 @@ export default function LiveEventsPage() {
    */
   const trackedRef = useRef<{ set: Set<string>; loaded: boolean }>({ set: new Set(), loaded: false });
   const [hideTested, setHideTested] = useState(true);
-  /**
-   * Show only what Track is on for — the ordinary view once an event vocabulary is being curated.
-   *
-   * A toggle rather than a permanent filter. This stream is where an event nobody has catalogued yet
-   * is first seen, and Discovery cannot offer a row for something it has never been told about. Off
-   * by default would bury the signal; removed altogether would remove the discovery.
-   */
-  const [trackedOnly, setTrackedOnly] = useState(true);
 
-  /**
-   * The rows actually drawn, after both filters.
-   *
-   * `tracked.loaded` is checked rather than assumed: until the config request comes back the set is
-   * empty, and filtering on it would show an empty stream to somebody watching a device emit events
-   * — which reads as "the app stopped sending", the most alarming thing this page can say wrongly.
-   */
-  const visibleEvents = useMemo(() => {
-    const tracked = trackedRef.current;
-    return events.filter((e) => {
-      if (hideTested && testedRef.current.has(identityOf(e))) return false;
-      if (trackedOnly && tracked.loaded && !tracked.set.has(identityOf(e))) return false;
-      return true;
-    });
-    // `tick` is the redraw signal from the config poll: the refs it fills are not state, so without
-    // it a Track switched on in the other window would not reach this list until something else
-    // forced a render.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [events, hideTested, trackedOnly, tick]);
+
   const pausedRef = useRef(false);
   const selectedRef = useRef("");
 
@@ -609,11 +578,10 @@ export default function LiveEventsPage() {
                       disabled={!events.length}
                       onClick={async () => {
                         const r = await copyText(
-                          buildStreamReport(visibleEvents, {
+                          buildStreamReport(events, {
                             userId: selectedId,
                             invotickId: selectedUser?.invotickId,
                             names: displayNamesRef.current,
-                            hidden: events.length - visibleEvents.length,
                           }),
                         );
                         setCopyState(r);
@@ -629,11 +597,10 @@ export default function LiveEventsPage() {
                       onClick={() =>
                         downloadText(
                           `live-events-${selectedUser?.invotickId || selectedId.slice(0, 8)}-${fileStamp()}.txt`,
-                          buildStreamReport(visibleEvents, {
+                          buildStreamReport(events, {
                             userId: selectedId,
                             invotickId: selectedUser?.invotickId,
                             names: displayNamesRef.current,
-                            hidden: events.length - visibleEvents.length,
                           }),
                         )
                       }
@@ -647,14 +614,6 @@ export default function LiveEventsPage() {
                     >
                       <input type="checkbox" checked={hideTested} onChange={(e) => setHideTested(e.target.checked)} />
                       Hide tested
-                    </label>
-                    <label
-                      className="le-check"
-                      title="Show only events with Track switched on in Event Discovery. Turn this off to see everything the debug build emits — including events not catalogued yet, which is the only place they can be spotted."
-                      style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}
-                    >
-                      <input type="checkbox" checked={trackedOnly} onChange={(e) => setTrackedOnly(e.target.checked)} />
-                      Tracked only
                     </label>
                     <button className="btn btn-outline" onClick={() => setPaused((p) => !p)}>
                       {paused ? "Resume" : "Pause"}
@@ -689,7 +648,7 @@ export default function LiveEventsPage() {
                   </p>
                 ) : (
                   <div className="live-stream">
-                    {visibleEvents.map((e, i) => {
+                    {(hideTested ? events.filter((e) => !testedRef.current.has(identityOf(e))) : events).map((e, i) => {
                       // Keep all meaningful names in ONE column (2nd): for a screen_view row show the
                       // screen name in the name column and the literal "screen_view" in the detail column.
                       const isScreenView = SCREEN_VIEW_EVENTS.has(e.eventName);
@@ -715,6 +674,37 @@ export default function LiveEventsPage() {
                           {detailCol}
                           {e.previousScreen ? ` ← ${e.previousScreen}` : ""}
                           {e.sessionId ? "" : " · ⚠️no-session"}
+                        </span>
+                        {/* Track's answer, shown where the events are — the switch stays in Event
+                            Discovery. Showing it here and deciding it there is deliberate: one place
+                            to change a thing and every place to see it, so the stream can be read
+                            without holding the other window's state in your head. Nothing is
+                            filtered out for being off; a row nobody has catalogued yet is exactly
+                            the row worth noticing, and this page is where it first appears. */}
+                        <span
+                          title={
+                            !trackedRef.current.loaded
+                              ? "Loading Track settings…"
+                              : trackedRef.current.set.has(ident)
+                                ? "Track is ON — this event will send from release builds too. Change it in Event Discovery."
+                                : "Track is OFF — debug builds only. Change it in Event Discovery."
+                          }
+                          style={{
+                            fontSize: 11,
+                            whiteSpace: "nowrap",
+                            padding: "1px 7px",
+                            borderRadius: 999,
+                            border: "1px solid",
+                            opacity: trackedRef.current.loaded ? 1 : 0.4,
+                            borderColor: trackedRef.current.set.has(ident)
+                              ? "var(--md-sys-color-success, #2e7d32)"
+                              : "var(--md-sys-color-outline, #9aa0a6)",
+                            color: trackedRef.current.set.has(ident)
+                              ? "var(--md-sys-color-success, #2e7d32)"
+                              : "var(--md-sys-color-on-surface-variant, #5f6368)",
+                          }}
+                        >
+                          {trackedRef.current.set.has(ident) ? "● track on" : "○ track off"}
                         </span>
                         <span style={{ display: "inline-flex", gap: 10, alignItems: "center" }}>
                           {/* Accepting from here, rather than only from Discovery, because this is
