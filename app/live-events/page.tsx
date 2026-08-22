@@ -45,7 +45,21 @@ const CONFIG_POLL_MS = 60000;
  * page — it is the only record of somebody giving up, and where. Two places deciding what is worth
  * seeing is how a list like that outlives its reason.
  */
-const PRESENCE_ONLY = new Set(["nav_screen_view", "app_heartbeat"]);
+/**
+ * Kept out of the stream because they say "still here", not "something happened".
+ *
+ * `nav_screen_view` used to be in here and was removed on 2026-08-22: the app stopped sending that
+ * name when the two screen events were unified, so the entry had quietly matched nothing since —
+ * measured at 3,334 screen firings across 37 identities, every one of them arriving as `screen_view`
+ * and none as `nav_screen_view`. The app's own comment on that unification names the trap exactly:
+ * a check "keeps working right up until the event it names stops being sent". It kept working here
+ * too, in the sense that it never failed — it simply stopped doing anything, and nothing said so.
+ *
+ * Screen views are deliberately NOT in this set. A screen the user landed on is something that
+ * happened, it carries the display name typed against it in Event Discovery, and it is what gives
+ * every tap after it a location.
+ */
+const PRESENCE_ONLY = new Set(["app_heartbeat"]);
 
 /**
  * The whole stream as text, for pasting somewhere it can be read by someone who is not looking at
@@ -557,6 +571,14 @@ export default function LiveEventsPage() {
                     <h2>{selectedUser?.email && !selectedUser.email.endsWith("@guest.com") ? selectedUser.email : selectedUser?.invotickId ? `#${selectedUser.invotickId}` : selectedId.slice(0, 12) + "…"}</h2>
                     <span className="api-access-desc">
                       {selectedUser?.invotickId ? `Invotick ID ${selectedUser.invotickId} · ` : ""}{events.length} events streamed
+                      {/* Since when, because without it this number invites a comparison it cannot
+                          win. Event Discovery counts a week of history and says so; this counts only
+                          what arrived while the page was open and used to say nothing — so 112 there
+                          against 72 here read as events going missing, when the 40 between them had
+                          simply fired before anyone opened this page. */}
+                      {events.length > 0 ? (
+                        <> · since <EventTime iso={events[events.length - 1].eventTimestamp} /></>
+                      ) : null}
                       {selectedId ? (
                         <>
                           {" · "}
