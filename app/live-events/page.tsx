@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { resizeHandleStyle, useColumnWidths } from "@/lib/useColumnWidths";
 import { useRouter } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import Sidebar from "@/components/Sidebar";
@@ -224,6 +225,14 @@ export default function LiveEventsPage() {
    * says how many rows are being held back.
    */
   const [trackedOnly, setTrackedOnly] = useState(false);
+
+  /** Column widths, dragged from the header edges and kept across reloads. */
+  const { widths: colW, startResize, reset: resetWidths } = useColumnWidths("live-events", {
+    idx: 44,
+    event: 420,
+    track: 96,
+    tested: 104,
+  });
 
   /**
    * The rows drawn, numbered before anything is filtered.
@@ -722,12 +731,38 @@ export default function LiveEventsPage() {
                   // across. The header is sticky for the reason it exists at all: this list is long.
                   <div className="live-table-wrap">
                     <table className="live-table">
+                      {/* Widths live here rather than on each <th>, because a column's width is a
+                          property of the column and not of its heading — and with table-layout fixed
+                          this is the only thing the browser reads. */}
+                      <colgroup>
+                        <col style={{ width: colW.idx }} />
+                        <col style={{ width: colW.event }} />
+                        <col style={{ width: colW.track }} />
+                        <col style={{ width: colW.tested }} />
+                      </colgroup>
                       <thead>
                         <tr>
-                          <th className="live-th" style={{ width: 44, textAlign: "right" }}>#</th>
-                          <th className="live-th">Event / identity</th>
-                          <th className="live-th" style={{ width: 96 }}>Track</th>
-                          <th className="live-th" style={{ width: 104 }}>Tested</th>
+                          <th
+                            className="live-th"
+                            style={{ textAlign: "right", position: "relative", cursor: "pointer" }}
+                            onDoubleClick={resetWidths}
+                            title="Drag any heading's right edge to resize. Double-click here to put every column back."
+                          >
+                            #
+                            <span style={resizeHandleStyle} onMouseDown={(e) => startResize("idx", e)} />
+                          </th>
+                          <th className="live-th" style={{ position: "relative" }}>
+                            Event / identity
+                            <span style={resizeHandleStyle} onMouseDown={(e) => startResize("event", e)} />
+                          </th>
+                          <th className="live-th" style={{ position: "relative" }}>
+                            Track
+                            <span style={resizeHandleStyle} onMouseDown={(e) => startResize("track", e)} />
+                          </th>
+                          <th className="live-th" style={{ position: "relative" }}>
+                            Tested
+                            <span style={resizeHandleStyle} onMouseDown={(e) => startResize("tested", e)} />
+                          </th>
                         </tr>
                       </thead>
                       <tbody>

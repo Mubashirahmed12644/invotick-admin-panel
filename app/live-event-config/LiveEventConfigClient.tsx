@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { resizeHandleStyle, useColumnWidths } from "@/lib/useColumnWidths";
 import Link from "next/link";
 import { api, type EventDiscoveryItem, type DefaultListTask, type DebugDevice } from "@/lib/api";
 import { EventTime, timeWithMillis } from "@/lib/eventTime";
@@ -304,6 +305,9 @@ export default function LiveEventConfigClient() {
    * here and renaming is the rare one, so reading is what the column does until asked.
    */
   const [editingName, setEditingName] = useState<string | null>(null);
+
+  /** Column widths, dragged from the header edges and kept across reloads. */
+  const { widths: colW, startResize, reset: resetWidths } = useColumnWidths("event-discovery", {"idx": 40, "tested": 78, "track": 64, "live": 210, "identity": 210, "count": 56, "layer": 150, "status": 108, "replace": 180, "desc": 240, "actions": 90});
   const [savedRow, setSavedRow] = useState<string | null>(null);
   const [copiedRow, setCopiedRow] = useState<string | null>(null);
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
@@ -1469,11 +1473,32 @@ export default function LiveEventConfigClient() {
         <p style={{ color: "var(--md-sys-color-on-surface)" }}>Loading discovery feed…</p>
       ) : (
         <div style={{ overflowX: "auto", overflowY: "auto", maxHeight: "calc(100vh - 300px)", border: "1px solid var(--md-sys-color-outline-variant)", borderRadius: 10 }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", background: "var(--md-sys-color-surface-container-lowest)" }}>
+          <table style={{ width: "100%", tableLayout: "fixed", borderCollapse: "collapse", background: "var(--md-sys-color-surface-container-lowest)" }}>
+          {/* Widths belong to the columns, not to the headings — and with table-layout
+              fixed this is the only place the browser looks for them. */}
+          <colgroup>
+            <col style={{ width: colW.idx }} />
+            <col style={{ width: colW.tested }} />
+            <col style={{ width: colW.track }} />
+            <col style={{ width: colW.live }} />
+            <col style={{ width: colW.identity }} />
+            <col style={{ width: colW.count }} />
+            <col style={{ width: colW.layer }} />
+            <col style={{ width: colW.status }} />
+            <col style={{ width: colW.replace }} />
+            <col style={{ width: colW.desc }} />
+            <col style={{ width: colW.actions }} />
+          </colgroup>
             <thead>
               <tr>
-                <th style={{ ...th, width: 40, textAlign: "right" }}>#</th>
-                <th style={{ ...th, width: 78, textAlign: "center", padding: 0 }}>
+                <th
+                  style={{ ...th, position: "relative", width: 40, textAlign: "right", cursor: "pointer" }}
+                  onDoubleClick={resetWidths}
+                  title="Drag any heading's right edge to resize. Double-click here to put every column back."
+                >#
+                  <span style={resizeHandleStyle} onMouseDown={(e) => startResize("idx", e)} />
+                </th>
+                <th style={{ ...th, position: "relative", width: 78, textAlign: "center", padding: 0 }}>
                   <label
                     style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "8px 10px", cursor: bulkBusy ? "progress" : "pointer" }}
                     title={
@@ -1492,14 +1517,18 @@ export default function LiveEventConfigClient() {
                     />
                     Tested
                   </label>
+                
+                  <span style={resizeHandleStyle} onMouseDown={(e) => startResize("tested", e)} />
                 </th>
-                <th style={{ ...th, width: 64 }}>Track</th>
+                <th style={{ ...th, position: "relative", width: 64 }}>Track
+                  <span style={resizeHandleStyle} onMouseDown={(e) => startResize("track", e)} />
+                </th>
                 {/* The same event, written the way Live Events writes it, so the two windows can be
                     run down side by side. Live shows an event's display name once it has one; this
                     page shows the raw identity here and keeps the display name in an input far to
                     the right — so the same row read as two different strings and could not be
                     matched by eye, which is the entire reason both pages get opened at once. */}
-                <th style={{ ...th, minWidth: 210 }}>
+                <th style={{ ...th, position: "relative", minWidth: 210 }}>
                   As shown in Live
                   <InfoTooltip>
                     <b>Naming best practices</b>
@@ -1512,25 +1541,35 @@ export default function LiveEventConfigClient() {
                     <br />
                     <span style={{ color: "var(--md-sys-color-on-surface-variant)" }}>Input auto-formats to this as you type.</span>
                   </InfoTooltip>
+                
+                  <span style={resizeHandleStyle} onMouseDown={(e) => startResize("live", e)} />
                 </th>
                 {/* Bounded at both ends. Unbounded, an unbroken identity demanded 615px and starved
                     the rest — Layer collapsed to 51px and Description to 88. */}
-                <th style={{ ...th, minWidth: 210 }}>Event / identity</th>
+                <th style={{ ...th, position: "relative", minWidth: 210 }}>Event / identity
+                  <span style={resizeHandleStyle} onMouseDown={(e) => startResize("identity", e)} />
+                </th>
                 {/* The total belongs over the column it totals. It was only in the summary line at
                     the far right of the page, which is nowhere near the numbers it adds up. */}
                 <th
-                  style={{ ...th, width: 56, textAlign: "right" }}
+                  style={{ ...th, position: "relative", width: 56, textAlign: "right" }}
                   title="How many times this fired — the row is one identity, this is its occurrences"
                 >
                   <div style={{ fontVariantNumeric: "tabular-nums", fontWeight: 700, color: "var(--md-sys-color-on-surface)" }}>
                     {firedShown === firedCount ? firedCount : `${firedShown}/${firedCount}`}
                   </div>
+                
+                  <span style={resizeHandleStyle} onMouseDown={(e) => startResize("count", e)} />
                 </th>
-                <th style={{ ...th, width: 150, minWidth: 150 }} title="Who caused this event — what a funnel cannot tell you about itself">
+                <th style={{ ...th, position: "relative", width: 150, minWidth: 150 }} title="Who caused this event — what a funnel cannot tell you about itself">
                   Layer
+                
+                  <span style={resizeHandleStyle} onMouseDown={(e) => startResize("layer", e)} />
                 </th>
-                <th style={{ ...th, width: 108, minWidth: 100 }}>Status</th>
-                <th style={{ ...th, width: 180, minWidth: 150 }}>
+                <th style={{ ...th, position: "relative", width: 108, minWidth: 100 }}>Status
+                  <span style={resizeHandleStyle} onMouseDown={(e) => startResize("status", e)} />
+                </th>
+                <th style={{ ...th, position: "relative", width: 180, minWidth: 150 }}>
                   Replace name
                   <InfoTooltip>
                     <b>Replace the code identity</b>
@@ -1541,9 +1580,15 @@ export default function LiveEventConfigClient() {
                     reporting the old name, and the new version reports this new name — each version is
                     correct on its own. Fill it only when you actually want to rename.
                   </InfoTooltip>
+                
+                  <span style={resizeHandleStyle} onMouseDown={(e) => startResize("replace", e)} />
                 </th>
-                <th style={th}>Description</th>
-                <th style={{ ...th, width: 90 }}></th>
+                <th style={{ ...th, position: "relative" }}>Description
+                  <span style={resizeHandleStyle} onMouseDown={(e) => startResize("desc", e)} />
+                </th>
+                <th style={{ ...th, position: "relative", width: 90 }}>
+                  <span style={resizeHandleStyle} onMouseDown={(e) => startResize("actions", e)} />
+                </th>
               </tr>
             </thead>
             <tbody>

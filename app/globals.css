@@ -2441,6 +2441,9 @@ th {
 
 .live-table {
   width: 100%;
+  /* Fixed, so the <colgroup> widths are what the browser uses. On auto layout a long identity in one
+     row quietly widens its column and the dragged width is ignored. */
+  table-layout: fixed;
   border-collapse: collapse;
   background: var(--md-sys-color-surface-container-lowest);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
