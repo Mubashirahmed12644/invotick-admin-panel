@@ -880,6 +880,10 @@ export default function LiveEventConfigClient() {
         <td style={{ ...td, textAlign: "right", color: "var(--md-sys-color-on-surface-variant)", fontSize: 11 }}>—</td>
         <td style={{ ...td, textAlign: "center", color: "var(--md-sys-color-on-surface-variant)", fontSize: 11 }}>—</td>
         <td style={{ ...td, textAlign: "center", color: "var(--md-sys-color-on-surface-variant)", fontSize: 11 }}>—</td>
+        {/* "As shown in Live" — an authored row has never fired, so there is nothing in the live
+            stream to line it up against. A dash, not a blank: a blank cell in a column that exists
+            reads as a value that failed to load. */}
+        <td style={{ ...td, textAlign: "center", color: "var(--md-sys-color-on-surface-variant)", fontSize: 11 }}>—</td>
         <td style={td}>
           <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
             <select
@@ -1483,6 +1487,12 @@ export default function LiveEventConfigClient() {
                   </label>
                 </th>
                 <th style={{ ...th, width: 64 }}>Track</th>
+                {/* The same event, written the way Live Events writes it, so the two windows can be
+                    run down side by side. Live shows an event's display name once it has one; this
+                    page shows the raw identity here and keeps the display name in an input far to
+                    the right — so the same row read as two different strings and could not be
+                    matched by eye, which is the entire reason both pages get opened at once. */}
+                <th style={{ ...th, minWidth: 190 }}>As shown in Live</th>
                 {/* Bounded at both ends. Unbounded, an unbroken identity demanded 615px and starved
                     the rest — Layer collapsed to 51px and Description to 88. */}
                 <th style={{ ...th, minWidth: 210 }}>Event / identity</th>
@@ -1570,6 +1580,29 @@ export default function LiveEventConfigClient() {
                     </td>
                     <td style={{ ...td, textAlign: "center" }}>
                       <Toggle on={on} onChange={(v) => setDraft(i.eventName, { tracked: v })} />
+                    </td>
+                    <td style={td}>
+                      {/* Deliberately the same derivation Live Events uses, and deliberately not a
+                          shared helper: the two pages take different shapes of row, and a wrapper
+                          that flattened both would be one more thing to keep honest. What has to
+                          match is the string on screen. */}
+                      {(() => {
+                        const isScreen = eventType(i.eventName) === "screen";
+                        const route = i.eventName.replace(/^screen:\s*/, "");
+                        const asLive = nameVal(i).trim() || (isScreen ? route : i.eventName);
+                        const detail = isScreen ? "screen_view" : i.screenName ?? "";
+                        return (
+                          <>
+                            <div style={{ fontFamily: "monospace", fontSize: 12.5, fontWeight: 700, overflowWrap: "anywhere" }}>
+                              {asLive}
+                            </div>
+                            <div style={{ fontSize: 11, marginTop: 2, display: "flex", alignItems: "baseline", gap: 6, flexWrap: "wrap", color: "var(--md-sys-color-on-surface-variant)" }}>
+                              {detail ? <span>{detail}</span> : null}
+                              {i.lastSeen ? <EventTime iso={i.lastSeen} /> : null}
+                            </div>
+                          </>
+                        );
+                      })()}
                     </td>
                     <td style={td}>
                       <div style={{ display: "flex", alignItems: "flex-start", gap: 6, flexWrap: "wrap" }}>
@@ -1793,7 +1826,10 @@ export default function LiveEventConfigClient() {
               })}
               {filtered.length === 0 && pending.length === 0 ? (
                 <tr>
-                  <td style={{ ...td, color: "var(--md-sys-color-on-surface-variant)", textAlign: "center" }} colSpan={8}>
+                  {/* Was 8 while the table had 11 columns, and is 12 now. A short colSpan does not
+                      error — the message simply stops short of the table and the empty state looks
+                      like a broken row. */}
+                  <td style={{ ...td, color: "var(--md-sys-color-on-surface-variant)", textAlign: "center" }} colSpan={12}>
                     {showIgnored
                       ? "No ignored events."
                       : `No events yet${debugOnly ? " from debug builds" : ""}. Interact with the debug app — actions appear here live.`}
