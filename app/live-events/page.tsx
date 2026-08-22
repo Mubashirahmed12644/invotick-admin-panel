@@ -394,17 +394,20 @@ export default function LiveEventsPage() {
       if (usersInFlight || Date.now() < usersNextAt) return;
       usersInFlight = true;
       try {
-        // Both together: one is the list, the other says which of them are test phones. A wide
-        // window on purpose — this answers "is this a debug user", not "is it sending right now",
-        // and a device idle for half an hour has not stopped being the test phone.
-        const [list, debugDevices] = await Promise.all([
-          api.getActiveUsers(30, 200),
-          api.getDebugDevices(720, 200),
-        ]);
+        // The list first, on its own. Four heavy aggregates used to leave together on load and
+        // finish together nine seconds later — measured 6.1s, 6.7s, 9.5s and 9.8s, against 0.9s to
+        // 5.9s for the same calls run one at a time. They were not slow because they were four; they
+        // were slow and then made each other worse, and the page waited for the slowest.
+        const list = await api.getActiveUsers(30, 200);
         if (!cancelled) {
           setActiveUsers(list);
-          debugUsersRef.current = { set: new Set(debugDevices.map((d) => d.userId)), loaded: true };
           setUsersError("");
+        }
+        // Which of them are test phones. Second, because the list is what the page is for, and the
+        // filter that needs this already declines to apply until it has arrived.
+        const debugDevices = await api.getDebugDevices(720, 200);
+        if (!cancelled) {
+          debugUsersRef.current = { set: new Set(debugDevices.map((d) => d.userId)), loaded: true };
         }
         usersFailures = 0;
         usersNextAt = 0;
