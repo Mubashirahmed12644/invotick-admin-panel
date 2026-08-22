@@ -1602,13 +1602,12 @@ export default function LiveEventConfigClient() {
                             {/* Read by default, edited on request. The placeholder while editing is
                                 what Live displays with no name set, so an empty box still says what
                                 is on the other screen rather than nothing. */}
+                            {/* A textarea, not an input. A name runs to forty characters and this
+                                column is narrow: a single line scrolled the start of it out of sight,
+                                so `App left (backgrounded)` was being edited as `pp left
+                                (backgrounded)` with no sign that anything was missing. Editing
+                                something you cannot fully see is worse than not editing it. */}
                             {editingName === i.eventName ? (
-                              {/* A textarea, not an input. A name runs to forty characters and this
-                                  column is narrow: a single line scrolled the start of it out of
-                                  sight, so `App left (backgrounded)` was being edited as
-                                  `pp left (backgrounded)` with no sign that anything was missing.
-                                  Editing something you cannot fully see is worse than not editing it.
-                                  It wraps, and grows to whatever it holds. */}
                               <textarea
                                 autoFocus
                                 rows={2}
