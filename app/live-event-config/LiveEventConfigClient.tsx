@@ -524,9 +524,18 @@ export default function LiveEventConfigClient() {
   // doing the testing from four thousand real users — the intuitive filter, "versions above the
   // released one", returns nothing at all: a debug build of 1.4.0 reports `1.4.0` like everyone.
   const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
-  // Default ON. The whole reason this exists is that a fresh run reprints everything already
-  // verified, so the useful default is the short list — the one with work left in it.
-  const [hideTested, setHideTested] = useState(true);
+  /**
+   * Off by default, on the owner's instruction (2026-08-22).
+   *
+   * It shipped on, reasoning that a fresh run reprints everything already accepted so the short list
+   * — the one with work left in it — was the useful opening view. That is true while a round is
+   * being worked through and wrong the rest of the time: the page opens showing a fraction of what
+   * fired, with the count in the header describing the whole, and a list that hides most of itself
+   * before being asked is a list nobody trusts.
+   *
+   * Live Events keeps its own default; this is the catalogue and that is the stream.
+   */
+  const [hideTested, setHideTested] = useState(false);
   const [bulkBusy, setBulkBusy] = useState(false);
   const [movingRow, setMovingRow] = useState<string | null>(null);
   const [devices, setDevices] = useState<DebugDevice[]>([]);
