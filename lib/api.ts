@@ -122,6 +122,7 @@ async function requestWithAuth(path: string, options: RequestOptions = {}): Prom
     if (!response.ok) {
       recordApiFailure({
         at: new Date().toISOString(),
+        hidden: typeof document !== "undefined" && document.visibilityState !== "visible",
         method,
         url: path,
         status: response.status,
@@ -134,6 +135,7 @@ async function requestWithAuth(path: string, options: RequestOptions = {}): Prom
     // the same from here, and both are worth keeping — they are what "the errors flash past" is.
     recordApiFailure({
       at: new Date().toISOString(),
+      hidden: typeof document !== "undefined" && document.visibilityState !== "visible",
       method,
       url: path,
       status: 0,

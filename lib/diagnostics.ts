@@ -18,6 +18,14 @@ export interface ApiFailure {
   /** 0 when the request never got an answer at all — a timeout, a refused connection, a 502. */
   status: number;
   message: string;
+  /**
+   * The tab was not on screen when this failed.
+   *
+   * A sleeping laptop and an unreachable server produce the same status 0, and a burst of them
+   * reads as an outage either way. Knowing the tab was hidden is usually the whole explanation —
+   * and without it that burst gets reported as a fault and chased.
+   */
+  hidden?: boolean;
 }
 
 const KEY = "webpanel_api_failures";
@@ -36,8 +44,33 @@ function hasWindow(): boolean {
   return typeof window !== "undefined";
 }
 
+/**
+ * True once the page is on its way out, so requests it abandons are not filed as faults.
+ *
+ * Closing a tab, following a link or reloading kills every in-flight request, and each one arrives
+ * here as a status 0 that looks exactly like a server that stopped answering. On 2026-08-22 that
+ * produced a five-failure report across three endpoints from nothing worse than a deploy replacing
+ * the page under an open tab — three of them were simply the requests that tab had in the air.
+ *
+ * `pagehide` rather than `beforeunload`: Safari fires it for back/forward-cache navigations too,
+ * which is the case that made the noise. `pageshow` undoes it, because a page restored from that
+ * cache is alive again and its failures matter again.
+ */
+let leaving = false;
+if (typeof window !== "undefined") {
+  window.addEventListener("pagehide", () => {
+    leaving = true;
+  });
+  window.addEventListener("pageshow", () => {
+    leaving = false;
+  });
+}
+
 export function recordApiFailure(f: ApiFailure): void {
   if (!hasWindow()) return;
+  // Only the answerless ones. A 5xx while the page is closing is still a server that failed and is
+  // worth keeping; a status 0 is the page's own doing.
+  if (leaving && f.status === 0) return;
   try {
     const all = readApiFailures();
     all.unshift(f);
@@ -111,7 +144,9 @@ export function formatApiFailures(): string {
   }
   lines.push("# Newest 40, in order:");
   for (const f of all.slice(0, 40)) {
-    lines.push(`  ${f.at}  ${String(f.status).padStart(3)}  ${f.method} ${f.url}`);
+    lines.push(
+    `  ${f.at}  ${String(f.status).padStart(3)}  ${f.method} ${f.url}${f.hidden ? "  [tab hidden]" : ""}`,
+  );
   }
   return lines.join("\n");
 }
