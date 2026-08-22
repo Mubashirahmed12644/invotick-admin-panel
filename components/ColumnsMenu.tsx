@@ -15,7 +15,7 @@ export function ColumnsMenu({
   order,
   hidden,
   onToggle,
-  onMove,
+  onMoveTo,
   onReset,
 }: {
   /** Column key → what it is called in the header. */
@@ -23,10 +23,14 @@ export function ColumnsMenu({
   order: string[];
   hidden: string[];
   onToggle: (key: string) => void;
-  onMove: (key: string, delta: -1 | 1) => void;
+  /** Put `key` at `index` in the order — the whole move, not one step of it. */
+  onMoveTo: (key: string, index: number) => void;
   onReset: () => void;
 }) {
   const [open, setOpen] = useState(false);
+  /** What is being dragged, and where it would land. Both needed to draw the line before the drop. */
+  const [dragKey, setDragKey] = useState<string | null>(null);
+  const [overIndex, setOverIndex] = useState<number | null>(null);
   const box = useRef<HTMLDivElement | null>(null);
 
   // Closes on a click anywhere else. Without this it stays open behind whatever is clicked next and
@@ -62,12 +66,13 @@ export function ColumnsMenu({
 
       {open ? (
         <div
+          onDragOver={(e) => e.preventDefault()}
           style={{
             position: "absolute",
             zIndex: 40,
             top: "calc(100% + 6px)",
             right: 0,
-            minWidth: 240,
+            minWidth: 250,
             padding: 8,
             borderRadius: 10,
             border: "1px solid var(--md-sys-color-outline-variant)",
@@ -77,35 +82,58 @@ export function ColumnsMenu({
         >
           {order.map((key, i) => {
             const shown = !hidden.includes(key);
+            const dragging = dragKey === key;
             return (
               <div
                 key={key}
-                style={{ display: "flex", alignItems: "center", gap: 8, padding: "3px 4px", fontSize: 13 }}
+                draggable
+                onDragStart={(e) => {
+                  setDragKey(key);
+                  // Firefox refuses to start a drag without data on the transfer.
+                  e.dataTransfer.effectAllowed = "move";
+                  e.dataTransfer.setData("text/plain", key);
+                }}
+                onDragEnd={() => {
+                  setDragKey(null);
+                  setOverIndex(null);
+                }}
+                onDragOver={(e) => {
+                  // Without preventDefault the browser refuses the drop and the whole thing looks
+                  // broken while working perfectly.
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = "move";
+                  if (overIndex !== i) setOverIndex(i);
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  const from = dragKey ?? e.dataTransfer.getData("text/plain");
+                  if (from) onMoveTo(from, i);
+                  setDragKey(null);
+                  setOverIndex(null);
+                }}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  padding: "4px 4px",
+                  fontSize: 13,
+                  borderRadius: 6,
+                  cursor: "grab",
+                  opacity: dragging ? 0.4 : 1,
+                  // The line marks where it lands, on the edge it would land against.
+                  borderTop: overIndex === i && !dragging ? "2px solid var(--md-sys-color-primary)" : "2px solid transparent",
+                  background: dragging ? "var(--md-sys-color-surface-container)" : undefined,
+                }}
               >
+                {/* The grip is what says "this moves". A row that is draggable and does not look it
+                    is a feature nobody finds. */}
+                <span style={{ color: "var(--md-sys-color-on-surface-variant)", cursor: "grab", userSelect: "none" }}>⠿</span>
                 <label style={{ display: "flex", alignItems: "center", gap: 6, flex: 1, cursor: "pointer" }}>
                   <input type="checkbox" checked={shown} onChange={() => onToggle(key)} />
                   <span style={{ color: shown ? "var(--md-sys-color-on-surface)" : "var(--md-sys-color-on-surface-variant)" }}>
                     {labels[key] ?? key}
                   </span>
                 </label>
-                <button
-                  type="button"
-                  onClick={() => onMove(key, -1)}
-                  disabled={i === 0}
-                  title="Move left"
-                  style={arrow(i === 0)}
-                >
-                  ↑
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onMove(key, 1)}
-                  disabled={i === order.length - 1}
-                  title="Move right"
-                  style={arrow(i === order.length - 1)}
-                >
-                  ↓
-                </button>
               </div>
             );
           })}
@@ -118,19 +146,4 @@ export function ColumnsMenu({
       ) : null}
     </div>
   );
-}
-
-/** Up and down here mean left and right in the table; the list is the table turned on its side. */
-function arrow(disabled: boolean): React.CSSProperties {
-  return {
-    border: "1px solid var(--md-sys-color-outline-variant)",
-    background: "transparent",
-    borderRadius: 6,
-    width: 22,
-    height: 22,
-    lineHeight: 1,
-    cursor: disabled ? "not-allowed" : "pointer",
-    opacity: disabled ? 0.3 : 1,
-    color: "var(--md-sys-color-on-surface)",
-  };
 }

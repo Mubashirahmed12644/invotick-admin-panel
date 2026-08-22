@@ -340,7 +340,7 @@ export default function LiveEventConfigClient() {
   const [editingName, setEditingName] = useState<string | null>(null);
 
   /** Column widths, dragged from the header edges and kept across reloads. */
-  const { widths: colW, startResize, reset: resetWidths, autoFit, tableRef, order: colOrder, hidden: colHidden, visibleOrder, toggleColumn, moveColumn } = useColumnWidths("event-discovery", {"idx": 40, "tested": 78, "track": 64, "live": 210, "identity": 210, "count": 56, "layer": 150, "status": 108, "replace": 180, "desc": 240, "actions": 90}, COLUMN_ORDER_EVENT_DISCOVERY);
+  const { widths: colW, startResize, reset: resetWidths, autoFit, tableRef, order: colOrder, hidden: colHidden, visibleOrder, toggleColumn, moveColumnTo } = useColumnWidths("event-discovery", {"idx": 40, "tested": 78, "track": 64, "live": 210, "identity": 210, "count": 56, "layer": 150, "status": 108, "replace": 180, "desc": 240, "actions": 90}, COLUMN_ORDER_EVENT_DISCOVERY);
   const [savedRow, setSavedRow] = useState<string | null>(null);
   const [copiedRow, setCopiedRow] = useState<string | null>(null);
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
@@ -1688,14 +1688,7 @@ export default function LiveEventConfigClient() {
             Live ({REFRESH_MS / 1000}s)
           </span>
         </label>
-        <ColumnsMenu
-          labels={COLUMN_LABELS_EVENT_DISCOVERY}
-          order={colOrder}
-          hidden={colHidden}
-          onToggle={toggleColumn}
-          onMove={moveColumn}
-          onReset={resetWidths}
-        />
+        
         <button
           type="button"
           onClick={() => (showDefault ? setShowDefault(false) : openDefaultList())}
@@ -1776,6 +1769,19 @@ export default function LiveEventConfigClient() {
             Show all (cleared {new Date(clearedAt).toLocaleTimeString()})
           </button>
         ) : null}
+
+        {/* Last on the row, so it sits at the table's own top-right corner.
+            It shapes the table; everything to its left changes what data is in it. Those
+            are different questions and were reading as one pile of buttons — this one was
+            stranded on the opposite side of the row from the table it belongs to. */}
+        <ColumnsMenu
+          labels={COLUMN_LABELS_EVENT_DISCOVERY}
+          order={colOrder}
+          hidden={colHidden}
+          onToggle={toggleColumn}
+          onMoveTo={moveColumnTo}
+          onReset={resetWidths}
+        />
       </div>
 
       {showDefault ? (

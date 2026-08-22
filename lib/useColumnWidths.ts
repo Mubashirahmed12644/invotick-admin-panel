@@ -204,6 +204,26 @@ export function useColumnWidths(
     [layout, persistLayout],
   );
 
+  /**
+   * Drop a column at a position. The whole reorder, in one call.
+   *
+   * Replaced a pair of arrows that moved a column one place per press. Getting the last column to the
+   * front was ten presses, each one re-rendering the list under the pointer, and the owner's word for
+   * it was "complex" — which is the right word for a control that makes you do the work an interface
+   * exists to do for you.
+   */
+  const moveColumnTo = useCallback(
+    (key: string, index: number) => {
+      const from = layout.order.indexOf(key);
+      if (from < 0 || index < 0 || index >= layout.order.length || from === index) return;
+      const next = [...layout.order];
+      next.splice(from, 1);
+      next.splice(index, 0, key);
+      persistLayout({ ...layout, order: next });
+    },
+    [layout, persistLayout],
+  );
+
   const moveColumn = useCallback(
     (key: string, delta: -1 | 1) => {
       const from = layout.order.indexOf(key);
@@ -243,6 +263,7 @@ export function useColumnWidths(
     visibleOrder,
     toggleColumn,
     moveColumn,
+    moveColumnTo,
   };
 }
 

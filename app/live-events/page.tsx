@@ -261,7 +261,7 @@ export default function LiveEventsPage() {
   const [trackedOnly, setTrackedOnly] = useState(false);
 
   /** Column widths, dragged from the header edges and kept across reloads. */
-  const { widths: colW, startResize, reset: resetWidths, autoFit, tableRef, order: colOrder, hidden: colHidden, visibleOrder, toggleColumn, moveColumn } = useColumnWidths("live-events", {
+  const { widths: colW, startResize, reset: resetWidths, autoFit, tableRef, order: colOrder, hidden: colHidden, visibleOrder, toggleColumn, moveColumnTo } = useColumnWidths("live-events", {
     idx: 44,
     event: 420,
     track: 96,
@@ -767,14 +767,7 @@ export default function LiveEventsPage() {
                     >
                       Download
                     </button>
-                    <ColumnsMenu
-                      labels={COLUMN_LABELS_LIVE_EVENTS}
-                      order={colOrder}
-                      hidden={colHidden}
-                      onToggle={toggleColumn}
-                      onMove={moveColumn}
-                      onReset={resetWidths}
-                    />
+                    
                     <label
                       className="le-check"
                       title="Hide events already accepted as correct, so a run from cleared data shows only what still needs checking"
@@ -812,6 +805,16 @@ export default function LiveEventsPage() {
                     >
                       Clear
                     </button>
+                    {/* Last on the row, at the table's own top-right. It shapes the table;
+                        everything to its left changes what is in it. */}
+                    <ColumnsMenu
+                      labels={COLUMN_LABELS_LIVE_EVENTS}
+                      order={colOrder}
+                      hidden={colHidden}
+                      onToggle={toggleColumn}
+                      onMoveTo={moveColumnTo}
+                      onReset={resetWidths}
+                    />
                     <span className="le-dot-label" data-live={!paused}>
                       {paused ? "paused" : "live"}
                     </span>
