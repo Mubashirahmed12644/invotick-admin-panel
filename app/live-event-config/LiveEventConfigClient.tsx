@@ -880,10 +880,17 @@ export default function LiveEventConfigClient() {
         <td style={{ ...td, textAlign: "right", color: "var(--md-sys-color-on-surface-variant)", fontSize: 11 }}>—</td>
         <td style={{ ...td, textAlign: "center", color: "var(--md-sys-color-on-surface-variant)", fontSize: 11 }}>—</td>
         <td style={{ ...td, textAlign: "center", color: "var(--md-sys-color-on-surface-variant)", fontSize: 11 }}>—</td>
-        {/* "As shown in Live" — an authored row has never fired, so there is nothing in the live
-            stream to line it up against. A dash, not a blank: a blank cell in a column that exists
-            reads as a value that failed to load. */}
-        <td style={{ ...td, textAlign: "center", color: "var(--md-sys-color-on-surface-variant)", fontSize: 11 }}>—</td>
+        {/* "As shown in Live". An authored row has never fired, so there is nothing in the stream to
+            line it up against yet — but this is the column the name is typed in now, and naming the
+            event is most of what authoring one is. */}
+        <td style={td}>
+          <input
+            value={row.displayName}
+            onChange={(e) => patchPending(row.id, { displayName: e.target.value })}
+            placeholder="Reporting name"
+            style={inp}
+          />
+        </td>
         <td style={td}>
           <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
             <select
@@ -928,14 +935,6 @@ export default function LiveEventConfigClient() {
           <span style={{ fontSize: 11, color: "var(--md-sys-color-warning)", background: "var(--md-sys-color-surface-container-low)", borderRadius: 6, padding: "3px 8px", whiteSpace: "nowrap" }}>
             ● planned
           </span>
-        </td>
-        <td style={td}>
-          <input
-            value={row.displayName}
-            onChange={(e) => patchPending(row.id, { displayName: e.target.value })}
-            placeholder="Reporting name"
-            style={inp}
-          />
         </td>
         <td style={td}>
           {/* Renaming targets an identity that already exists in code. This one does not yet. */}
@@ -1492,7 +1491,20 @@ export default function LiveEventConfigClient() {
                     page shows the raw identity here and keeps the display name in an input far to
                     the right — so the same row read as two different strings and could not be
                     matched by eye, which is the entire reason both pages get opened at once. */}
-                <th style={{ ...th, minWidth: 190 }}>As shown in Live</th>
+                <th style={{ ...th, minWidth: 210 }}>
+                  As shown in Live
+                  <InfoTooltip>
+                    <b>Naming best practices</b>
+                    <br />• lowercase <b>snake_case</b> (words joined by _)
+                    <br />• structure: <code>area_object_action</code>
+                    <br />• e.g. <code>add_business_logo_clicked</code>, <code>invoice_sent</code>
+                    <br />• action verb: <code>_clicked</code> / <code>_created</code> / <code>_viewed</code>
+                    <br />• only a–z, 0–9, _ · start with a letter · ≤ 40 chars
+                    <br />• no spaces, symbols, or personal data
+                    <br />
+                    <span style={{ color: "var(--md-sys-color-on-surface-variant)" }}>Input auto-formats to this as you type.</span>
+                  </InfoTooltip>
+                </th>
                 {/* Bounded at both ends. Unbounded, an unbroken identity demanded 615px and starved
                     the rest — Layer collapsed to 51px and Description to 88. */}
                 <th style={{ ...th, minWidth: 210 }}>Event / identity</th>
@@ -1510,20 +1522,6 @@ export default function LiveEventConfigClient() {
                   Layer
                 </th>
                 <th style={{ ...th, width: 108, minWidth: 100 }}>Status</th>
-                <th style={{ ...th, width: 180, minWidth: 150 }}>
-                  Display name
-                  <InfoTooltip>
-                    <b>Naming best practices</b>
-                    <br />• lowercase <b>snake_case</b> (words joined by _)
-                    <br />• structure: <code>area_object_action</code>
-                    <br />• e.g. <code>add_business_logo_clicked</code>, <code>invoice_sent</code>
-                    <br />• action verb: <code>_clicked</code> / <code>_created</code> / <code>_viewed</code>
-                    <br />• only a–z, 0–9, _ · start with a letter · ≤ 40 chars
-                    <br />• no spaces, symbols, or personal data
-                    <br />
-                    <span style={{ color: "var(--md-sys-color-on-surface-variant)" }}>Input auto-formats to this as you type.</span>
-                  </InfoTooltip>
-                </th>
                 <th style={{ ...th, width: 180, minWidth: 150 }}>
                   Replace name
                   <InfoTooltip>
@@ -1589,13 +1587,28 @@ export default function LiveEventConfigClient() {
                       {(() => {
                         const isScreen = eventType(i.eventName) === "screen";
                         const route = i.eventName.replace(/^screen:\s*/, "");
-                        const asLive = nameVal(i).trim() || (isScreen ? route : i.eventName);
+                        const asLive = isScreen ? route : i.eventName;
                         const detail = isScreen ? "screen_view" : i.screenName ?? "";
                         return (
                           <>
-                            <div style={{ fontFamily: "monospace", fontSize: 12.5, fontWeight: 700, overflowWrap: "anywhere" }}>
-                              {asLive}
-                            </div>
+                            {/* The name Live shows, and the place it is changed — one column instead
+                                of two. The placeholder is what Live displays while nothing has been
+                                typed, so an empty box is never a mystery: it says what is on the
+                                other screen right now. */}
+                            <input
+                              style={{
+                                ...inputStyle,
+                                fontFamily: "monospace",
+                                fontWeight: 700,
+                                background: on ? "var(--md-sys-color-surface-container-lowest)" : "var(--md-sys-color-surface-container-low)",
+                                color: on ? "var(--md-sys-color-on-surface)" : "var(--md-sys-color-on-surface-variant)",
+                                borderColor: needName ? "var(--md-sys-color-warning)" : "var(--md-sys-color-outline)",
+                              }}
+                              placeholder={on ? asLive : "Track on to name"}
+                              disabled={!on}
+                              value={nameVal(i)}
+                              onChange={(e) => setDraft(i.eventName, { displayName: sanitizeName(e.target.value) })}
+                            />
                             <div style={{ fontSize: 11, marginTop: 2, display: "flex", alignItems: "baseline", gap: 6, flexWrap: "wrap", color: "var(--md-sys-color-on-surface-variant)" }}>
                               {detail ? <span>{detail}</span> : null}
                               {i.lastSeen ? <EventTime iso={i.lastSeen} /> : null}
@@ -1757,15 +1770,6 @@ export default function LiveEventConfigClient() {
                     </td>
                     <td style={td}>
                       <input
-                        style={{ ...inputStyle, background: on ? "var(--md-sys-color-surface-container-lowest)" : "var(--md-sys-color-surface-container-low)", color: on ? "var(--md-sys-color-on-surface)" : "var(--md-sys-color-on-surface-variant)", borderColor: needName ? "var(--md-sys-color-warning)" : "var(--md-sys-color-outline)" }}
-                        placeholder={on ? "e.g. invoice_sent" : "Track on to name"}
-                        disabled={!on}
-                        value={nameVal(i)}
-                        onChange={(e) => setDraft(i.eventName, { displayName: sanitizeName(e.target.value) })}
-                      />
-                    </td>
-                    <td style={td}>
-                      <input
                         style={inputStyle}
                         placeholder="rename code id (optional) → e.g. send_button_clicked"
                         value={replaceVal(i)}
@@ -1829,7 +1833,7 @@ export default function LiveEventConfigClient() {
                   {/* Was 8 while the table had 11 columns, and is 12 now. A short colSpan does not
                       error — the message simply stops short of the table and the empty state looks
                       like a broken row. */}
-                  <td style={{ ...td, color: "var(--md-sys-color-on-surface-variant)", textAlign: "center" }} colSpan={12}>
+                  <td style={{ ...td, color: "var(--md-sys-color-on-surface-variant)", textAlign: "center" }} colSpan={11}>
                     {showIgnored
                       ? "No ignored events."
                       : `No events yet${debugOnly ? " from debug builds" : ""}. Interact with the debug app — actions appear here live.`}
