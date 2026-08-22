@@ -35,7 +35,7 @@ import type {
   IpRecordResponse,
   SuspiciousIpFullResponse,
 } from "@/features/ip-stats/types";
-import { recordApiFailure } from "./diagnostics";
+import { noteApiSuccess, recordApiFailure } from "./diagnostics";
 
 // In the browser, call same-origin "/backend" (proxied to the backend by the
 // next.config rewrite) so the panel works even where the backend origin isn't
@@ -61,10 +61,17 @@ const IS_NGROK_BASE_URL = /https?:\/\/[^/]*ngrok[^/]*/i.test(API_BASE_URL);
  * that is actually down: the second failure is recorded and surfaced exactly as before.
  */
 async function fetchWithOneRetry(url: string, init: RequestInit, method: string): Promise<Response> {
+  // 502, 503 and 504 are the gateway saying the server did not answer it — the shape a restart takes
+  // from out here. They are not the application refusing anything, so they are worth one more try in
+  // exactly the way a dropped connection is.
+  const GATEWAY = new Set([502, 503, 504]);
   try {
+    const first = await fetch(url, init);
+    if (!GATEWAY.has(first.status) || method !== "GET") return first;
+    await new Promise((r) => setTimeout(r, 800));
     return await fetch(url, init);
-  } catch (first) {
-    if (method !== "GET") throw first;
+  } catch (err) {
+    if (method !== "GET") throw err;
     await new Promise((r) => setTimeout(r, 600));
     return await fetch(url, init);
   }
@@ -140,6 +147,10 @@ async function requestWithAuth(path: string, options: RequestOptions = {}): Prom
   const method = (options.method ?? "GET").toUpperCase();
   try {
     const response = await fetchWithOneRetry(buildUrl(path), { ...options, headers }, method);
+    if (response.ok) {
+      // Something answered, so whatever was still waiting to be called a failure was a blip.
+      noteApiSuccess();
+    }
     if (!response.ok) {
       recordApiFailure({
         at: new Date().toISOString(),

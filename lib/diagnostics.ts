@@ -66,11 +66,53 @@ if (typeof window !== "undefined") {
   });
 }
 
+/**
+ * How long a failure has to keep failing before it counts as one.
+ *
+ * A deploy restarts the backend and everything in flight answers 502 for twenty or thirty seconds,
+ * then recovers on its own. Recording those made the badge a log of our own releases: on 2026-08-22
+ * twenty-one entries, every cluster of them inside a minute of a deploy, carried over as evidence of
+ * an outage each time.
+ *
+ * So a failure waits here first, and one success anywhere cancels the lot. What survives the wait is
+ * a server that is still not answering — which is worth a badge. What does not survive it recovered
+ * on its own, and something that recovers on its own was not a fault, it was a restart.
+ */
+const SETTLE_MS = 60_000;
+
+let pending: ApiFailure[] = [];
+let settleTimer: ReturnType<typeof setTimeout> | null = null;
+
+/**
+ * A request came back. Anything still waiting was a blip.
+ *
+ * Cleared wholesale rather than per endpoint on purpose: these failures arrive in clusters across
+ * every endpoint at once, because the cause is never one endpoint — it is the server, the deploy or
+ * the network. One endpoint answering means the thing they all failed against is back.
+ */
+export function noteApiSuccess(): void {
+  pending = [];
+}
+
+function settle(): void {
+  settleTimer = null;
+  const due = pending;
+  pending = [];
+  if (due.length === 0) return;
+  for (const f of due) commitApiFailure(f);
+}
+
 export function recordApiFailure(f: ApiFailure): void {
   if (!hasWindow()) return;
   // Only the answerless ones. A 5xx while the page is closing is still a server that failed and is
   // worth keeping; a status 0 is the page's own doing.
   if (leaving && f.status === 0) return;
+  pending.push(f);
+  if (!settleTimer) settleTimer = setTimeout(settle, SETTLE_MS);
+}
+
+function commitApiFailure(f: ApiFailure): void {
+  if (!hasWindow()) return;
   try {
     const all = readApiFailures();
     all.unshift(f);
