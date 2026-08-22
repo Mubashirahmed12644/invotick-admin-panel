@@ -94,7 +94,7 @@ const COLUMN_LABELS_EVENT_DISCOVERY: Record<string, string> = {
   tested: "Tested",
   track: "Track",
   live: "As shown in Live",
-  identity: "Event / identity",
+  identity: "Events from apps",
   count: "Firings",
   layer: "Layer",
   status: "Status",
@@ -1439,7 +1439,7 @@ export default function LiveEventConfigClient() {
                 </th>
     ),
     identity: (
-<th key="identity" style={{ ...th, position: "relative", minWidth: 210 }}>Event / identity
+<th key="identity" style={{ ...th, position: "relative", minWidth: 210 }}>Events from apps
                   <span
                     className={RESIZE_HANDLE_CLASS}
                     title="Drag to resize. Double-click to fit the column to its contents."
