@@ -1573,47 +1573,6 @@ export default function LiveEventConfigClient() {
                     </td>
                     <td style={td}>
                       <div style={{ display: "flex", alignItems: "flex-start", gap: 6, flexWrap: "wrap" }}>
-                        {eventType(i.eventName) === "screen" ? (
-                          <span style={{ flexShrink: 0, fontSize: 10.5, fontWeight: 600, color: "var(--md-sys-color-primary)", background: "var(--md-sys-color-surface-container-low)", borderRadius: 5, padding: "2px 6px", marginTop: 1 }}>screen</span>
-                        ) : (
-                          <span style={{ flexShrink: 0, fontSize: 10.5, fontWeight: 600, color: "var(--md-sys-color-on-surface)", background: "var(--md-sys-color-surface-container-low)", borderRadius: 5, padding: "2px 6px", marginTop: 1 }}>action</span>
-                        )}
-                        {/*
-                          Where the event came from — the thing that decides which lever it has, and
-                          until now the page never said it.
-
-                          Two rows can describe the SAME action twice: Topbar.topbar_back_1 is the
-                          codemod capturing a back press, Create_Invoice_Backpress_click is somebody
-                          having coded one deliberately. Choosing which to keep is impossible without
-                          knowing which is which, and the shape of the name is a poor guess — this
-                          reads `params.auto`, which only the auto-capture path stamps.
-
-                          Rendered only when the field is actually present: an older backend does not
-                          send it, and a missing value must not be drawn as "coded".
-                        */}
-                        {typeof i.autoCaptured === "boolean" ? (
-                          <span
-                            title={
-                              i.autoCaptured
-                                ? "Auto-captured by the codemod. Governed by the send-allowlist — it reaches production only if you add it, so there is nothing to remove from the app."
-                                : "Deliberately coded as analytics.trackClick(...). The allowlist does not gate it, so it always sends and only deleting the call stops it."
-                            }
-                            style={{
-                              flexShrink: 0,
-                              fontSize: 10.5,
-                              fontWeight: 600,
-                              borderRadius: 5,
-                              padding: "2px 6px",
-                              marginTop: 1,
-                              background: "var(--md-sys-color-surface-container-low)",
-                              color: i.autoCaptured
-                                ? "var(--md-sys-color-on-surface-variant)"
-                                : "var(--md-sys-color-primary)",
-                            }}
-                          >
-                            {i.autoCaptured ? "auto" : "coded"}
-                          </span>
-                        ) : null}
                         {/* Never broken mid-word. `break-all` turned `ad_impression_value` into four lines that each
                             read as nonsense, and an identity is the one string on this page that has to be read
                             exactly — it is what gets typed into a query later. The table scrolls instead. */}
@@ -1670,6 +1629,54 @@ export default function LiveEventConfigClient() {
                             arrived after a separator that separated nothing. */}
                         {i.screenName ? <span style={{ color: "var(--md-sys-color-on-surface)" }}>{i.screenName}</span> : null}
                         {i.lastSeen ? <EventTime iso={i.lastSeen} /> : null}
+                        {/* Kind and channel moved down here from in front of the name.
+                            They were the first thing on the row, so the identity started at a
+                            different x depending on whether it was `screen` or `action`, `auto` or
+                            `coded` — and Live Events, read beside this, starts every row with the
+                            name. Two lists of the same events that cannot be run down side by side
+                            are two lists nobody reconciles. Name first on both; everything about it
+                            underneath, in the same order. */}
+                        {eventType(i.eventName) === "screen" ? (
+                          <span style={{ flexShrink: 0, fontSize: 10.5, fontWeight: 600, color: "var(--md-sys-color-primary)", background: "var(--md-sys-color-surface-container-low)", borderRadius: 5, padding: "2px 6px", marginTop: 1 }}>screen</span>
+                        ) : (
+                          <span style={{ flexShrink: 0, fontSize: 10.5, fontWeight: 600, color: "var(--md-sys-color-on-surface)", background: "var(--md-sys-color-surface-container-low)", borderRadius: 5, padding: "2px 6px", marginTop: 1 }}>action</span>
+                        )}
+                        {/*
+                          Where the event came from — the thing that decides which lever it has, and
+                          until now the page never said it.
+
+                          Two rows can describe the SAME action twice: Topbar.topbar_back_1 is the
+                          codemod capturing a back press, Create_Invoice_Backpress_click is somebody
+                          having coded one deliberately. Choosing which to keep is impossible without
+                          knowing which is which, and the shape of the name is a poor guess — this
+                          reads `params.auto`, which only the auto-capture path stamps.
+
+                          Rendered only when the field is actually present: an older backend does not
+                          send it, and a missing value must not be drawn as "coded".
+                        */}
+                        {typeof i.autoCaptured === "boolean" ? (
+                          <span
+                            title={
+                              i.autoCaptured
+                                ? "Auto-captured by the codemod. Governed by the send-allowlist — it reaches production only if you add it, so there is nothing to remove from the app."
+                                : "Deliberately coded as analytics.trackClick(...). The allowlist does not gate it, so it always sends and only deleting the call stops it."
+                            }
+                            style={{
+                              flexShrink: 0,
+                              fontSize: 10.5,
+                              fontWeight: 600,
+                              borderRadius: 5,
+                              padding: "2px 6px",
+                              marginTop: 1,
+                              background: "var(--md-sys-color-surface-container-low)",
+                              color: i.autoCaptured
+                                ? "var(--md-sys-color-on-surface-variant)"
+                                : "var(--md-sys-color-primary)",
+                            }}
+                          >
+                            {i.autoCaptured ? "auto" : "coded"}
+                          </span>
+                        ) : null}
                         {/* The write said yes and the read disagrees. Shown rather than swallowed:
                             this row is displaying what was saved, not what discovery returned. */}
                         {i.unconfirmed ? (

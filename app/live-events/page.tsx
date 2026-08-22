@@ -214,11 +214,34 @@ export default function LiveEventsPage() {
    * Recomputed on `tick` as well as on the events, because `testedRef` is a ref the config poll
    * fills — without that this number would be right only until somebody ticked something.
    */
-  const hiddenCount = useMemo(
-    () => (hideTested ? events.filter((e) => testedRef.current.has(identityOf(e))).length : 0),
+  /**
+   * Show only what Track is on for. Off by default, so nothing is withheld until it is asked for.
+   *
+   * This existed once as a filter that hid rows with no way to tell it was doing so, and was removed
+   * the same day because the numbers then disagreed with Event Discovery and looked like loss. It is
+   * safe now for reasons that had to be built first: the Track column states each row's answer, the
+   * row number is taken before filtering so it still means a position in the stream, and the header
+   * says how many rows are being held back.
+   */
+  const [trackedOnly, setTrackedOnly] = useState(false);
+
+  /**
+   * The rows drawn, numbered before anything is filtered.
+   *
+   * Recomputed on `tick` as well, because `testedRef` and `trackedRef` are refs the config poll
+   * fills — without it these lists would be right only until somebody changed something elsewhere.
+   */
+  const visibleRows = useMemo(
+    () =>
+      events
+        .map((e, idx) => ({ e, n: events.length - idx }))
+        .filter(({ e }) => !hideTested || !testedRef.current.has(identityOf(e)))
+        .filter(({ e }) => !trackedOnly || trackedRef.current.set.has(identityOf(e))),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [events, hideTested, tick],
+    [events, hideTested, trackedOnly, tick],
   );
+
+  const hiddenCount = events.length - visibleRows.length;
 
 
   const pausedRef = useRef(false);
@@ -594,7 +617,7 @@ export default function LiveEventsPage() {
                           what is on screen sends someone looking for a fault. Twenty-eight rows
                           hidden by a tick-box read as twenty-eight events lost. */}
                       {hiddenCount > 0 ? (
-                        <> · <span className="live-hidden-note">{hiddenCount} hidden by Hide tested</span></>
+                        <> · <span className="live-hidden-note">{hiddenCount} hidden by filters</span></>
                       ) : null}
                       {selectedId ? (
                         <>
@@ -654,6 +677,14 @@ export default function LiveEventsPage() {
                       <input type="checkbox" checked={hideTested} onChange={(e) => setHideTested(e.target.checked)} />
                       Hide tested
                     </label>
+                    <label
+                      className="le-check"
+                      title="Show only events with Track switched on in Event Discovery. Off by default — with it off, everything the debug build emits is here, including events nobody has catalogued yet, which is the only place those can be spotted."
+                      style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}
+                    >
+                      <input type="checkbox" checked={trackedOnly} onChange={(e) => setTrackedOnly(e.target.checked)} />
+                      Tracked only
+                    </label>
                     <button className="btn btn-outline" onClick={() => setPaused((p) => !p)}>
                       {paused ? "Resume" : "Pause"}
                     </button>
@@ -700,15 +731,7 @@ export default function LiveEventsPage() {
                         </tr>
                       </thead>
                       <tbody>
-                    {events
-                      // Number first, filter second. `events.length - i` over an already-filtered
-                      // array numbers the survivors 34, 33, 32… whatever their real positions were,
-                      // so six rows scattered through the stream came out looking like a contiguous
-                      // tail and everything before them looked lost. A row's number is its place in
-                      // the stream; a filter must not be able to change it.
-                      .map((e, idx) => ({ e, n: events.length - idx }))
-                      .filter(({ e }) => !hideTested || !testedRef.current.has(identityOf(e)))
-                      .map(({ e, n }, i) => {
+                    {visibleRows.map(({ e, n }, i) => {
                       // Keep all meaningful names in ONE column (2nd): for a screen_view row show the
                       // screen name in the name column and the literal "screen_view" in the detail column.
                       const isScreenView = SCREEN_VIEW_EVENTS.has(e.eventName);
