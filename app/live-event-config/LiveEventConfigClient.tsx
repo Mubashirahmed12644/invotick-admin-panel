@@ -87,6 +87,18 @@ const COLUMN_ORDER_EVENT_DISCOVERY = [
   "idx", "tested", "track", "live", "identity", "count", "layer", "status", "replace", "desc", "actions",
 ];
 
+const SELECTED_USER_KEY = "webpanel_discovery_user";
+
+/**
+ * How recent an event has to be for a run to count as live.
+ *
+ * The list already stops at five minutes, but five-minutes-ago and still-going look identical in a
+ * dropdown — and picking a run that ended is how you end up reading a finished list as though it
+ * were filling. Ninety seconds is comfortably longer than the app's own heartbeat interval, so a
+ * phone that is merely idle still reads as live.
+ */
+const LIVE_WITHIN_MS = 90_000;
+
 function sanitizeName(raw: string): string {
   return raw
     .toLowerCase()
@@ -455,9 +467,56 @@ export default function LiveEventConfigClient() {
   // Which user's run this page is describing. Empty means everyone, which is right for deciding
   // what an event IS and wrong for checking what a test round produced — unscoped, the presence
   // ping counts tens of thousands across the install base and cannot be tallied against anything.
-  const [userId, setUserId] = useState(() =>
-    typeof window === "undefined" ? "" : new URLSearchParams(window.location.search).get("userId") ?? "",
+  /**
+   * Which run is being looked at. A URL wins, then the last choice, then whoever is actually live.
+   *
+   * It used to come from the URL alone, so every plain reload dropped back to "all users" while a
+   * live run sat in the list — and unscoped is the one setting this page is nearly useless in, since
+   * the count then covers the whole install base rather than the run being checked.
+   *
+   * The stored key is written even when the choice is "all", so choosing it deliberately survives a
+   * reload too. Absent means never chosen, and only then does the live user get picked.
+   */
+  const [userId, setUserId] = useState(() => {
+    if (typeof window === "undefined") return "";
+    const fromUrl = new URLSearchParams(window.location.search).get("userId");
+    if (fromUrl) return fromUrl;
+    try {
+      return window.localStorage.getItem(SELECTED_USER_KEY) ?? "";
+    } catch {
+      return "";
+    }
+  });
+
+  /**
+   * Whether a choice has ever been made here — including choosing "all users".
+   *
+   * Only when nothing has been chosen does the page pick for you, and only then a run that is
+   * genuinely still sending. Auto-selecting on every load would override a deliberate "all users"
+   * every time, which is the same disrespect as forgetting the choice in the first place.
+   */
+  const everChosen = useRef(
+    typeof window === "undefined"
+      ? true
+      : Boolean(new URLSearchParams(window.location.search).get("userId")) ||
+          (() => {
+            try {
+              return window.localStorage.getItem(SELECTED_USER_KEY) !== null;
+            } catch {
+              return false;
+            }
+          })(),
   );
+
+  const chooseUser = useCallback((next: string) => {
+    setUserId(next);
+    everChosen.current = true;
+    try {
+      window.localStorage.setItem(SELECTED_USER_KEY, next);
+    } catch {
+      // Private browsing. The choice still applies for this session.
+    }
+  }, []);
   const userIdRef = useRef(userId);
   userIdRef.current = userId;
 
@@ -486,7 +545,18 @@ export default function LiveEventConfigClient() {
         // that stopped sending five minutes ago is not a run anyone is watching, and listing it
         // only makes the live one harder to find.
         const d = await api.getDebugDevices(5);
-        if (!cancelled) setDevices(d);
+        if (!cancelled) {
+          setDevices(d);
+          // First visit with nothing chosen: land on the run that is actually going, rather than on
+          // "all users" — the one setting this page is nearly useless in, since the count then
+          // covers the whole install base instead of the run being checked.
+          if (!everChosen.current && d.length > 0) {
+            const newest = [...d].sort((a, b) => (a.lastEventAt < b.lastEventAt ? 1 : -1))[0];
+            if (Date.now() - new Date(newest.lastEventAt).getTime() <= LIVE_WITHIN_MS) {
+              chooseUser(newest.userId);
+            }
+          }
+        }
         devicesFailures = 0;
         devicesNextAt = 0;
       } catch {
@@ -1300,19 +1370,31 @@ export default function LiveEventConfigClient() {
           style={{ ...inputStyle, maxWidth: 320 }}
         />
         <select
-          title="Pick the device whose run you are checking. The × column then counts only that device's firings, so this page and its live stream tally."
+          title="Pick the user whose run you are checking. The × column then counts only that device's firings, so this page and its live stream tally."
           value={userId}
-          onChange={(e) => setUserId(e.target.value)}
+          onChange={(e) => chooseUser(e.target.value)}
           style={{ ...inputStyle, maxWidth: 320,
                    borderColor: userId ? "var(--md-sys-color-primary)" : undefined }}
         >
-          <option value="">All devices — not a single run</option>
-          {devices.map((d) => (
-            <option key={d.userId} value={d.userId}>
-              {(d.invotickId || d.email || d.userId.slice(0, 8)) +
-                ` · ${d.recentEventCount} events · ${timeWithMillis(d.lastEventAt).slice(0, 8)}`}
-            </option>
-          ))}
+          <option value="">All users — not a single run</option>
+          {/* Newest first, and said out loud which one is still going. The list is already capped at
+              five minutes, but "five minutes ago" and "still sending" look the same in a dropdown,
+              and picking a finished run is how a static list gets read as though it were filling. */}
+          {[...devices]
+            .sort((a, b) => (a.lastEventAt < b.lastEventAt ? 1 : -1))
+            .map((d) => {
+              const ageMs = Date.now() - new Date(d.lastEventAt).getTime();
+              const live = ageMs <= LIVE_WITHIN_MS;
+              const ago = live ? "live" : `${Math.max(1, Math.round(ageMs / 60_000))}m ago`;
+              // Keyed and labelled by the user's id — that is what the page scopes by, and what the
+              // live stream is opened with. The Invotick id or email follows as the human handle.
+              const who = d.invotickId || d.email;
+              return (
+                <option key={d.userId} value={d.userId}>
+                  {`${live ? "● " : ""}${d.userId.slice(0, 8)}${who ? ` · ${who}` : ""} · ${d.recentEventCount} events · ${ago}`}
+                </option>
+              );
+            })}
           {/* A user arrived at by link may not be in the recent list — keep it selectable rather
               than silently resetting the page to unscoped. */}
           {userId && !devices.some((d) => d.userId === userId) ? (
