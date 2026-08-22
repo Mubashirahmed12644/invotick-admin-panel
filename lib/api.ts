@@ -27,6 +27,7 @@ import type {
   WebpanelUserStatsResponse,
   AppFlowTimelineResponse,
   FunnelBy,
+  FunnelDimensions,
   FunnelQueryRequest,
   FunnelQueryResponse,
 } from "@/lib/types";
@@ -543,6 +544,23 @@ export const api = {
     if (params?.search) query.set("search", params.search);
     const qs = query.toString();
     return apiRequest<string[]>(`/v2/admin/analytics/funnel/names${qs ? `?${qs}` : ""}`);
+  },
+
+  /**
+   * The version and country values present in a window, for the funnel's filter dropdowns.
+   *
+   * Same window the funnel itself will use — a list built over all time can offer a release that
+   * shipped and died before the selected range, and a funnel returning zero for it reads as a
+   * product failure rather than an empty filter.
+   */
+  getFunnelDimensions(params?: { from?: string; to?: string }) {
+    const query = new URLSearchParams();
+    if (params?.from) query.set("from", params.from);
+    if (params?.to) query.set("to", params.to);
+    const qs = query.toString();
+    return apiRequest<FunnelDimensions>(
+      `/v2/admin/analytics/funnel/dimensions${qs ? `?${qs}` : ""}`,
+    );
   },
 
   queryFunnel(request: FunnelQueryRequest) {

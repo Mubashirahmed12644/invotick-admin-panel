@@ -713,9 +713,34 @@ export interface FunnelQueryRequest {
   maxStepDurationMinutes?: number;
   platform?: string;
   appVersion?: string;
+  /**
+   * The build number. Prefer this over `appVersion` whenever releases are compared or ordered:
+   * "1.4.10" sorts below "1.4.9" as a string, so a name-based comparison is right for nine
+   * releases and then silently wrong.
+   */
+  appVersionCode?: number;
   osVersion?: string;
   country?: string;
   city?: string;
+}
+
+/** Values the funnel can be split by, read from the events themselves. */
+export interface FunnelVersionOption {
+  /** What the query filters on and what sorts. */
+  code: number;
+  /** Only ever shown. */
+  name?: string | null;
+}
+
+export interface FunnelCountryOption {
+  country: string;
+  /** How many events carry it, so the list can lead with where the users are. */
+  events: number;
+}
+
+export interface FunnelDimensions {
+  versions: FunnelVersionOption[];
+  countries: FunnelCountryOption[];
 }
 
 export interface FunnelFilters {
@@ -726,6 +751,7 @@ export interface FunnelFilters {
   maxStepDurationMinutes: number | null;
   platform: string | null;
   appVersion: string | null;
+  appVersionCode: number | null;
   osVersion: string | null;
   country: string | null;
   city: string | null;

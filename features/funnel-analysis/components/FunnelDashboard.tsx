@@ -9,6 +9,7 @@ import { clearAccessToken, isLoggedIn } from "@/lib/auth";
 import { api, getErrorMessage, isUnauthorizedError } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import type {
+  FunnelDimensions,
   FunnelBy,
   FunnelMode,
   FunnelQueryRequest,
@@ -292,7 +293,9 @@ export function FunnelDashboard() {
   );
   const [to, setTo] = useState(() => toDateTimeLocalValue(new Date()));
   const [platform, setPlatform] = useState("");
-  const [appVersion, setAppVersion] = useState("");
+  // The build number, held as a string because that is what a <select> value is. "" means All.
+  const [appVersionCode, setAppVersionCode] = useState("");
+  const [dimensions, setDimensions] = useState<FunnelDimensions | null>(null);
   const [osVersion, setOsVersion] = useState("");
   const [country, setCountry] = useState("");
   const [city, setCity] = useState("");
@@ -324,6 +327,26 @@ export function FunnelDashboard() {
   }, []);
 
   useEffect(() => { void loadNames(funnelBy); }, [funnelBy, loadNames]);
+
+  // Loaded for the SELECTED window, not for all time. A list built over all time can offer a
+  // release that shipped and died before this range, and a funnel returning zero for it reads as a
+  // product failure rather than as an empty filter.
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const d = await api.getFunnelDimensions({
+          from: new Date(from).toISOString(),
+          to: new Date(to).toISOString(),
+        });
+        if (!cancelled) setDimensions(d);
+      } catch {
+        // A missing filter list must not take the page down — the funnel still runs unfiltered.
+        if (!cancelled) setDimensions(null);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [from, to]);
 
   // Switch funnel type → clear steps & result
   const handleFunnelByChange = useCallback((next: FunnelBy) => {
@@ -390,7 +413,7 @@ export function FunnelDashboard() {
       ...(toIso   ? { to: toIso }     : {}),
       ...(maxMins                     ? { maxStepDurationMinutes: maxMins } : {}),
       ...(platform                    ? { platform }           : {}),
-      ...(appVersion.trim()           ? { appVersion: appVersion.trim() } : {}),
+      ...(appVersionCode              ? { appVersionCode: Number(appVersionCode) } : {}),
       ...(osVersion.trim()            ? { osVersion: osVersion.trim() }   : {}),
       ...(country.trim()              ? { country: country.trim() }       : {}),
       ...(city.trim()                 ? { city: city.trim() }             : {}),
@@ -409,7 +432,7 @@ export function FunnelDashboard() {
     } finally {
       setLoading(false);
     }
-  }, [steps, funnelBy, mode, from, to, platform, appVersion, osVersion, country, city, maxStepDurationMinutes, router]);
+  }, [steps, funnelBy, mode, from, to, platform, appVersionCode, osVersion, country, city, maxStepDurationMinutes, router]);
 
   const handleReset = useCallback(() => {
     setSteps(["", ""]);
@@ -417,7 +440,7 @@ export function FunnelDashboard() {
     setFunnelBy("SCREEN");
     setFrom(toDateTimeLocalValue(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)));
     setTo(toDateTimeLocalValue(new Date()));
-    setPlatform(""); setAppVersion(""); setOsVersion("");
+    setPlatform(""); setAppVersionCode(""); setOsVersion("");
     setCountry(""); setCity(""); setMaxStepDurationMinutes("");
     setValidationError(""); setResult(null); setError("");
   }, []);
@@ -590,8 +613,15 @@ export function FunnelDashboard() {
             </label>
             <label className="filter-control">
               <span>App Version</span>
-              <input className="input" type="text" value={appVersion}
-                onChange={(e) => setAppVersion(e.target.value)} placeholder="e.g. 2.1.0" />
+              <select className="input" value={appVersionCode}
+                onChange={(e) => setAppVersionCode(e.target.value)}>
+                <option value="">All Versions</option>
+                {dimensions?.versions.map((v) => (
+                  <option key={v.code} value={String(v.code)}>
+                    {v.name ? `${v.name} (${v.code})` : `build ${v.code}`}
+                  </option>
+                ))}
+              </select>
             </label>
             <label className="filter-control">
               <span>OS Version</span>
@@ -600,8 +630,15 @@ export function FunnelDashboard() {
             </label>
             <label className="filter-control">
               <span>Country</span>
-              <input className="input" type="text" value={country}
-                onChange={(e) => setCountry(e.target.value)} placeholder="e.g. Pakistan" />
+              <select className="input" value={country}
+                onChange={(e) => setCountry(e.target.value)}>
+                <option value="">All Countries</option>
+                {dimensions?.countries.map((c) => (
+                  <option key={c.country} value={c.country}>
+                    {c.country} ({c.events.toLocaleString()})
+                  </option>
+                ))}
+              </select>
             </label>
             <label className="filter-control">
               <span>City</span>
@@ -624,7 +661,7 @@ export function FunnelDashboard() {
               <span className={styles.filterChip}>Mode: {result.filters.mode}</span>
               <span className={styles.filterChip}>By: {result.filters.funnelBy}</span>
               {result.filters.platform        ? <span className={styles.filterChip}>Platform: {result.filters.platform}</span> : null}
-              {result.filters.appVersion      ? <span className={styles.filterChip}>Version: {result.filters.appVersion}</span> : null}
+              {result.filters.appVersionCode  ? <span className={styles.filterChip}>Version: {dimensions?.versions.find((v) => v.code === result.filters.appVersionCode)?.name ?? `build ${result.filters.appVersionCode}`}</span> : null}
               {result.filters.osVersion       ? <span className={styles.filterChip}>OS: {result.filters.osVersion}</span> : null}
               {result.filters.country         ? <span className={styles.filterChip}>Country: {result.filters.country}</span> : null}
               {result.filters.city            ? <span className={styles.filterChip}>City: {result.filters.city}</span> : null}
