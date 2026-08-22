@@ -669,7 +669,20 @@ export default function LiveEventsPage() {
                     Waiting for events… interact in the app as this user — events appear within ~{EVENT_POLL_MS / 1000}s.
                   </p>
                 ) : (
-                  <div className="live-stream">
+                  // A real table, like Event Discovery's. The two pages are read side by side, and a
+                  // list whose columns are never named has to be decoded again on every glance
+                  // across. The header is sticky for the reason it exists at all: this list is long.
+                  <div className="live-table-wrap">
+                    <table className="live-table">
+                      <thead>
+                        <tr>
+                          <th className="live-th" style={{ width: 44, textAlign: "right" }}>#</th>
+                          <th className="live-th">Event / identity</th>
+                          <th className="live-th" style={{ width: 96 }}>Track</th>
+                          <th className="live-th" style={{ width: 104 }}>Tested</th>
+                        </tr>
+                      </thead>
+                      <tbody>
                     {(hideTested ? events.filter((e) => !testedRef.current.has(identityOf(e))) : events).map((e, i) => {
                       // Keep all meaningful names in ONE column (2nd): for a screen_view row show the
                       // screen name in the name column and the literal "screen_view" in the detail column.
@@ -684,18 +697,18 @@ export default function LiveEventsPage() {
                         chosen ?? (isScreenView ? screenLabel || "screen_view" : e.eventName);
                       const detailCol = isScreenView ? "screen_view" : screenLabel;
                       return (
-                      <div key={`${e.id}-${i}`} className={`live-row live-${eventKind(e.eventName)}`}>
+                      <tr key={`${e.id}-${i}`} className={`live-row live-${eventKind(e.eventName)}`}>
                         {/* The newest event gets the HIGHEST number, so a row keeps the number it
                             was given. Numbering from the top instead meant every row was renumbered
                             each time an event arrived, which makes the number useless for the one
                             thing it is for — pointing at a row. */}
-                        <span className="live-idx">{events.length - i}</span>
+                        <td className="live-idx">{events.length - i}</td>
                         {/* Name on its own line, everything about it underneath. Five columns of
                             equal weight made the eye hunt for the one thing being looked for — the
                             event — and left the row too wide to sit beside Event Discovery on one
                             screen. Time, screen and parameters are what you read *after* finding the
                             row, so they belong under it rather than beside it. */}
-                        <div className="live-main">
+                        <td className="live-main">
                           <span className="live-name">{nameCol}</span>
                           {/* Same shape as the identity cell in Event Discovery: screen, then time,
                               separated by gap rather than punctuation. The two pages are read side by
@@ -717,15 +730,20 @@ export default function LiveEventsPage() {
                               </button>
                             ) : null}
                           </span>
-                        </div>
+                          {/* Under the event it belongs to, not loose in the row. */}
+                          {expanded === `${e.id}-${i}` && e.params ? (
+                            <pre className="live-params">{JSON.stringify(e.params, null, 2)}</pre>
+                          ) : null}
+                        </td>
                         {/* Track's answer, shown where the events are — the switch stays in Event
                             Discovery. Showing it here and deciding it there is deliberate: one place
                             to change a thing and every place to see it, so the stream can be read
                             without holding the other window's state in your head. Nothing is
                             filtered out for being off; a row nobody has catalogued yet is exactly
                             the row worth noticing, and this page is where it first appears. */}
-                        <span
-                          className="live-track"
+                        <td>
+                          <span
+                            className="live-track"
                           data-on={trackedRef.current.set.has(ident)}
                           data-loaded={trackedRef.current.loaded}
                           title={
@@ -736,9 +754,10 @@ export default function LiveEventsPage() {
                                 : "Track is OFF — debug builds only. Change it in Event Discovery."
                           }
                         >
-                          {trackedRef.current.set.has(ident) ? "● track on" : "○ track off"}
-                        </span>
-                        <span className="live-actions">
+                            {trackedRef.current.set.has(ident) ? "● track on" : "○ track off"}
+                          </span>
+                        </td>
+                        <td className="live-actions">
                           {/* Accepting from here, rather than only from Discovery, because this is
                               the page that has the parameters — the richer half of the baseline. */}
                           <button
@@ -775,13 +794,12 @@ export default function LiveEventsPage() {
                           >
                             {testedRef.current.has(identityOf(e)) ? "✓ tested" : "mark tested"}
                           </button>
-                        </span>
-                        {expanded === `${e.id}-${i}` && e.params ? (
-                          <pre className="live-params">{JSON.stringify(e.params, null, 2)}</pre>
-                        ) : null}
-                      </div>
+                        </td>
+                      </tr>
                       );
-                    })}
+                      })}
+                      </tbody>
+                    </table>
                   </div>
                 )}
               </>
