@@ -171,6 +171,18 @@ export default function LiveEventsPage() {
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [liveOnly, setLiveOnly] = useState(false);
+  /**
+   * Only the phones doing the testing. On by default — this page exists to watch a run, and a run is
+   * on a debug build; four thousand real users in the same list only make that one harder to find.
+   *
+   * There is no flag on a user saying so, because "debug" is a property of the build an event came
+   * from rather than of the person. It is answered by the same list Event Discovery picks a run
+   * from, and `loaded` is tracked separately: until that list arrives the set is empty, and filtering
+   * on an empty set would show no users at all — which reads as "nobody is here" rather than "not
+   * known yet", the most alarming thing this page can say wrongly.
+   */
+  const [debugOnly, setDebugOnly] = useState(true);
+  const debugUsersRef = useRef<{ set: Set<string>; loaded: boolean }>({ set: new Set(), loaded: false });
   const [sortBy, setSortBy] = useState<SortKey>("recent");
   const [usersError, setUsersError] = useState("");
 
@@ -374,9 +386,16 @@ export default function LiveEventsPage() {
       if (usersInFlight || Date.now() < usersNextAt) return;
       usersInFlight = true;
       try {
-        const list = await api.getActiveUsers(30, 200);
+        // Both together: one is the list, the other says which of them are test phones. A wide
+        // window on purpose — this answers "is this a debug user", not "is it sending right now",
+        // and a device idle for half an hour has not stopped being the test phone.
+        const [list, debugDevices] = await Promise.all([
+          api.getActiveUsers(30, 200),
+          api.getDebugDevices(720, 200),
+        ]);
         if (!cancelled) {
           setActiveUsers(list);
+          debugUsersRef.current = { set: new Set(debugDevices.map((d) => d.userId)), loaded: true };
           setUsersError("");
         }
         usersFailures = 0;
@@ -485,6 +504,8 @@ export default function LiveEventsPage() {
     let list = activeUsers.filter((u) => {
       if (roleFilter !== "all" && (u.role ?? "").toLowerCase() !== roleFilter) return false;
       if (liveOnly && liveState(u.lastEventAt) !== "live") return false;
+      // Not applied before the answer is known — see the note on debugOnly.
+      if (debugOnly && debugUsersRef.current.loaded && !debugUsersRef.current.set.has(u.userId)) return false;
       if (q) {
         return (
           (u.email ?? "").toLowerCase().includes(q) ||
@@ -500,7 +521,8 @@ export default function LiveEventsPage() {
       return b.lastEventAt.localeCompare(a.lastEventAt);
     });
     return list;
-  }, [activeUsers, search, roleFilter, liveOnly, sortBy]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeUsers, search, roleFilter, liveOnly, debugOnly, sortBy]);
 
   const liveCount = activeUsers.filter((u) => liveState(u.lastEventAt) === "live").length;
   const selectedUser = activeUsers.find((u) => u.userId === selectedId);
@@ -545,6 +567,10 @@ export default function LiveEventsPage() {
                 <option value="count">Sort: events</option>
                 <option value="email">Sort: email</option>
               </select>
+              <label className="le-check" title="Only phones running a debug build — the ones a test round is done on. Off shows every user in the last 30 minutes.">
+                <input type="checkbox" checked={debugOnly} onChange={(e) => setDebugOnly(e.target.checked)} />
+                Debug users only
+              </label>
               <label className="le-check">
                 <input type="checkbox" checked={liveOnly} onChange={(e) => setLiveOnly(e.target.checked)} />
                 Live only
