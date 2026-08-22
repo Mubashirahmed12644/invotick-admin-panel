@@ -2443,7 +2443,10 @@ th {
   display: grid;
   /* First column is the row number. Fixed width and right-aligned so 9 and 10 keep their last digit
      in the same place — a column of numbers that shifts is harder to read than no numbers. */
-  grid-template-columns: 2.2rem 90px 1fr 1.2fr auto;
+  /* Six, not five: idx, time, name, screen, track, actions. The track pill was added as a sixth
+     child while this still said five, so grid wrapped it onto an implicit row and dragged the action
+     buttons down with it — every row twice as tall and nothing lining up with anything. */
+  grid-template-columns: 2.2rem 90px 1fr 1.2fr 6.2rem auto;
   gap: 0.6rem;
   align-items: baseline;
   padding: 0.32rem 0.5rem;
@@ -2463,11 +2466,51 @@ th {
   text-align: right;
 }
 
-.live-time { color: var(--color-text-muted); }
+.live-time { color: var(--color-text-muted); white-space: nowrap; }
 .live-name { font-weight: 700; color: var(--color-text); }
 .live-screen { color: var(--color-text-muted); }
 
+/* The two columns that hold arbitrary text, told they are allowed to be narrow.
+   A grid item defaults to min-width:auto, so it refuses to shrink below its longest unbroken word —
+   and an identity like `create_CreateClientScreen.close_contacts_1` is one unbroken word. In a pane
+   sharing the screen with Event Discovery that one row widens its column and every other row's
+   pill and buttons move with it. Wrapping rather than truncating: these are identities, and half an
+   identity is not one. */
+.live-name,
+.live-screen {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Track's answer, shown here and decided in Event Discovery.
+   Its own fixed column so the pills form a straight line down the page: the whole point of this
+   column is being scanned, and a pill whose position follows the length of the name beside it
+   cannot be. Centred rather than baseline-aligned, because a bordered pill sitting on the text
+   baseline reads as slightly fallen. */
+.live-track {
+  justify-self: start;
+  align-self: center;
+  font-size: 11px;
+  line-height: 1.5;
+  white-space: nowrap;
+  padding: 1px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+}
+
+.live-track[data-on="true"] {
+  border-color: var(--md-sys-color-success);
+  color: var(--md-sys-color-success);
+}
+
+/* Not yet known, so it must not read as "off". */
+.live-track[data-loaded="false"] { opacity: 0.35; }
+
 .live-params-btn {
+  /* "mark tested" is two words and one label. Left to wrap it split down the middle and the row grew
+     a second line for no reason. */
+  white-space: nowrap;
   border: none;
   background: transparent;
   color: var(--color-primary-soft);

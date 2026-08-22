@@ -704,6 +704,9 @@ export default function LiveEventsPage() {
                             filtered out for being off; a row nobody has catalogued yet is exactly
                             the row worth noticing, and this page is where it first appears. */}
                         <span
+                          className="live-track"
+                          data-on={trackedRef.current.set.has(ident)}
+                          data-loaded={trackedRef.current.loaded}
                           title={
                             !trackedRef.current.loaded
                               ? "Loading Track settings…"
@@ -711,20 +714,6 @@ export default function LiveEventsPage() {
                                 ? "Track is ON — this event will send from release builds too. Change it in Event Discovery."
                                 : "Track is OFF — debug builds only. Change it in Event Discovery."
                           }
-                          style={{
-                            fontSize: 11,
-                            whiteSpace: "nowrap",
-                            padding: "1px 7px",
-                            borderRadius: 999,
-                            border: "1px solid",
-                            opacity: trackedRef.current.loaded ? 1 : 0.4,
-                            borderColor: trackedRef.current.set.has(ident)
-                              ? "var(--md-sys-color-success, #2e7d32)"
-                              : "var(--md-sys-color-outline, #9aa0a6)",
-                            color: trackedRef.current.set.has(ident)
-                              ? "var(--md-sys-color-success, #2e7d32)"
-                              : "var(--md-sys-color-on-surface-variant, #5f6368)",
-                          }}
                         >
                           {trackedRef.current.set.has(ident) ? "● track on" : "○ track off"}
                         </span>
