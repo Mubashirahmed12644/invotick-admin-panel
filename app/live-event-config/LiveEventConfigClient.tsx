@@ -11,6 +11,8 @@ import { copyText, downloadText, fileStamp } from "@/lib/clipboard";
 // Per-row unsaved edits, so the live refresh never clobbers what the admin is typing.
 interface Draft {
   tracked?: boolean;
+  /** Switched off deliberately. Under the denylist this is what decides whether release sends it. */
+  denied?: boolean;
   displayName?: string;
   replaceName?: string;
   description?: string;
@@ -22,6 +24,7 @@ const REFRESH_MS = 4000;
 /** The editable half of a row — everything a person types, as opposed to what the app reports. */
 type SavedConfig = {
   tracked: boolean;
+  denied: boolean;
   layer: string | null;
   displayName: string | null;
   replaceName: string | null;
@@ -53,6 +56,7 @@ function applyPending(
     if (!saved) return row;
     const echoed =
       row.tracked === saved.tracked &&
+      row.denied === saved.denied &&
       norm(row.layer) === norm(saved.layer) &&
       norm(row.displayName) === norm(saved.displayName) &&
       norm(row.replaceName) === norm(saved.replaceName) &&
@@ -92,7 +96,7 @@ const COLUMN_ORDER_EVENT_DISCOVERY = [
 const COLUMN_LABELS_EVENT_DISCOVERY: Record<string, string> = {
   idx: "#",
   tested: "Tested",
-  track: "Track",
+  track: "Sending",
   live: "As shown in Live",
   identity: "Events from apps",
   count: "Firings",
@@ -317,9 +321,11 @@ function newPending(anchor: string | null, position: "above" | "below"): Pending
 
 // "Live Event Discovery and Config" — live-lists every event / UI-action the DEBUG app emits (its
 // meaningful name, or a searchable identity when it has none), each tagged in-list or debug-only.
-// Turning "Track" on adds the event to the backend override allowlist (so release builds send it),
-// maps a display name for reporting, and queues a task to bake the key into the app's bundled
-// default list next release. The app's bundled default list stays the primary source of truth.
+// The "Sending" toggle decides whether a RELEASE build emits the event. It is on by default and
+// writes `denied` when switched off, because the app now sends everything except what somebody
+// turned off. It used to be "Track", an opt-in — which could never discover anything, since a key
+// can only be listed after it has been seen, so a control added in a later release stayed silent
+// and invisible for ever. Switching one off takes effect without a release.
 export default function LiveEventConfigClient() {
   const [items, setItems] = useState<EventDiscoveryItem[]>([]);
   const [drafts, setDrafts] = useState<Record<string, Draft>>({});
@@ -868,6 +874,14 @@ export default function LiveEventConfigClient() {
   }
 
   const trackedOn = (i: EventDiscoveryItem) => drafts[i.eventName]?.tracked ?? i.tracked;
+  /**
+   * Whether a release build sends this event.
+   *
+   * Derived from `denied`, not from `tracked`. A config row is created the moment anyone touches an
+   * event — renaming it is enough — and `tracked` is false on a fresh row, so reading the inverse
+   * would show every newly-named event as switched off. Nothing and "not denied" both mean sending.
+   */
+  const sendingOn = (i: EventDiscoveryItem) => !(drafts[i.eventName]?.denied ?? i.denied);
   const nameVal = (i: EventDiscoveryItem) => drafts[i.eventName]?.displayName ?? i.displayName ?? "";
   const replaceVal = (i: EventDiscoveryItem) => drafts[i.eventName]?.replaceName ?? i.replaceName ?? "";
   const descVal = (i: EventDiscoveryItem) => drafts[i.eventName]?.description ?? i.description ?? "";
@@ -1254,7 +1268,11 @@ export default function LiveEventConfigClient() {
     // Read once, before the draft is cleared: these accessors fall back to the row, so reading them
     // afterwards would return the old values rather than what is being saved.
     const edited: SavedConfig = {
+      // Passed through unchanged. `tracked` drives the older default-list task queue; the lever
+      // that decides what release actually sends is `denied`, and writing one must not move the
+      // other.
       tracked: trackedOn(i),
+      denied: !sendingOn(i),
       layer: layerVal(i) || null,
       displayName: nameVal(i).trim() || null,
       replaceName: replaceVal(i).trim() || null,
@@ -1398,7 +1416,7 @@ export default function LiveEventConfigClient() {
                 </th>
     ),
     track: (
-<th key="track" style={{ ...th, position: "relative", width: 64 }}>Track
+<th key="track" style={{ ...th, position: "relative", width: 72 }}>Sending
                   <span
                     className={RESIZE_HANDLE_CLASS}
                     title="Drag to resize. Double-click to fit the column to its contents."
@@ -1855,7 +1873,7 @@ export default function LiveEventConfigClient() {
             <tbody>
               {pending.filter((r) => r.anchor === null).map(renderPending)}
               {shown.flatMap((i, idx) => {
-                const on = trackedOn(i);
+                const on = sendingOn(i);
                 const needName = on && !nameVal(i).trim();
                 const cells: Record<string, React.ReactNode> = {
                   idx: (
@@ -1891,7 +1909,7 @@ export default function LiveEventConfigClient() {
                   ),
                   track: (
 <td key="track" style={{ ...td, textAlign: "center" }}>
-                      <Toggle on={on} onChange={(v) => setDraft(i.eventName, { tracked: v })} />
+                      <Toggle on={on} onChange={(v) => setDraft(i.eventName, { denied: !v })} />
                     </td>
                   ),
                   live: (
@@ -1980,7 +1998,7 @@ export default function LiveEventConfigClient() {
                                   type="button"
                                   disabled={!on}
                                   onClick={() => setEditingName(i.eventName)}
-                                  title={on ? "Rename for reporting" : "Track on to name"}
+                                  title="Rename for reporting"
                                   aria-label={`Rename ${i.eventName}`}
                                   style={{
                                     flexShrink: 0,

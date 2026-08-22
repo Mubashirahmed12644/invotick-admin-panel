@@ -689,6 +689,14 @@ export interface EventDiscoveryItem {
   screenName: string | null;
   lastSeen: string | null;
   tracked: boolean;
+  /**
+   * Somebody deliberately switched this event off, so release builds no longer send it.
+   *
+   * Not the inverse of `tracked`: most rows are neither, which means sending. A row is created the
+   * first time anyone touches an event, and `tracked` is false on a fresh one — so reading the
+   * inverse would mean that naming an event switches it off.
+   */
+  denied: boolean;
   ignored: boolean;
   inList: boolean;
   /**
@@ -732,6 +740,8 @@ export interface EventDiscoveryItem {
 export interface EventConfigUpsert {
   eventName: string;
   tracked: boolean;
+  /** Null leaves it unchanged, so editing a name cannot switch an event on or off by accident. */
+  denied?: boolean | null;
   displayName: string | null;
   replaceName: string | null;
   description: string | null;
