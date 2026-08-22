@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { RESIZE_HANDLE_CLASS, useColumnWidths } from "@/lib/useColumnWidths";
+import { ColumnsMenu } from "@/components/ColumnsMenu";
 import { useRouter } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import Sidebar from "@/components/Sidebar";
@@ -20,6 +21,14 @@ const CONFIG_POLL_MS = 60000;
 
 /** Column keys in the order they are rendered — how a key becomes a cell position. */
 const COLUMN_ORDER_LIVE_EVENTS = ["idx", "event", "track", "tested"];
+
+/** What each column is called — in the header and in the Columns menu. One source, so they agree. */
+const COLUMN_LABELS_LIVE_EVENTS: Record<string, string> = {
+  idx: "#",
+  event: "Event / identity",
+  track: "Track",
+  tested: "Tested",
+};
 
 // Lifecycle / attribution pings that are recorded app-side (SessionTraceRecorder) but are noise for
 // funnel understanding — hidden from the live stream to keep the webpanel meaningful. The cursor +
@@ -252,7 +261,7 @@ export default function LiveEventsPage() {
   const [trackedOnly, setTrackedOnly] = useState(false);
 
   /** Column widths, dragged from the header edges and kept across reloads. */
-  const { widths: colW, startResize, reset: resetWidths, autoFit, tableRef } = useColumnWidths("live-events", {
+  const { widths: colW, startResize, reset: resetWidths, autoFit, tableRef, order: colOrder, hidden: colHidden, visibleOrder, toggleColumn, moveColumn } = useColumnWidths("live-events", {
     idx: 44,
     event: 420,
     track: 96,
@@ -758,6 +767,14 @@ export default function LiveEventsPage() {
                     >
                       Download
                     </button>
+                    <ColumnsMenu
+                      labels={COLUMN_LABELS_LIVE_EVENTS}
+                      order={colOrder}
+                      hidden={colHidden}
+                      onToggle={toggleColumn}
+                      onMove={moveColumn}
+                      onReset={resetWidths}
+                    />
                     <label
                       className="le-check"
                       title="Hide events already accepted as correct, so a run from cleared data shows only what still needs checking"
@@ -815,70 +832,35 @@ export default function LiveEventsPage() {
                           property of the column and not of its heading — and with table-layout fixed
                           this is the only thing the browser reads. */}
                       <colgroup>
-                        <col style={{ width: colW.idx }} />
-                        <col style={{ width: colW.event }} />
-                        <col style={{ width: colW.track }} />
-                        <col style={{ width: colW.tested }} />
+                        {visibleOrder.map((k) => (
+                          <col key={k} style={{ width: colW[k] }} />
+                        ))}
                       </colgroup>
                       <thead>
                         <tr>
-                          <th
-                            className="live-th"
-                            style={{ textAlign: "right", position: "relative", cursor: "pointer" }}
-                            onDoubleClick={resetWidths}
-                            title="Drag any heading's right edge to resize. Double-click here to put every column back."
-                          >
-                            #
-                            <span
-                    className={RESIZE_HANDLE_CLASS}
-                    title="Drag to resize. Double-click to fit the column to its contents."
-                    onMouseDown={(e) => startResize("idx", e)}
-                    onDoubleClick={(e) => {
-                      // Or the heading behind it also hears the double-click and resets everything.
-                      e.stopPropagation();
-                      autoFit("idx");
-                    }}
-                  />
-                          </th>
-                          <th className="live-th" style={{ position: "relative" }}>
-                            Event / identity
-                            <span
-                    className={RESIZE_HANDLE_CLASS}
-                    title="Drag to resize. Double-click to fit the column to its contents."
-                    onMouseDown={(e) => startResize("event", e)}
-                    onDoubleClick={(e) => {
-                      // Or the heading behind it also hears the double-click and resets everything.
-                      e.stopPropagation();
-                      autoFit("event");
-                    }}
-                  />
-                          </th>
-                          <th className="live-th" style={{ position: "relative" }}>
-                            Track
-                            <span
-                    className={RESIZE_HANDLE_CLASS}
-                    title="Drag to resize. Double-click to fit the column to its contents."
-                    onMouseDown={(e) => startResize("track", e)}
-                    onDoubleClick={(e) => {
-                      // Or the heading behind it also hears the double-click and resets everything.
-                      e.stopPropagation();
-                      autoFit("track");
-                    }}
-                  />
-                          </th>
-                          <th className="live-th" style={{ position: "relative" }}>
-                            Tested
-                            <span
-                    className={RESIZE_HANDLE_CLASS}
-                    title="Drag to resize. Double-click to fit the column to its contents."
-                    onMouseDown={(e) => startResize("tested", e)}
-                    onDoubleClick={(e) => {
-                      // Or the heading behind it also hears the double-click and resets everything.
-                      e.stopPropagation();
-                      autoFit("tested");
-                    }}
-                  />
-                          </th>
+                          {visibleOrder.map((k) => (
+                            <th
+                              key={k}
+                              className="live-th"
+                              style={{
+                                position: "relative",
+                                ...(k === "idx" ? { textAlign: "right" as const, cursor: "pointer" } : {}),
+                              }}
+                              onDoubleClick={k === "idx" ? resetWidths : undefined}
+                              title={k === "idx" ? "Double-click to put every column back." : undefined}
+                            >
+                              {COLUMN_LABELS_LIVE_EVENTS[k]}
+                              <span
+                                className={RESIZE_HANDLE_CLASS}
+                                title="Drag to resize. Double-click to fit the column to its contents."
+                                onMouseDown={(e) => startResize(k, e)}
+                                onDoubleClick={(e) => {
+                                  e.stopPropagation();
+                                  autoFit(k);
+                                }}
+                              />
+                            </th>
+                          ))}
                         </tr>
                       </thead>
                       <tbody>
@@ -895,19 +877,21 @@ export default function LiveEventsPage() {
                       const nameCol =
                         chosen ?? (isScreenView ? screenLabel || "screen_view" : e.eventName);
                       const detailCol = isScreenView ? "screen_view" : screenLabel;
-                      return (
-                      <tr key={`${e.id}-${i}`} className={`live-row live-${eventKind(e.eventName)}`}>
-                        {/* The newest event gets the HIGHEST number, so a row keeps the number it
+                      const cells: Record<string, React.ReactNode> = {
+                        /* The newest event gets the HIGHEST number, so a row keeps the number it
                             was given. Numbering from the top instead meant every row was renumbered
                             each time an event arrived, which makes the number useless for the one
-                            thing it is for — pointing at a row. */}
-                        <td className="live-idx">{n}</td>
-                        {/* Name on its own line, everything about it underneath. Five columns of
+                            thing it is for — pointing at a row. */
+                        idx: (
+<td key="idx" className="live-idx">{n}</td>
+                        ),
+                        /* Name on its own line, everything about it underneath. Five columns of
                             equal weight made the eye hunt for the one thing being looked for — the
                             event — and left the row too wide to sit beside Event Discovery on one
                             screen. Time, screen and parameters are what you read *after* finding the
-                            row, so they belong under it rather than beside it. */}
-                        <td className="live-main">
+                            row, so they belong under it rather than beside it. */
+                        event: (
+<td key="event" className="live-main">
                           <span className="live-name">{nameCol}</span>
                           {/* Same shape as the identity cell in Event Discovery: screen, then time,
                               separated by gap rather than punctuation. The two pages are read side by
@@ -934,13 +918,15 @@ export default function LiveEventsPage() {
                             <pre className="live-params">{JSON.stringify(e.params, null, 2)}</pre>
                           ) : null}
                         </td>
-                        {/* Track's answer, shown where the events are — the switch stays in Event
+                        ),
+                        /* Track's answer, shown where the events are — the switch stays in Event
                             Discovery. Showing it here and deciding it there is deliberate: one place
                             to change a thing and every place to see it, so the stream can be read
                             without holding the other window's state in your head. Nothing is
                             filtered out for being off; a row nobody has catalogued yet is exactly
-                            the row worth noticing, and this page is where it first appears. */}
-                        <td className="live-cell-center">
+                            the row worth noticing, and this page is where it first appears. */
+                        track: (
+<td key="track" className="live-cell-center">
                           {/* "on" / "off", not "track on" / "track off" — the column is already
                               called Track, and a cell that repeats its own heading on every row
                               spends the width that made the heading affordable. */}
@@ -959,7 +945,9 @@ export default function LiveEventsPage() {
                             {trackedRef.current.set.has(ident) ? "● on" : "○ off"}
                           </span>
                         </td>
-                        <td className="live-cell-check">
+                        ),
+                        tested: (
+<td key="tested" className="live-cell-check">
                           {/* Accepting from here, rather than only from Discovery, because this is
                               the page that has the parameters — the richer half of the baseline. */}
                           {/* A checkbox, because Event Discovery's Tested column is one — the same
@@ -1003,6 +991,12 @@ export default function LiveEventsPage() {
                           />
                           </label>
                         </td>
+                        ),
+                      };
+                      return (
+                      <tr key={`${e.id}-${i}`} className={`live-row live-${eventKind(e.eventName)}`}>
+                        {/* Drawn in the order chosen in the Columns menu, and only what was kept. */}
+                        {visibleOrder.map((k) => cells[k])}
                       </tr>
                       );
                       })}

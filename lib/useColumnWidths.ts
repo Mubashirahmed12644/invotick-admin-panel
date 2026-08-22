@@ -14,6 +14,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
  * not travel between machines, and a layout preference is not worth a round trip that can fail.
  */
 const PREFIX = "webpanel_colwidths_";
+const LAYOUT_PREFIX = "webpanel_collayout_";
 
 /** Narrow enough to hide a column is not a width, it is a mistake with no way back. */
 const MIN_WIDTH = 44;
@@ -146,8 +147,81 @@ export function useColumnWidths(
     [order, widths, persist],
   );
 
+  // ── order and visibility ───────────────────────────────────────────────────
+
+  /**
+   * Which columns are shown, and in what order.
+   *
+   * Kept beside the widths and for the same reason: which columns matter depends on what is being
+   * checked, and a table with eleven of them is mostly noise for any one question. Stored as the
+   * order plus a hidden list rather than as a filtered order, so hiding a column and showing it again
+   * puts it back where it was instead of at the end.
+   */
+  const [layout, setLayout] = useState<{ order: string[]; hidden: string[] }>({ order, hidden: [] });
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = window.localStorage.getItem(LAYOUT_PREFIX + tableKey);
+      if (!raw) return;
+      const saved = JSON.parse(raw) as { order?: string[]; hidden?: string[] };
+      // Reconciled against the real columns, never trusted whole. A stored order from before a column
+      // was added would silently drop it, and one from after a column was removed would render a
+      // cell that no longer exists — both of which look like the table breaking rather than a stale
+      // preference.
+      const known = new Set(order);
+      const kept = (saved.order ?? []).filter((k) => known.has(k));
+      const added = order.filter((k) => !kept.includes(k));
+      setLayout({
+        order: [...kept, ...added],
+        hidden: (saved.hidden ?? []).filter((k) => known.has(k)),
+      });
+    } catch {
+      // A malformed entry is not worth a broken table.
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tableKey]);
+
+  const persistLayout = useCallback(
+    (next: { order: string[]; hidden: string[] }) => {
+      setLayout(next);
+      try {
+        window.localStorage.setItem(LAYOUT_PREFIX + tableKey, JSON.stringify(next));
+      } catch {
+        /* private browsing; it still applies for this session */
+      }
+    },
+    [tableKey],
+  );
+
+  const toggleColumn = useCallback(
+    (key: string) => {
+      const hidden = layout.hidden.includes(key)
+        ? layout.hidden.filter((k) => k !== key)
+        : [...layout.hidden, key];
+      persistLayout({ ...layout, hidden });
+    },
+    [layout, persistLayout],
+  );
+
+  const moveColumn = useCallback(
+    (key: string, delta: -1 | 1) => {
+      const from = layout.order.indexOf(key);
+      const to = from + delta;
+      if (from < 0 || to < 0 || to >= layout.order.length) return;
+      const next = [...layout.order];
+      [next[from], next[to]] = [next[to], next[from]];
+      persistLayout({ ...layout, order: next });
+    },
+    [layout, persistLayout],
+  );
+
+  /** The columns actually drawn, in the order they are drawn. */
+  const visibleOrder = layout.order.filter((k) => !layout.hidden.includes(k));
+
   const reset = useCallback(() => {
     setWidths(defaults);
+    persistLayout({ order, hidden: [] });
     try {
       window.localStorage.removeItem(PREFIX + tableKey);
     } catch {
@@ -158,7 +232,18 @@ export function useColumnWidths(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tableKey]);
 
-  return { widths, startResize, reset, autoFit, tableRef };
+  return {
+    widths,
+    startResize,
+    reset,
+    autoFit,
+    tableRef,
+    order: layout.order,
+    hidden: layout.hidden,
+    visibleOrder,
+    toggleColumn,
+    moveColumn,
+  };
 }
 
 /**
