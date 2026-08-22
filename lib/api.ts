@@ -46,6 +46,30 @@ const API_BASE_URL =
     : (process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ?? "");
 const IS_NGROK_BASE_URL = /https?:\/\/[^/]*ngrok[^/]*/i.test(API_BASE_URL);
 
+/**
+ * One retry for a request that never got an answer — and only for a GET.
+ *
+ * A deployment replacing the app under an open tab kills whatever it had in flight. Nothing is
+ * broken, the next attempt succeeds, and the page was showing an error and filing a fault for it: on
+ * 2026-08-22 that produced seventeen recorded failures across six moments, every one of them within
+ * six minutes of a deploy, and the report was carried over as evidence of an outage.
+ *
+ * GET only, deliberately. A POST or PUT that never answered may still have been applied — retrying it
+ * risks doing the thing twice, and a duplicate write is worse than an error message.
+ *
+ * A single retry, and a short one. This exists to absorb a switchover, not to paper over a server
+ * that is actually down: the second failure is recorded and surfaced exactly as before.
+ */
+async function fetchWithOneRetry(url: string, init: RequestInit, method: string): Promise<Response> {
+  try {
+    return await fetch(url, init);
+  } catch (first) {
+    if (method !== "GET") throw first;
+    await new Promise((r) => setTimeout(r, 600));
+    return await fetch(url, init);
+  }
+}
+
 export class ApiError extends Error {
   status: number;
   data: unknown;
@@ -115,10 +139,7 @@ async function requestWithAuth(path: string, options: RequestOptions = {}): Prom
   // at the call sites would mean the diagnostics were only as complete as whoever remembered.
   const method = (options.method ?? "GET").toUpperCase();
   try {
-    const response = await fetch(buildUrl(path), {
-      ...options,
-      headers,
-    });
+    const response = await fetchWithOneRetry(buildUrl(path), { ...options, headers }, method);
     if (!response.ok) {
       recordApiFailure({
         at: new Date().toISOString(),
@@ -131,8 +152,9 @@ async function requestWithAuth(path: string, options: RequestOptions = {}): Prom
     }
     return response;
   } catch (error) {
-    // Status 0: the request never got an answer. A refused connection and a 502 from the proxy look
-    // the same from here, and both are worth keeping — they are what "the errors flash past" is.
+    // Status 0: the request never got an answer, and the one retry above did not either. A refused
+    // connection and a 502 from the proxy look the same from here, and both are worth keeping —
+    // they are what "the errors flash past" is.
     recordApiFailure({
       at: new Date().toISOString(),
       hidden: typeof document !== "undefined" && document.visibilityState !== "visible",
