@@ -1603,25 +1603,53 @@ export default function LiveEventConfigClient() {
                                 what Live displays with no name set, so an empty box still says what
                                 is on the other screen rather than nothing. */}
                             {editingName === i.eventName ? (
-                              <input
+                              {/* A textarea, not an input. A name runs to forty characters and this
+                                  column is narrow: a single line scrolled the start of it out of
+                                  sight, so `App left (backgrounded)` was being edited as
+                                  `pp left (backgrounded)` with no sign that anything was missing.
+                                  Editing something you cannot fully see is worse than not editing it.
+                                  It wraps, and grows to whatever it holds. */}
+                              <textarea
                                 autoFocus
+                                rows={2}
+                                ref={(el) => {
+                                  if (!el) return;
+                                  el.style.height = "auto";
+                                  el.style.height = `${el.scrollHeight}px`;
+                                }}
                                 style={{
                                   ...inputStyle,
                                   fontFamily: "monospace",
                                   fontWeight: 700,
+                                  lineHeight: 1.35,
+                                  resize: "none",
+                                  overflow: "hidden",
+                                  overflowWrap: "anywhere",
                                   background: "var(--md-sys-color-surface-container-lowest)",
                                   color: "var(--md-sys-color-on-surface)",
                                   borderColor: needName ? "var(--md-sys-color-warning)" : "var(--md-sys-color-outline)",
                                 }}
                                 placeholder={asLive}
                                 value={nameVal(i)}
-                                onChange={(e) => setDraft(i.eventName, { displayName: sanitizeName(e.target.value) })}
+                                onChange={(e) => {
+                                  // Grow with the content, so nothing is ever scrolled out of view.
+                                  e.currentTarget.style.height = "auto";
+                                  e.currentTarget.style.height = `${e.currentTarget.scrollHeight}px`;
+                                  setDraft(i.eventName, { displayName: sanitizeName(e.target.value) });
+                                }}
                                 onBlur={() => setEditingName(null)}
                                 onKeyDown={(ev) => {
-                                  // Enter closes, Escape closes. Neither saves — Save is still the
-                                  // row's own button, and a field that saved on Enter and not on
-                                  // blur would be two rules for one box.
-                                  if (ev.key === "Enter" || ev.key === "Escape") setEditingName(null);
+                                  // Enter closes rather than adding a line — a name has no lines, and
+                                  // sanitizeName turns any whitespace into an underscore anyway.
+                                  // Neither key saves: Save is still the row's own button, and a field
+                                  // that committed on Enter but not on blur would be two rules for
+                                  // one box.
+                                  if (ev.key === "Enter") {
+                                    ev.preventDefault();
+                                    setEditingName(null);
+                                  } else if (ev.key === "Escape") {
+                                    setEditingName(null);
+                                  }
                                 }}
                               />
                             ) : (
