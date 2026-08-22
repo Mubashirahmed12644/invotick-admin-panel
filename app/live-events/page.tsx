@@ -178,7 +178,7 @@ export default function LiveEventsPage() {
   const [streamError, setStreamError] = useState("");
   const [expanded, setExpanded] = useState<string | null>(null);
   const [copiedIid, setCopiedIid] = useState<string | null>(null);
-  const [, forceTick] = useState(0);
+  const [tick, forceTick] = useState(0);
 
   const copyInvotickId = useCallback((id: string) => {
     navigator.clipboard?.writeText(id).then(() => {
@@ -208,6 +208,17 @@ export default function LiveEventsPage() {
    */
   const trackedRef = useRef<{ set: Set<string>; loaded: boolean }>({ set: new Set(), loaded: false });
   const [hideTested, setHideTested] = useState(true);
+  /**
+   * How many rows the tick-box is holding back.
+   *
+   * Recomputed on `tick` as well as on the events, because `testedRef` is a ref the config poll
+   * fills — without that this number would be right only until somebody ticked something.
+   */
+  const hiddenCount = useMemo(
+    () => (hideTested ? events.filter((e) => testedRef.current.has(identityOf(e))).length : 0),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [events, hideTested, tick],
+  );
 
 
   const pausedRef = useRef(false);
@@ -579,6 +590,12 @@ export default function LiveEventsPage() {
                       {events.length > 0 ? (
                         <> · since <EventTime iso={events[events.length - 1].eventTimestamp} /></>
                       ) : null}
+                      {/* Said out loud for the same reason the window is: a count that does not match
+                          what is on screen sends someone looking for a fault. Twenty-eight rows
+                          hidden by a tick-box read as twenty-eight events lost. */}
+                      {hiddenCount > 0 ? (
+                        <> · <span className="live-hidden-note">{hiddenCount} hidden by Hide tested</span></>
+                      ) : null}
                       {selectedId ? (
                         <>
                           {" · "}
@@ -683,7 +700,15 @@ export default function LiveEventsPage() {
                         </tr>
                       </thead>
                       <tbody>
-                    {(hideTested ? events.filter((e) => !testedRef.current.has(identityOf(e))) : events).map((e, i) => {
+                    {events
+                      // Number first, filter second. `events.length - i` over an already-filtered
+                      // array numbers the survivors 34, 33, 32… whatever their real positions were,
+                      // so six rows scattered through the stream came out looking like a contiguous
+                      // tail and everything before them looked lost. A row's number is its place in
+                      // the stream; a filter must not be able to change it.
+                      .map((e, idx) => ({ e, n: events.length - idx }))
+                      .filter(({ e }) => !hideTested || !testedRef.current.has(identityOf(e)))
+                      .map(({ e, n }, i) => {
                       // Keep all meaningful names in ONE column (2nd): for a screen_view row show the
                       // screen name in the name column and the literal "screen_view" in the detail column.
                       const isScreenView = SCREEN_VIEW_EVENTS.has(e.eventName);
@@ -702,7 +727,7 @@ export default function LiveEventsPage() {
                             was given. Numbering from the top instead meant every row was renumbered
                             each time an event arrived, which makes the number useless for the one
                             thing it is for — pointing at a row. */}
-                        <td className="live-idx">{events.length - i}</td>
+                        <td className="live-idx">{n}</td>
                         {/* Name on its own line, everything about it underneath. Five columns of
                             equal weight made the eye hunt for the one thing being looked for — the
                             event — and left the row too wide to sit beside Event Discovery on one
@@ -741,33 +766,43 @@ export default function LiveEventsPage() {
                             without holding the other window's state in your head. Nothing is
                             filtered out for being off; a row nobody has catalogued yet is exactly
                             the row worth noticing, and this page is where it first appears. */}
-                        <td>
+                        <td className="live-cell-center">
+                          {/* "on" / "off", not "track on" / "track off" — the column is already
+                              called Track, and a cell that repeats its own heading on every row
+                              spends the width that made the heading affordable. */}
                           <span
                             className="live-track"
-                          data-on={trackedRef.current.set.has(ident)}
-                          data-loaded={trackedRef.current.loaded}
-                          title={
-                            !trackedRef.current.loaded
-                              ? "Loading Track settings…"
-                              : trackedRef.current.set.has(ident)
-                                ? "Track is ON — this event will send from release builds too. Change it in Event Discovery."
-                                : "Track is OFF — debug builds only. Change it in Event Discovery."
-                          }
-                        >
-                            {trackedRef.current.set.has(ident) ? "● track on" : "○ track off"}
+                            data-on={trackedRef.current.set.has(ident)}
+                            data-loaded={trackedRef.current.loaded}
+                            title={
+                              !trackedRef.current.loaded
+                                ? "Loading Track settings…"
+                                : trackedRef.current.set.has(ident)
+                                  ? "Track is ON — this event sends from release builds too. Change it in Event Discovery."
+                                  : "Track is OFF — debug builds only. Change it in Event Discovery."
+                            }
+                          >
+                            {trackedRef.current.set.has(ident) ? "● on" : "○ off"}
                           </span>
                         </td>
-                        <td className="live-actions">
+                        <td className="live-cell-check">
                           {/* Accepting from here, rather than only from Discovery, because this is
                               the page that has the parameters — the richer half of the baseline. */}
-                          <button
-                            className="live-params-btn"
+                          {/* A checkbox, because Event Discovery's Tested column is one — the same
+                              answer to the same question, given the same way on both pages. The
+                              label fills the cell so the whole cell is the target, not a word in it. */}
+                          <label
+                            className="live-check-label"
                             title={
                               testedRef.current.has(identityOf(e))
                                 ? "Accepted. Click to withdraw."
                                 : "Accept this event as correct, recording its parameter keys and how many times it fired in this run"
                             }
-                            onClick={async () => {
+                          >
+                          <input
+                            type="checkbox"
+                            checked={testedRef.current.has(identityOf(e))}
+                            onChange={async () => {
                               const ident = identityOf(e);
                               const already = testedRef.current.has(ident);
                               try {
@@ -791,9 +826,8 @@ export default function LiveEventsPage() {
                                 if (!handleUnauthorized(err)) setStreamError(getErrorMessage(err, "Could not save."));
                               }
                             }}
-                          >
-                            {testedRef.current.has(identityOf(e)) ? "✓ tested" : "mark tested"}
-                          </button>
+                          />
+                          </label>
                         </td>
                       </tr>
                       );

@@ -2522,9 +2522,30 @@ th {
 
 .live-nosession { color: var(--md-sys-color-warning); }
 
-/* Plain cell. It carried display:inline-flex when it was a grid child, and an inline-flex <td> is
-   pulled out of the table's own layout — the column stops existing and every row below it shifts. */
-.live-actions { white-space: nowrap; }
+/* Not an error, but not silent either — this is the difference between "28 events are hidden" and
+   "28 events are missing", and only one of those is worth anybody's afternoon. */
+.live-hidden-note { color: var(--md-sys-color-warning); }
+
+/* Centred cells for the two answer columns, matching Event Discovery.
+   Note neither sets `display` — an inline-flex or flex <td> is pulled out of the table's own layout,
+   the column stops existing, and every row below shifts. Alignment on a cell is text-align, not
+   flexbox. */
+.live-cell-center { text-align: center; white-space: nowrap; }
+
+/* Padding zero so the label can own the whole cell: the click target is the cell, not a checkbox
+   somebody has to hit. */
+.live-cell-check { text-align: center; padding: 0 !important; }
+
+.live-check-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 8px;
+  min-height: 34px;
+  cursor: pointer;
+}
+
+.live-check-label input { width: 16px; height: 16px; margin: 0; cursor: inherit; }
 
 /* Track's answer, shown here and decided in Event Discovery.
    Its own fixed column so the pills form a straight line down the page: the whole point of this
