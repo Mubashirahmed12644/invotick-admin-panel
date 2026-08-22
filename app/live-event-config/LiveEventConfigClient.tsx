@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { resizeHandleStyle, useColumnWidths } from "@/lib/useColumnWidths";
+import { RESIZE_HANDLE_CLASS, useColumnWidths } from "@/lib/useColumnWidths";
 import Link from "next/link";
 import { api, type EventDiscoveryItem, type DefaultListTask, type DebugDevice } from "@/lib/api";
 import { EventTime, timeWithMillis } from "@/lib/eventTime";
@@ -82,6 +82,11 @@ function eventType(name: string): "screen" | "action" {
 
 // Constrain a display name to the analytics naming convention as the admin types: lowercase
 // snake_case, letters/digits/underscores only, must start with a letter, max 40 chars.
+/** Column keys in the order they are rendered — how a key becomes a cell position. */
+const COLUMN_ORDER_EVENT_DISCOVERY = [
+  "idx", "tested", "track", "live", "identity", "count", "layer", "status", "replace", "desc", "actions",
+];
+
 function sanitizeName(raw: string): string {
   return raw
     .toLowerCase()
@@ -307,7 +312,7 @@ export default function LiveEventConfigClient() {
   const [editingName, setEditingName] = useState<string | null>(null);
 
   /** Column widths, dragged from the header edges and kept across reloads. */
-  const { widths: colW, startResize, reset: resetWidths } = useColumnWidths("event-discovery", {"idx": 40, "tested": 78, "track": 64, "live": 210, "identity": 210, "count": 56, "layer": 150, "status": 108, "replace": 180, "desc": 240, "actions": 90});
+  const { widths: colW, startResize, reset: resetWidths, autoFit, tableRef } = useColumnWidths("event-discovery", {"idx": 40, "tested": 78, "track": 64, "live": 210, "identity": 210, "count": 56, "layer": 150, "status": 108, "replace": 180, "desc": 240, "actions": 90}, COLUMN_ORDER_EVENT_DISCOVERY);
   const [savedRow, setSavedRow] = useState<string | null>(null);
   const [copiedRow, setCopiedRow] = useState<string | null>(null);
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
@@ -1473,7 +1478,7 @@ export default function LiveEventConfigClient() {
         <p style={{ color: "var(--md-sys-color-on-surface)" }}>Loading discovery feed…</p>
       ) : (
         <div style={{ overflowX: "auto", overflowY: "auto", maxHeight: "calc(100vh - 300px)", border: "1px solid var(--md-sys-color-outline-variant)", borderRadius: 10 }}>
-          <table style={{ width: "100%", tableLayout: "fixed", borderCollapse: "collapse", background: "var(--md-sys-color-surface-container-lowest)" }}>
+          <table ref={tableRef} style={{ width: "100%", tableLayout: "fixed", borderCollapse: "collapse", background: "var(--md-sys-color-surface-container-lowest)" }}>
           {/* Widths belong to the columns, not to the headings — and with table-layout
               fixed this is the only place the browser looks for them. */}
           <colgroup>
@@ -1496,7 +1501,16 @@ export default function LiveEventConfigClient() {
                   onDoubleClick={resetWidths}
                   title="Drag any heading's right edge to resize. Double-click here to put every column back."
                 >#
-                  <span style={resizeHandleStyle} onMouseDown={(e) => startResize("idx", e)} />
+                  <span
+                    className={RESIZE_HANDLE_CLASS}
+                    title="Drag to resize. Double-click to fit the column to its contents."
+                    onMouseDown={(e) => startResize("idx", e)}
+                    onDoubleClick={(e) => {
+                      // Or the heading behind it also hears the double-click and resets everything.
+                      e.stopPropagation();
+                      autoFit("idx");
+                    }}
+                  />
                 </th>
                 <th style={{ ...th, position: "relative", width: 78, textAlign: "center", padding: 0 }}>
                   <label
@@ -1518,10 +1532,28 @@ export default function LiveEventConfigClient() {
                     Tested
                   </label>
                 
-                  <span style={resizeHandleStyle} onMouseDown={(e) => startResize("tested", e)} />
+                  <span
+                    className={RESIZE_HANDLE_CLASS}
+                    title="Drag to resize. Double-click to fit the column to its contents."
+                    onMouseDown={(e) => startResize("tested", e)}
+                    onDoubleClick={(e) => {
+                      // Or the heading behind it also hears the double-click and resets everything.
+                      e.stopPropagation();
+                      autoFit("tested");
+                    }}
+                  />
                 </th>
                 <th style={{ ...th, position: "relative", width: 64 }}>Track
-                  <span style={resizeHandleStyle} onMouseDown={(e) => startResize("track", e)} />
+                  <span
+                    className={RESIZE_HANDLE_CLASS}
+                    title="Drag to resize. Double-click to fit the column to its contents."
+                    onMouseDown={(e) => startResize("track", e)}
+                    onDoubleClick={(e) => {
+                      // Or the heading behind it also hears the double-click and resets everything.
+                      e.stopPropagation();
+                      autoFit("track");
+                    }}
+                  />
                 </th>
                 {/* The same event, written the way Live Events writes it, so the two windows can be
                     run down side by side. Live shows an event's display name once it has one; this
@@ -1542,12 +1574,30 @@ export default function LiveEventConfigClient() {
                     <span style={{ color: "var(--md-sys-color-on-surface-variant)" }}>Input auto-formats to this as you type.</span>
                   </InfoTooltip>
                 
-                  <span style={resizeHandleStyle} onMouseDown={(e) => startResize("live", e)} />
+                  <span
+                    className={RESIZE_HANDLE_CLASS}
+                    title="Drag to resize. Double-click to fit the column to its contents."
+                    onMouseDown={(e) => startResize("live", e)}
+                    onDoubleClick={(e) => {
+                      // Or the heading behind it also hears the double-click and resets everything.
+                      e.stopPropagation();
+                      autoFit("live");
+                    }}
+                  />
                 </th>
                 {/* Bounded at both ends. Unbounded, an unbroken identity demanded 615px and starved
                     the rest — Layer collapsed to 51px and Description to 88. */}
                 <th style={{ ...th, position: "relative", minWidth: 210 }}>Event / identity
-                  <span style={resizeHandleStyle} onMouseDown={(e) => startResize("identity", e)} />
+                  <span
+                    className={RESIZE_HANDLE_CLASS}
+                    title="Drag to resize. Double-click to fit the column to its contents."
+                    onMouseDown={(e) => startResize("identity", e)}
+                    onDoubleClick={(e) => {
+                      // Or the heading behind it also hears the double-click and resets everything.
+                      e.stopPropagation();
+                      autoFit("identity");
+                    }}
+                  />
                 </th>
                 {/* The total belongs over the column it totals. It was only in the summary line at
                     the far right of the page, which is nowhere near the numbers it adds up. */}
@@ -1559,15 +1609,42 @@ export default function LiveEventConfigClient() {
                     {firedShown === firedCount ? firedCount : `${firedShown}/${firedCount}`}
                   </div>
                 
-                  <span style={resizeHandleStyle} onMouseDown={(e) => startResize("count", e)} />
+                  <span
+                    className={RESIZE_HANDLE_CLASS}
+                    title="Drag to resize. Double-click to fit the column to its contents."
+                    onMouseDown={(e) => startResize("count", e)}
+                    onDoubleClick={(e) => {
+                      // Or the heading behind it also hears the double-click and resets everything.
+                      e.stopPropagation();
+                      autoFit("count");
+                    }}
+                  />
                 </th>
                 <th style={{ ...th, position: "relative", width: 150, minWidth: 150 }} title="Who caused this event — what a funnel cannot tell you about itself">
                   Layer
                 
-                  <span style={resizeHandleStyle} onMouseDown={(e) => startResize("layer", e)} />
+                  <span
+                    className={RESIZE_HANDLE_CLASS}
+                    title="Drag to resize. Double-click to fit the column to its contents."
+                    onMouseDown={(e) => startResize("layer", e)}
+                    onDoubleClick={(e) => {
+                      // Or the heading behind it also hears the double-click and resets everything.
+                      e.stopPropagation();
+                      autoFit("layer");
+                    }}
+                  />
                 </th>
                 <th style={{ ...th, position: "relative", width: 108, minWidth: 100 }}>Status
-                  <span style={resizeHandleStyle} onMouseDown={(e) => startResize("status", e)} />
+                  <span
+                    className={RESIZE_HANDLE_CLASS}
+                    title="Drag to resize. Double-click to fit the column to its contents."
+                    onMouseDown={(e) => startResize("status", e)}
+                    onDoubleClick={(e) => {
+                      // Or the heading behind it also hears the double-click and resets everything.
+                      e.stopPropagation();
+                      autoFit("status");
+                    }}
+                  />
                 </th>
                 <th style={{ ...th, position: "relative", width: 180, minWidth: 150 }}>
                   Replace name
@@ -1581,13 +1658,40 @@ export default function LiveEventConfigClient() {
                     correct on its own. Fill it only when you actually want to rename.
                   </InfoTooltip>
                 
-                  <span style={resizeHandleStyle} onMouseDown={(e) => startResize("replace", e)} />
+                  <span
+                    className={RESIZE_HANDLE_CLASS}
+                    title="Drag to resize. Double-click to fit the column to its contents."
+                    onMouseDown={(e) => startResize("replace", e)}
+                    onDoubleClick={(e) => {
+                      // Or the heading behind it also hears the double-click and resets everything.
+                      e.stopPropagation();
+                      autoFit("replace");
+                    }}
+                  />
                 </th>
                 <th style={{ ...th, position: "relative" }}>Description
-                  <span style={resizeHandleStyle} onMouseDown={(e) => startResize("desc", e)} />
+                  <span
+                    className={RESIZE_HANDLE_CLASS}
+                    title="Drag to resize. Double-click to fit the column to its contents."
+                    onMouseDown={(e) => startResize("desc", e)}
+                    onDoubleClick={(e) => {
+                      // Or the heading behind it also hears the double-click and resets everything.
+                      e.stopPropagation();
+                      autoFit("desc");
+                    }}
+                  />
                 </th>
                 <th style={{ ...th, position: "relative", width: 90 }}>
-                  <span style={resizeHandleStyle} onMouseDown={(e) => startResize("actions", e)} />
+                  <span
+                    className={RESIZE_HANDLE_CLASS}
+                    title="Drag to resize. Double-click to fit the column to its contents."
+                    onMouseDown={(e) => startResize("actions", e)}
+                    onDoubleClick={(e) => {
+                      // Or the heading behind it also hears the double-click and resets everything.
+                      e.stopPropagation();
+                      autoFit("actions");
+                    }}
+                  />
                 </th>
               </tr>
             </thead>

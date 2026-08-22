@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { resizeHandleStyle, useColumnWidths } from "@/lib/useColumnWidths";
+import { RESIZE_HANDLE_CLASS, useColumnWidths } from "@/lib/useColumnWidths";
 import { useRouter } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import Sidebar from "@/components/Sidebar";
@@ -17,6 +17,9 @@ const USERS_POLL_MS = 5000;
 // they DO change while a stream is open, which is the normal way to work: Discovery in one window,
 // this in another. Re-read on a slow beat rather than once at mount.
 const CONFIG_POLL_MS = 60000;
+
+/** Column keys in the order they are rendered — how a key becomes a cell position. */
+const COLUMN_ORDER_LIVE_EVENTS = ["idx", "event", "track", "tested"];
 
 // Lifecycle / attribution pings that are recorded app-side (SessionTraceRecorder) but are noise for
 // funnel understanding — hidden from the live stream to keep the webpanel meaningful. The cursor +
@@ -227,12 +230,12 @@ export default function LiveEventsPage() {
   const [trackedOnly, setTrackedOnly] = useState(false);
 
   /** Column widths, dragged from the header edges and kept across reloads. */
-  const { widths: colW, startResize, reset: resetWidths } = useColumnWidths("live-events", {
+  const { widths: colW, startResize, reset: resetWidths, autoFit, tableRef } = useColumnWidths("live-events", {
     idx: 44,
     event: 420,
     track: 96,
     tested: 104,
-  });
+  }, COLUMN_ORDER_LIVE_EVENTS);
 
   /**
    * The rows drawn, numbered before anything is filtered.
@@ -730,7 +733,7 @@ export default function LiveEventsPage() {
                   // list whose columns are never named has to be decoded again on every glance
                   // across. The header is sticky for the reason it exists at all: this list is long.
                   <div className="live-table-wrap">
-                    <table className="live-table">
+                    <table ref={tableRef} className="live-table">
                       {/* Widths live here rather than on each <th>, because a column's width is a
                           property of the column and not of its heading — and with table-layout fixed
                           this is the only thing the browser reads. */}
@@ -749,19 +752,55 @@ export default function LiveEventsPage() {
                             title="Drag any heading's right edge to resize. Double-click here to put every column back."
                           >
                             #
-                            <span style={resizeHandleStyle} onMouseDown={(e) => startResize("idx", e)} />
+                            <span
+                    className={RESIZE_HANDLE_CLASS}
+                    title="Drag to resize. Double-click to fit the column to its contents."
+                    onMouseDown={(e) => startResize("idx", e)}
+                    onDoubleClick={(e) => {
+                      // Or the heading behind it also hears the double-click and resets everything.
+                      e.stopPropagation();
+                      autoFit("idx");
+                    }}
+                  />
                           </th>
                           <th className="live-th" style={{ position: "relative" }}>
                             Event / identity
-                            <span style={resizeHandleStyle} onMouseDown={(e) => startResize("event", e)} />
+                            <span
+                    className={RESIZE_HANDLE_CLASS}
+                    title="Drag to resize. Double-click to fit the column to its contents."
+                    onMouseDown={(e) => startResize("event", e)}
+                    onDoubleClick={(e) => {
+                      // Or the heading behind it also hears the double-click and resets everything.
+                      e.stopPropagation();
+                      autoFit("event");
+                    }}
+                  />
                           </th>
                           <th className="live-th" style={{ position: "relative" }}>
                             Track
-                            <span style={resizeHandleStyle} onMouseDown={(e) => startResize("track", e)} />
+                            <span
+                    className={RESIZE_HANDLE_CLASS}
+                    title="Drag to resize. Double-click to fit the column to its contents."
+                    onMouseDown={(e) => startResize("track", e)}
+                    onDoubleClick={(e) => {
+                      // Or the heading behind it also hears the double-click and resets everything.
+                      e.stopPropagation();
+                      autoFit("track");
+                    }}
+                  />
                           </th>
                           <th className="live-th" style={{ position: "relative" }}>
                             Tested
-                            <span style={resizeHandleStyle} onMouseDown={(e) => startResize("tested", e)} />
+                            <span
+                    className={RESIZE_HANDLE_CLASS}
+                    title="Drag to resize. Double-click to fit the column to its contents."
+                    onMouseDown={(e) => startResize("tested", e)}
+                    onDoubleClick={(e) => {
+                      // Or the heading behind it also hears the double-click and resets everything.
+                      e.stopPropagation();
+                      autoFit("tested");
+                    }}
+                  />
                           </th>
                         </tr>
                       </thead>
