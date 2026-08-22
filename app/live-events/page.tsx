@@ -697,10 +697,14 @@ export default function LiveEventsPage() {
                             row, so they belong under it rather than beside it. */}
                         <div className="live-main">
                           <span className="live-name">{nameCol}</span>
+                          {/* Same shape as the identity cell in Event Discovery: screen, then time,
+                              separated by gap rather than punctuation. The two pages are read side by
+                              side, and a row that arranges the same facts differently makes you
+                              re-learn it every time you look across. */}
                           <span className="live-meta">
-                            <EventTime iso={e.eventTimestamp} />
                             {detailCol ? <span className="live-loc">{detailCol}</span> : null}
                             {e.previousScreen ? <span className="live-loc">← {e.previousScreen}</span> : null}
+                            <EventTime iso={e.eventTimestamp} />
                             {/* Loud on purpose: an event with no session is missing the thing that
                                 joins it to everything else the user did. */}
                             {e.sessionId ? null : <span className="live-nosession">⚠️ no-session</span>}

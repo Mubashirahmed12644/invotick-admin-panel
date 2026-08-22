@@ -2490,12 +2490,16 @@ th {
 
 /* The quiet line: when, where, and the way into the parameters. Smaller and dimmer on purpose —
    it answers questions asked after the row has been found, never the one that finds it. */
+/* Deliberately identical to Event Discovery's identity cell — 11px, a 2px lift off the name, and
+   spacing by gap rather than separators. The two pages are read side by side; the same facts laid
+   out two different ways costs a re-read every time the eye crosses. */
 .live-meta {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: 0 0.5rem;
-  font-size: 0.72rem;
+  gap: 6px;
+  margin-top: 2px;
+  font-size: 11px;
   color: var(--color-text-muted);
   min-width: 0;
   overflow-wrap: anywhere;
@@ -2503,7 +2507,7 @@ th {
 
 /* Was `.live-screen`, which is also the row modifier for screen-kind rows — one class doing two
    unrelated jobs, so styling the span tinted the whole row. */
-.live-loc { color: var(--color-text-muted); }
+.live-loc { color: var(--md-sys-color-on-surface); }
 
 .live-nosession { color: var(--md-sys-color-warning); }
 
