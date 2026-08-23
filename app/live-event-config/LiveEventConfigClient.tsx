@@ -94,7 +94,7 @@ const COLUMN_LABELS_EVENT_DISCOVERY: Record<string, string> = {
   idx: "#",
   tested: "Tested",
   track: "Sending",
-  live: "As shown in Live",
+  live: "Meaningful event name",
   identity: "Events from apps",
   count: "Firings",
   layer: "Layer",
@@ -922,7 +922,7 @@ export default function LiveEventConfigClient() {
       track: (
 <td key="track" style={{ ...td, textAlign: "center", color: "var(--md-sys-color-on-surface-variant)", fontSize: 11 }}>—</td>
       ),
-      /* "As shown in Live". An authored row has never fired, so there is nothing in the stream to
+      /* The meaningful name. An authored row has never fired, so there is nothing in the stream to
             line it up against yet — but this is the column the name is typed in now, and naming the
             event is most of what authoring one is. */
       live: (
@@ -1323,7 +1323,7 @@ export default function LiveEventConfigClient() {
     ),
     live: (
 <th key="live" style={{ ...th, position: "relative", minWidth: 210 }}>
-                  As shown in Live
+                  Meaningful event name
                   <InfoTooltip>
                     <b>Naming best practices</b>
                     <br />• lowercase <b>snake_case</b> (words joined by _)
@@ -1458,7 +1458,7 @@ export default function LiveEventConfigClient() {
           <p style={{ color: "var(--md-sys-color-on-surface)", fontSize: 13, marginTop: 4, maxWidth: 720 }}>
             Every event & UI-action the app emits. Release builds send <b>all</b> of them — switch
             <b> Sending</b> off for the ones you do not want, and it stops without a release. Name an
-            event under <b>As shown in Live</b>; that name is what every other page shows.
+            event under <b>Meaningful event name</b>; that name is what every other page shows.
           </p>
         </div>
         <div style={{ fontSize: 13, color: "var(--md-sys-color-on-surface)", textAlign: "right" }}>
