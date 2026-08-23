@@ -14,7 +14,6 @@ interface Draft {
   /** Switched off deliberately. Under the denylist this is what decides whether release sends it. */
   denied?: boolean;
   displayName?: string;
-  replaceName?: string;
   layer?: string;
 }
 
@@ -26,7 +25,6 @@ type SavedConfig = {
   denied: boolean;
   layer: string | null;
   displayName: string | null;
-  replaceName: string | null;
 };
 
 const norm = (v: string | null | undefined) => (v ?? "").trim();
@@ -56,8 +54,7 @@ function applyPending(
       row.tracked === saved.tracked &&
       row.denied === saved.denied &&
       norm(row.layer) === norm(saved.layer) &&
-      norm(row.displayName) === norm(saved.displayName) &&
-      norm(row.replaceName) === norm(saved.replaceName);
+      norm(row.displayName) === norm(saved.displayName);
     if (echoed) {
       delete pending[row.eventName];
       return row;
@@ -86,7 +83,7 @@ function eventType(name: string): "screen" | "action" {
 // snake_case, letters/digits/underscores only, must start with a letter, max 40 chars.
 /** Column keys in the order they are rendered — how a key becomes a cell position. */
 const COLUMN_ORDER_EVENT_DISCOVERY = [
-  "idx", "tested", "track", "live", "identity", "count", "layer", "replace", "actions",
+  "idx", "tested", "track", "live", "identity", "count", "layer", "actions",
 ];
 
 /** What each column is called in the Columns menu. Short, because the menu is a list, not a header. */
@@ -98,7 +95,6 @@ const COLUMN_LABELS_EVENT_DISCOVERY: Record<string, string> = {
   identity: "Events from apps",
   count: "Firings",
   layer: "Layer",
-  replace: "Replace name",
   actions: "Save",
 };
 
@@ -337,7 +333,7 @@ export default function LiveEventConfigClient() {
   const [editingName, setEditingName] = useState<string | null>(null);
 
   /** Column widths, dragged from the header edges and kept across reloads. */
-  const { widths: colW, startResize, reset: resetWidths, autoFit, tableRef, order: colOrder, hidden: colHidden, visibleOrder, toggleColumn, moveColumnTo } = useColumnWidths("event-discovery", {"idx": 40, "tested": 78, "track": 64, "live": 210, "identity": 210, "count": 56, "layer": 150, "replace": 180, "actions": 90}, COLUMN_ORDER_EVENT_DISCOVERY);
+  const { widths: colW, startResize, reset: resetWidths, autoFit, tableRef, order: colOrder, hidden: colHidden, visibleOrder, toggleColumn, moveColumnTo } = useColumnWidths("event-discovery", {"idx": 40, "tested": 78, "track": 64, "live": 210, "identity": 210, "count": 56, "layer": 150, "actions": 90}, COLUMN_ORDER_EVENT_DISCOVERY);
   const [savedRow, setSavedRow] = useState<string | null>(null);
   const [copiedRow, setCopiedRow] = useState<string | null>(null);
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
@@ -473,7 +469,6 @@ export default function LiveEventConfigClient() {
    */
   const [hideTested, setHideTested] = useState(false);
   const [bulkBusy, setBulkBusy] = useState(false);
-  const [movingRow, setMovingRow] = useState<string | null>(null);
   const [devices, setDevices] = useState<DebugDevice[]>([]);
   useEffect(() => {
     let cancelled = false;
@@ -765,27 +760,6 @@ export default function LiveEventConfigClient() {
     }
   }
 
-  /**
-   * Move a row to the name the code now uses.
-   *
-   * Asks first, and names both sides: this deletes the old row, and pressing it before the app is
-   * sending the new name leaves the metadata sitting on an identity nothing has fired yet.
-   */
-  async function applyRename(i: EventDiscoveryItem) {
-    const to = replaceVal(i).trim();
-    if (!to || to === i.eventName) return;
-    if (!window.confirm(`Move everything recorded against ${i.eventName} to ${to}?\n\nDo this once the app is actually sending ${to}. The old row is removed.`)) return;
-    setMovingRow(i.eventName);
-    try {
-      await api.applyEventRename(i.eventName, to);
-      await load();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to carry the row over.");
-    } finally {
-      setMovingRow(null);
-    }
-  }
-
   const trackedOn = (i: EventDiscoveryItem) => drafts[i.eventName]?.tracked ?? i.tracked;
   /**
    * Whether a release build sends this event.
@@ -796,7 +770,6 @@ export default function LiveEventConfigClient() {
    */
   const sendingOn = (i: EventDiscoveryItem) => !(drafts[i.eventName]?.denied ?? i.denied);
   const nameVal = (i: EventDiscoveryItem) => drafts[i.eventName]?.displayName ?? i.displayName ?? "";
-  const replaceVal = (i: EventDiscoveryItem) => drafts[i.eventName]?.replaceName ?? i.replaceName ?? "";
   const layerVal = (i: EventDiscoveryItem) => drafts[i.eventName]?.layer ?? i.layer ?? "";
 
 
@@ -830,7 +803,6 @@ export default function LiveEventConfigClient() {
         eventName: identity,
         tracked: false,
         displayName: row.displayName.trim() || null,
-        replaceName: null,
         planned: true,
         identityType: row.identityType,
         layer: row.layer || null,
@@ -979,12 +951,6 @@ export default function LiveEventConfigClient() {
       layer: (
 <td key="layer" style={td}>
           {layerSelect(row.layer, (v) => patchPending(row.id, { layer: v }), !row.layer)}
-        </td>
-      ),
-      replace: (
-<td key="replace" style={td}>
-          {/* Renaming targets an identity that already exists in code. This one does not yet. */}
-          <input disabled placeholder="n/a until it exists" style={{ ...inp, background: "var(--md-sys-color-surface-container-lowest)", color: "var(--md-sys-color-on-surface-variant)" }} />
         </td>
       ),
       actions: (
@@ -1169,7 +1135,6 @@ export default function LiveEventConfigClient() {
       denied: !sendingOn(i),
       layer: layerVal(i) || null,
       displayName: nameVal(i).trim() || null,
-      replaceName: replaceVal(i).trim() || null,
     };
     try {
       const task = await api.saveEventConfig({
@@ -1395,31 +1360,6 @@ export default function LiveEventConfigClient() {
                       // Or the heading behind it also hears the double-click and resets everything.
                       e.stopPropagation();
                       autoFit("layer");
-                    }}
-                  />
-                </th>
-    ),
-    replace: (
-<th key="replace" style={{ ...th, position: "relative", width: 180, minWidth: 150 }}>
-                  Replace name
-                  <InfoTooltip>
-                    <b>Replace the code identity</b>
-                    <br />Renames this event&apos;s name IN THE APP CODE to what you type here.
-                    <b>Leave empty = no change</b> (the current name keeps running).
-                    <br /><br />
-                    For an already-shipped event this is still safe by design: old app versions keep
-                    reporting the old name, and the new version reports this new name — each version is
-                    correct on its own. Fill it only when you actually want to rename.
-                  </InfoTooltip>
-                
-                  <span
-                    className={RESIZE_HANDLE_CLASS}
-                    title="Drag to resize. Double-click to fit the column to its contents."
-                    onMouseDown={(e) => startResize("replace", e)}
-                    onDoubleClick={(e) => {
-                      // Or the heading behind it also hears the double-click and resets everything.
-                      e.stopPropagation();
-                      autoFit("replace");
                     }}
                   />
                 </th>
@@ -1980,35 +1920,6 @@ export default function LiveEventConfigClient() {
                   layer: (
 <td key="layer" style={td}>
                       {layerSelect(layerVal(i), (v) => setDraft(i.eventName, { layer: v }), !layerVal(i))}
-                    </td>
-                  ),
-                  replace: (
-<td key="replace" style={td}>
-                      <input
-                        style={inputStyle}
-                        placeholder="rename code id (optional) → e.g. send_button_clicked"
-                        value={replaceVal(i)}
-                        onChange={(e) => setDraft(i.eventName, { replaceName: sanitizeName(e.target.value) })}
-                      />
-                      {/* Typing the new name only queues the work; the rename lands in a release.
-                          This is the other half — press it once the app is sending the new name, and
-                          everything recorded here follows the identity instead of being stranded on
-                          a name nothing will send again. */}
-                      {replaceVal(i).trim() && replaceVal(i).trim() !== i.eventName && (
-                        <button
-                          type="button"
-                          disabled={movingRow === i.eventName}
-                          onClick={() => void applyRename(i)}
-                          title={`Move everything recorded here — name, description, layer, allowlist, tested mark and baseline — from ${i.eventName} to ${replaceVal(i).trim()}. Press once the app is actually sending the new name.`}
-                          style={{
-                            marginTop: 4, fontSize: 11, padding: "3px 8px", borderRadius: 6, cursor: "pointer",
-                            border: "1px solid var(--md-sys-color-outline)",
-                            background: "transparent", color: "var(--md-sys-color-primary)",
-                          }}
-                        >
-                          {movingRow === i.eventName ? "moving…" : "rename shipped → carry over"}
-                        </button>
-                      )}
                     </td>
                   ),
                   actions: (

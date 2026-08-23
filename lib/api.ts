@@ -595,8 +595,13 @@ export const api = {
    * The rename has shipped — move this row to the identity the code now uses.
    *
    * Renaming an event in the app creates a NEW identity, and the config table is keyed by event
-   * name, so without this everything typed against the old one is orphaned. Omit `to` to use the
-   * Replace name already recorded.
+   * name, so without this everything recorded against the old one is orphaned.
+   *
+   * No longer reachable from the page, and deliberately kept. Renaming identities one row at a time
+   * was the wrong shape: a person typed the new name, and then had to remember to press a second
+   * button after the release actually shipped it — 550 chances to forget, each one silently losing a
+   * row's name, layer and tested mark. The operation belongs in a bulk migration that rewrites the
+   * ids in code and calls this for every key in the same run, with `to` passed explicitly.
    */
   applyEventRename(eventName: string, to?: string) {
     const q = to ? `?to=${encodeURIComponent(to)}` : "";
@@ -749,7 +754,11 @@ export interface EventConfigUpsert {
   /** Null leaves it unchanged, so editing a name cannot switch an event on or off by accident. */
   denied?: boolean | null;
   displayName: string | null;
-  replaceName: string | null;
+  /**
+   * The identity a future release should send instead. No longer edited on the page — see
+   * `applyEventRename` for why renaming belongs in a bulk migration rather than a per-row field.
+   */
+  replaceName?: string | null;
   /**
    * No longer edited anywhere. The column and the field stay — dropping a column is not reversible
    * under Flyway, and storage that costs nothing is not worth a migration — but the page stopped
