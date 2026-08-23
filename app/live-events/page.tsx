@@ -14,6 +14,8 @@ import { copyText, downloadText, fileStamp } from "@/lib/clipboard";
 
 const EVENT_POLL_MS = 1200;
 const USERS_POLL_MS = 5000;
+/** How long the "which of these are test phones" answer is reused before asking again. */
+const DEBUG_SET_TTL_MS = 60_000;
 // Names and the ignored set change when a person decides they do, not on a stream's schedule — but
 // they DO change while a stream is open, which is the normal way to work: Discovery in one window,
 // this in another. Re-read on a slow beat rather than once at mount.
@@ -197,7 +199,11 @@ export default function LiveEventsPage() {
    * known yet", the most alarming thing this page can say wrongly.
    */
   const [debugOnly, setDebugOnly] = useState(true);
-  const debugUsersRef = useRef<{ set: Set<string>; loaded: boolean }>({ set: new Set(), loaded: false });
+  const debugUsersRef = useRef<{ set: Set<string>; loaded: boolean; fetchedAt: number }>({
+    set: new Set(),
+    loaded: false,
+    fetchedAt: 0,
+  });
   /** True once the user list has arrived — the signal the slower, decorative reads wait for. */
   const [usersLoaded, setUsersLoaded] = useState(false);
   const [sortBy, setSortBy] = useState<SortKey>("recent");
@@ -425,16 +431,32 @@ export default function LiveEventsPage() {
         // already right. The two config reads are deliberately not in here: they decorate rows that
         // do not exist yet.
         //
-        // The debug set is fetched on the first pass only. "Is this a test phone" does not change
-        // every ten seconds, and re-asking cost 2.6s to 5.5s of server time on every single poll.
-        const needDebugSet = !debugUsersRef.current.loaded;
+        // Refreshed on an interval, not once.
+        //
+        // "Fetched on the first pass only" was the fix for a real cost — re-asking on every poll
+        // took 2.6s to 5.5s of server time. But it made a new debug device permanently invisible:
+        // the set is captured when the page loads, and a phone that starts sending afterwards (a
+        // fresh guest id, a reinstall, cleared data) is never in it, so `debugOnly` filters it out
+        // for ever. The header counts without that filter, which is how the page came to say
+        // "1 live" above "No matching active users" — and plugging in a phone and watching it is
+        // the entire purpose of this page.
+        //
+        // Once a minute rather than every poll: the query is now indexed (idx_analytics_events_
+        // created_user took it from 8.5s to 0.44s), so the original cost is gone, and a minute is
+        // far below how long anyone would sit wondering why their device is missing.
+        const debugSetAge = Date.now() - debugUsersRef.current.fetchedAt;
+        const needDebugSet = !debugUsersRef.current.loaded || debugSetAge > DEBUG_SET_TTL_MS;
         const [list, debugDevices] = await Promise.all([
           api.getActiveUsers(30, 200),
           needDebugSet ? api.getDebugDevices(720, 200) : Promise.resolve(null),
         ]);
         if (!cancelled) {
           if (debugDevices) {
-            debugUsersRef.current = { set: new Set(debugDevices.map((d) => d.userId)), loaded: true };
+            debugUsersRef.current = {
+              set: new Set(debugDevices.map((d) => d.userId)),
+              loaded: true,
+              fetchedAt: Date.now(),
+            };
           }
           setActiveUsers(list);
           setUsersError("");
