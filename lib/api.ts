@@ -723,7 +723,13 @@ export interface EventDiscoveryItem {
   baseline?: { firings?: number; paramKeys?: string[]; screen?: string } | null;
   displayName: string | null;
   replaceName: string | null;
-  description: string | null;
+  /**
+   * No longer edited anywhere. The column and the API field stay — dropping a column is not
+   * reversible under Flyway, and nothing is served by removing storage that costs nothing — but the
+   * page stopped offering it: nothing in the product ever read a description back, while the
+   * display name travels to Live Events and is what every other page shows.
+   */
+  description?: string | null;
   defaultListStatus: DefaultListStatus;
   /** Authored here; the app has never emitted it. Cleared by the server once it fires. */
   planned: boolean;
@@ -744,7 +750,13 @@ export interface EventConfigUpsert {
   denied?: boolean | null;
   displayName: string | null;
   replaceName: string | null;
-  description: string | null;
+  /**
+   * No longer edited anywhere. The column and the field stay — dropping a column is not reversible
+   * under Flyway, and storage that costs nothing is not worth a migration — but the page stopped
+   * offering it: nothing in the product ever read a description back, while the display name
+   * travels to Live Events and is what every other page shows.
+   */
+  description?: string | null;
   screenName?: string | null;
   planned?: boolean;
   identityType?: string | null;

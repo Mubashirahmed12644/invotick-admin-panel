@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { RESIZE_HANDLE_CLASS, useColumnWidths } from "@/lib/useColumnWidths";
 import { ColumnsMenu } from "@/components/ColumnsMenu";
 import Link from "next/link";
-import { api, type EventDiscoveryItem, type DefaultListTask, type DebugDevice } from "@/lib/api";
+import { api, type EventDiscoveryItem, type DebugDevice } from "@/lib/api";
 import { EventTime, timeWithMillis } from "@/lib/eventTime";
 import { copyText, downloadText, fileStamp } from "@/lib/clipboard";
 
@@ -15,7 +15,6 @@ interface Draft {
   denied?: boolean;
   displayName?: string;
   replaceName?: string;
-  description?: string;
   layer?: string;
 }
 
@@ -28,7 +27,6 @@ type SavedConfig = {
   layer: string | null;
   displayName: string | null;
   replaceName: string | null;
-  description: string | null;
 };
 
 const norm = (v: string | null | undefined) => (v ?? "").trim();
@@ -59,8 +57,7 @@ function applyPending(
       row.denied === saved.denied &&
       norm(row.layer) === norm(saved.layer) &&
       norm(row.displayName) === norm(saved.displayName) &&
-      norm(row.replaceName) === norm(saved.replaceName) &&
-      norm(row.description) === norm(saved.description);
+      norm(row.replaceName) === norm(saved.replaceName);
     if (echoed) {
       delete pending[row.eventName];
       return row;
@@ -89,7 +86,7 @@ function eventType(name: string): "screen" | "action" {
 // snake_case, letters/digits/underscores only, must start with a letter, max 40 chars.
 /** Column keys in the order they are rendered — how a key becomes a cell position. */
 const COLUMN_ORDER_EVENT_DISCOVERY = [
-  "idx", "tested", "track", "live", "identity", "count", "layer", "status", "replace", "desc", "actions",
+  "idx", "tested", "track", "live", "identity", "count", "layer", "replace", "actions",
 ];
 
 /** What each column is called in the Columns menu. Short, because the menu is a list, not a header. */
@@ -101,9 +98,7 @@ const COLUMN_LABELS_EVENT_DISCOVERY: Record<string, string> = {
   identity: "Events from apps",
   count: "Firings",
   layer: "Layer",
-  status: "Status",
   replace: "Replace name",
-  desc: "Description",
   actions: "Save",
 };
 
@@ -254,7 +249,7 @@ function buildDiscoveryReport(
     `# debugOnly=${ctx.debugOnly} showIgnored=${ctx.showIgnored}${ctx.search ? ` search="${ctx.search}"` : ""}`,
     `# ${items.length} identities, ${ctx.fired} firings, copied ${new Date().toISOString()}`,
     "",
-    ["#", "fired", "kind", "src", "identity", "layer", "status", "display name", "description"].join(" | "),
+    ["#", "fired", "kind", "src", "identity", "layer", "display name"].join(" | "),
   ];
   const rows = items.map((i, idx) =>
     [
@@ -264,9 +259,7 @@ function buildDiscoveryReport(
       i.autoCaptured ? "auto" : "coded",
       i.eventName,
       i.layer || "-",
-      i.planned ? "planned" : i.inList ? "in list" : "debug-only",
       i.displayName || "-",
-      (i.description || "-").replace(/\s+/g, " "),
     ].join(" | "),
   );
   return [...head, ...rows].join("\n");
@@ -303,7 +296,6 @@ interface PendingRow {
   identityType: "action" | "screen";
   layer: string;
   displayName: string;
-  description: string;
 }
 
 function newPending(anchor: string | null, position: "above" | "below"): PendingRow {
@@ -315,12 +307,11 @@ function newPending(anchor: string | null, position: "above" | "below"): Pending
     identityType: "action",
     layer: "intent.action",
     displayName: "",
-    description: "",
   };
 }
 
-// "Live Event Discovery and Config" — live-lists every event / UI-action the DEBUG app emits (its
-// meaningful name, or a searchable identity when it has none), each tagged in-list or debug-only.
+// "Live Event Discovery and Config" — live-lists every event / UI-action the app emits, by its
+// meaningful name or a searchable identity when it has none.
 // The "Sending" toggle decides whether a RELEASE build emits the event. It is on by default and
 // writes `denied` when switched off, because the app now sends everything except what somebody
 // turned off. It used to be "Track", an opt-in — which could never discover anything, since a key
@@ -346,7 +337,7 @@ export default function LiveEventConfigClient() {
   const [editingName, setEditingName] = useState<string | null>(null);
 
   /** Column widths, dragged from the header edges and kept across reloads. */
-  const { widths: colW, startResize, reset: resetWidths, autoFit, tableRef, order: colOrder, hidden: colHidden, visibleOrder, toggleColumn, moveColumnTo } = useColumnWidths("event-discovery", {"idx": 40, "tested": 78, "track": 64, "live": 210, "identity": 210, "count": 56, "layer": 150, "status": 108, "replace": 180, "desc": 240, "actions": 90}, COLUMN_ORDER_EVENT_DISCOVERY);
+  const { widths: colW, startResize, reset: resetWidths, autoFit, tableRef, order: colOrder, hidden: colHidden, visibleOrder, toggleColumn, moveColumnTo } = useColumnWidths("event-discovery", {"idx": 40, "tested": 78, "track": 64, "live": 210, "identity": 210, "count": 56, "layer": 150, "replace": 180, "actions": 90}, COLUMN_ORDER_EVENT_DISCOVERY);
   const [savedRow, setSavedRow] = useState<string | null>(null);
   const [copiedRow, setCopiedRow] = useState<string | null>(null);
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
@@ -372,88 +363,11 @@ export default function LiveEventConfigClient() {
     setClearedAt(null);
     window.localStorage.removeItem("lediscovery_cleared_at");
   }
-  const [showDefault, setShowDefault] = useState(false);
-  const [defaultItems, setDefaultItems] = useState<DefaultListTask[]>([]);
-  const [defaultLoading, setDefaultLoading] = useState(false);
-  const [copiedKt, setCopiedKt] = useState(false);
 
   // Auto-captured identity? (file-based tap/btn/ib or a tap:screen:label key). Only these are
   // gated by the allowlist AND have no production history, so they're safe to rename in code.
   function isAutoCaptured(key: string): boolean {
     return /^tap:/.test(key) || /\.(tap|btn|ib)_\d+$/.test(key);
-  }
-
-  function buildKotlin(list: DefaultListTask[]): string {
-    const date = new Date().toISOString().slice(0, 10);
-    const lines = list.map((i) => {
-      // [replace] = the admin filled the Replace-name column -> rename the code id to it (key = that name).
-      // Otherwise [keep] the raw event name (display name, if any, is a reporting mapping only).
-      const replace = !!i.replaceName;
-      const key = replace ? (i.replaceName as string) : i.eventName;
-      const tag = replace
-        ? `  // [replace] ← ${i.eventName}`
-        : i.displayName
-          ? `  // [keep] ${i.displayName}`
-          : "";
-      return `    "${key}",${tag}`;
-    });
-    return (
-      `// Live Event Discovery — bundled default allowlist (exported ${date})\n` +
-      `// Paste into AnalyticsAllowlist.DEFAULT (core/analytics).\n` +
-      `// [replace] = rename that code analyticsId to this name (admin set Replace name — auto + not shipped).\n` +
-      `// [keep]    = leave the raw event name; the display name is a reporting mapping only.\n` +
-      `private val DEFAULT: Set<String> = setOf(\n${lines.join("\n")}\n)\n`
-    );
-  }
-
-  async function openDefaultList() {
-    setShowDefault(true);
-    setDefaultLoading(true);
-    try {
-      setDefaultItems(await api.getDefaultList());
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load the default list.");
-    } finally {
-      setDefaultLoading(false);
-    }
-  }
-
-  async function resetDefaultList() {
-    if (!window.confirm("Reset the default list? This untracks ALL events so you can build a fresh list. Names/descriptions are kept.")) return;
-    try {
-      await api.resetDefaultList();
-      setDefaultItems([]);
-      await load(true); // refresh the feed so Track toggles reflect the reset
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Reset failed.");
-    }
-  }
-
-  function exportKotlin() {
-    const text = buildKotlin(defaultItems);
-    const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "AnalyticsAllowlist.default.kt";
-    a.click();
-    URL.revokeObjectURL(url);
-  }
-
-  async function copyKotlin() {
-    const text = buildKotlin(defaultItems);
-    try {
-      await navigator.clipboard.writeText(text);
-    } catch {
-      const ta = document.createElement("textarea");
-      ta.value = text;
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand("copy");
-      document.body.removeChild(ta);
-    }
-    setCopiedKt(true);
-    setTimeout(() => setCopiedKt(false), 1500);
   }
 
   async function copyIdentity(name: string) {
@@ -756,7 +670,6 @@ export default function LiveEventConfigClient() {
   const firedCount = filtered.reduce((n, i) => n + (i.firings ?? 0), 0);
   const seenCount = useMemo(() => visibleItems.filter((i) => !i.planned).length, [visibleItems]);
   const plannedCount = useMemo(() => visibleItems.filter((i) => i.planned).length, [visibleItems]);
-  const inListCount = useMemo(() => visibleItems.filter((i) => i.inList).length, [visibleItems]);
   const needNameCount = useMemo(
     () => visibleItems.filter((i) => (drafts[i.eventName]?.tracked ?? i.tracked) && !(drafts[i.eventName]?.displayName ?? i.displayName)).length,
     [visibleItems, drafts],
@@ -884,7 +797,6 @@ export default function LiveEventConfigClient() {
   const sendingOn = (i: EventDiscoveryItem) => !(drafts[i.eventName]?.denied ?? i.denied);
   const nameVal = (i: EventDiscoveryItem) => drafts[i.eventName]?.displayName ?? i.displayName ?? "";
   const replaceVal = (i: EventDiscoveryItem) => drafts[i.eventName]?.replaceName ?? i.replaceName ?? "";
-  const descVal = (i: EventDiscoveryItem) => drafts[i.eventName]?.description ?? i.description ?? "";
   const layerVal = (i: EventDiscoveryItem) => drafts[i.eventName]?.layer ?? i.layer ?? "";
 
 
@@ -919,7 +831,6 @@ export default function LiveEventConfigClient() {
         tracked: false,
         displayName: row.displayName.trim() || null,
         replaceName: null,
-        description: row.description.trim() || null,
         planned: true,
         identityType: row.identityType,
         layer: row.layer || null,
@@ -1070,27 +981,10 @@ export default function LiveEventConfigClient() {
           {layerSelect(row.layer, (v) => patchPending(row.id, { layer: v }), !row.layer)}
         </td>
       ),
-      status: (
-<td key="status" style={td}>
-          <span style={{ fontSize: 11, color: "var(--md-sys-color-warning)", background: "var(--md-sys-color-surface-container-low)", borderRadius: 6, padding: "3px 8px", whiteSpace: "nowrap" }}>
-            ● planned
-          </span>
-        </td>
-      ),
       replace: (
 <td key="replace" style={td}>
           {/* Renaming targets an identity that already exists in code. This one does not yet. */}
           <input disabled placeholder="n/a until it exists" style={{ ...inp, background: "var(--md-sys-color-surface-container-lowest)", color: "var(--md-sys-color-on-surface-variant)" }} />
-        </td>
-      ),
-      desc: (
-<td key="desc" style={td}>
-          <input
-            value={row.description}
-            onChange={(e) => patchPending(row.id, { description: e.target.value })}
-            placeholder="What it means and exactly where it fires"
-            style={inp}
-          />
         </td>
       ),
       actions: (
@@ -1276,7 +1170,6 @@ export default function LiveEventConfigClient() {
       layer: layerVal(i) || null,
       displayName: nameVal(i).trim() || null,
       replaceName: replaceVal(i).trim() || null,
-      description: descVal(i).trim() || null,
     };
     try {
       const task = await api.saveEventConfig({
@@ -1298,7 +1191,6 @@ export default function LiveEventConfigClient() {
             ? {
                 ...it,
                 ...edited,
-                defaultListStatus: task.status,
               }
             : it,
         ),
@@ -1507,20 +1399,6 @@ export default function LiveEventConfigClient() {
                   />
                 </th>
     ),
-    status: (
-<th key="status" style={{ ...th, position: "relative", width: 108, minWidth: 100 }}>Status
-                  <span
-                    className={RESIZE_HANDLE_CLASS}
-                    title="Drag to resize. Double-click to fit the column to its contents."
-                    onMouseDown={(e) => startResize("status", e)}
-                    onDoubleClick={(e) => {
-                      // Or the heading behind it also hears the double-click and resets everything.
-                      e.stopPropagation();
-                      autoFit("status");
-                    }}
-                  />
-                </th>
-    ),
     replace: (
 <th key="replace" style={{ ...th, position: "relative", width: 180, minWidth: 150 }}>
                   Replace name
@@ -1542,20 +1420,6 @@ export default function LiveEventConfigClient() {
                       // Or the heading behind it also hears the double-click and resets everything.
                       e.stopPropagation();
                       autoFit("replace");
-                    }}
-                  />
-                </th>
-    ),
-    desc: (
-<th key="desc" style={{ ...th, position: "relative" }}>Description
-                  <span
-                    className={RESIZE_HANDLE_CLASS}
-                    title="Drag to resize. Double-click to fit the column to its contents."
-                    onMouseDown={(e) => startResize("desc", e)}
-                    onDoubleClick={(e) => {
-                      // Or the heading behind it also hears the double-click and resets everything.
-                      e.stopPropagation();
-                      autoFit("desc");
                     }}
                   />
                 </th>
@@ -1592,8 +1456,9 @@ export default function LiveEventConfigClient() {
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 800, color: "var(--md-sys-color-primary)" }}>Live Event Discovery and Config</h1>
           <p style={{ color: "var(--md-sys-color-on-surface)", fontSize: 13, marginTop: 4, maxWidth: 720 }}>
-            Every event & UI-action the <b>debug</b> app emits, tagged <b>in-list</b> or <b>debug-only</b>. Turn
-            <b> Track</b> on to send it from release builds + name it — the app&apos;s bundled default list stays primary.
+            Every event & UI-action the app emits. Release builds send <b>all</b> of them — switch
+            <b> Sending</b> off for the ones you do not want, and it stops without a release. Name an
+            event under <b>As shown in Live</b>; that name is what every other page shows.
           </p>
         </div>
         <div style={{ fontSize: 13, color: "var(--md-sys-color-on-surface)", textAlign: "right" }}>
@@ -1605,7 +1470,6 @@ export default function LiveEventConfigClient() {
                 <b style={{ color: "var(--md-sys-color-warning)" }}>{plannedCount}</b> planned ·{" "}
               </>
             ) : null}
-            <b style={{ color: "var(--md-sys-color-success)" }}>{inListCount}</b> in list ·{" "}
             <b style={{ color: needNameCount ? "var(--md-sys-color-warning)" : "var(--md-sys-color-success)" }}>{needNameCount}</b> need name
           </div>
           {lastRefreshed ? (
@@ -1708,13 +1572,6 @@ export default function LiveEventConfigClient() {
         </label>
         
         <button
-          type="button"
-          onClick={() => (showDefault ? setShowDefault(false) : openDefaultList())}
-          style={{ marginLeft: "auto", padding: "6px 14px", borderRadius: 6, border: "1px solid var(--md-sys-color-outline-variant)", background: showDefault ? "var(--md-sys-color-surface-container-low)" : "var(--md-sys-color-surface-container-lowest)", color: "var(--md-sys-color-primary)", fontSize: 13, fontWeight: 500, cursor: "pointer" }}
-        >
-          {showDefault ? "Hide default list" : "Default list"}
-        </button>
-        <button
           className="btn btn-outline"
           onClick={async () => {
             const r = await copyText(
@@ -1802,54 +1659,6 @@ export default function LiveEventConfigClient() {
         />
       </div>
 
-      {showDefault ? (
-        <div style={{ border: "1px solid var(--md-sys-color-outline-variant)", background: "var(--md-sys-color-surface-container-lowest)", borderRadius: 10, padding: 16, marginBottom: 16 }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 10 }}>
-            <div>
-              <div style={{ fontSize: 15, fontWeight: 600, color: "var(--md-sys-color-primary)" }}>App bundled default list</div>
-              <div style={{ fontSize: 12, color: "var(--md-sys-color-on-surface)", marginTop: 2 }}>
-                Every tracked event — ships in the app as <code>AnalyticsAllowlist.DEFAULT</code>. <b>{defaultItems.length}</b> keys.
-              </div>
-            </div>
-            <div style={{ display: "flex", gap: 8 }}>
-              <button
-                type="button"
-                onClick={resetDefaultList}
-                disabled={defaultItems.length === 0}
-                title="Untrack all events to build a fresh default list"
-                style={{ padding: "6px 12px", borderRadius: 6, border: "1px solid var(--md-sys-color-outline-variant)", background: "var(--md-sys-color-surface-container-lowest)", color: "var(--md-sys-color-error)", fontSize: 13, cursor: "pointer" }}
-              >
-                Reset
-              </button>
-              <button
-                type="button"
-                onClick={copyKotlin}
-                disabled={defaultItems.length === 0}
-                style={{ padding: "6px 12px", borderRadius: 6, border: "1px solid var(--md-sys-color-outline-variant)", background: "var(--md-sys-color-surface-container-lowest)", fontSize: 13, cursor: "pointer" }}
-              >
-                {copiedKt ? "Copied ✓" : "Copy .kt"}
-              </button>
-              <button
-                type="button"
-                onClick={exportKotlin}
-                disabled={defaultItems.length === 0}
-                style={{ padding: "6px 12px", borderRadius: 6, border: "none", background: "var(--md-sys-color-primary-container)", color: "var(--md-sys-color-on-primary-container)", fontSize: 13, fontWeight: 500, cursor: "pointer" }}
-              >
-                Export .kt
-              </button>
-            </div>
-          </div>
-          {defaultLoading ? (
-            <p style={{ color: "var(--md-sys-color-on-surface)", fontSize: 13 }}>Loading…</p>
-          ) : defaultItems.length === 0 ? (
-            <p style={{ color: "var(--md-sys-color-on-surface-variant)", fontSize: 13 }}>No tracked events yet. Turn Track on for an event to add it here.</p>
-          ) : (
-            <pre style={{ margin: 0, maxHeight: 260, overflow: "auto", background: "var(--md-sys-color-surface-container-lowest)", border: "1px solid var(--md-sys-color-outline-variant)", borderRadius: 6, padding: 12, fontSize: 12.5, lineHeight: 1.7, whiteSpace: "pre" }}>
-              {buildKotlin(defaultItems)}
-            </pre>
-          )}
-        </div>
-      ) : null}
 
       {error ? <p style={{ color: "var(--md-sys-color-error)", fontSize: 13, marginBottom: 12 }}>{error}</p> : null}
 
@@ -2132,6 +1941,20 @@ export default function LiveEventConfigClient() {
                             {i.autoCaptured ? "auto" : "coded"}
                           </span>
                         ) : null}
+                        {/* The three states that used to be a column of their own.
+                            That column labelled every row — "in list" or "debug-only" — and both
+                            words answered a question the Sending toggle now answers directly, one
+                            cell away. What is left are three things that are only sometimes true,
+                            and a badge that appears only when it means something is worth more than
+                            a column that has to say something about every row. */}
+                        {i.stillFiringAfterRemoval ? (
+                          <span title="We recorded this as removed and it arrived anyway — a release did not do what it claimed." style={{ flexShrink: 0, fontSize: 10.5, fontWeight: 600, borderRadius: 5, padding: "2px 6px", marginTop: 1, color: "var(--md-sys-color-error)", background: "var(--md-sys-color-surface-container)" }}>still firing</span>
+                        ) : i.suppressStatus === "PENDING" ? (
+                          <span title="Marked for removal from the app; not applied yet." style={{ flexShrink: 0, fontSize: 10.5, fontWeight: 600, borderRadius: 5, padding: "2px 6px", marginTop: 1, color: "var(--md-sys-color-error)", background: "var(--md-sys-color-surface-container-low)" }}>removing</span>
+                        ) : null}
+                        {i.planned ? (
+                          <span title="Written down before the app emits it. Clears itself once the event actually fires." style={{ flexShrink: 0, fontSize: 10.5, fontWeight: 600, borderRadius: 5, padding: "2px 6px", marginTop: 1, color: "var(--md-sys-color-warning)", background: "var(--md-sys-color-surface-container-low)" }}>planned</span>
+                        ) : null}
                         {/* The write said yes and the read disagrees. Shown rather than swallowed:
                             this row is displaying what was saved, not what discovery returned. */}
                         {i.unconfirmed ? (
@@ -2157,31 +1980,6 @@ export default function LiveEventConfigClient() {
                   layer: (
 <td key="layer" style={td}>
                       {layerSelect(layerVal(i), (v) => setDraft(i.eventName, { layer: v }), !layerVal(i))}
-                    </td>
-                  ),
-                  status: (
-<td key="status" style={td}>
-                      {/* Planned is tested FIRST. It has inList = false, so any check starting from
-                          inList files it under "debug-only" — which reads as "this fired but is not
-                          allowlisted" and is the exact confusion this status exists to prevent. */}
-                      {i.stillFiringAfterRemoval ? (
-                        /* We said this was removed and it arrived anyway. Loudest state on the row,
-                           because it means a release did not do what it claimed. */
-                        <span style={{ fontSize: 11, color: "var(--md-sys-color-error)", background: "var(--md-sys-color-surface-container)", borderRadius: 6, padding: "3px 8px", whiteSpace: "nowrap" }}>● still firing</span>
-                      ) : i.suppressStatus === "PENDING" ? (
-                        <span style={{ fontSize: 11, color: "var(--md-sys-color-error)", background: "var(--md-sys-color-surface-container-low)", borderRadius: 6, padding: "3px 8px", whiteSpace: "nowrap" }}>● removing</span>
-                      ) : i.planned ? (
-                        <span style={{ fontSize: 11, color: "var(--md-sys-color-warning)", background: "var(--md-sys-color-surface-container-low)", borderRadius: 6, padding: "3px 8px", whiteSpace: "nowrap" }}>● planned</span>
-                      ) : i.inList ? (
-                        <span style={{ fontSize: 11, color: "var(--md-sys-color-success)", background: "var(--md-sys-color-surface-container-lowest)", borderRadius: 6, padding: "3px 8px", whiteSpace: "nowrap" }}>● in list</span>
-                      ) : (
-                        <span style={{ fontSize: 11, color: "var(--md-sys-color-warning)", background: "var(--md-sys-color-surface-container-lowest)", borderRadius: 6, padding: "3px 8px", whiteSpace: "nowrap" }}>● debug-only</span>
-                      )}
-                      {i.defaultListStatus === "PENDING" ? (
-                        <div style={{ fontSize: 10.5, color: "var(--md-sys-color-warning)", marginTop: 3 }}>task queued</div>
-                      ) : i.defaultListStatus === "APPLIED" ? (
-                        <div style={{ fontSize: 10.5, color: "var(--md-sys-color-success)", marginTop: 3 }}>✓ in default</div>
-                      ) : null}
                     </td>
                   ),
                   replace: (
@@ -2211,16 +2009,6 @@ export default function LiveEventConfigClient() {
                           {movingRow === i.eventName ? "moving…" : "rename shipped → carry over"}
                         </button>
                       )}
-                    </td>
-                  ),
-                  desc: (
-<td key="desc" style={td}>
-                      <input
-                        style={inputStyle}
-                        placeholder="What this event means / where it fires…"
-                        value={descVal(i)}
-                        onChange={(e) => setDraft(i.eventName, { description: e.target.value })}
-                      />
                     </td>
                   ),
                   actions: (
