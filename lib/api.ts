@@ -321,11 +321,16 @@ export const api = {
     return apiRequest<ActiveUser[]>(`/v1/webpanel/analytics/active-users?${params.toString()}`);
   },
 
-  /** Versions seen reporting in the window, newest first. Polled far less often than the user list. */
-  getAppVersions(withinMinutes = 1440) {
-    return apiRequest<AppVersion[]>(
-      `/v1/webpanel/analytics/app-versions?withinMinutes=${withinMinutes}`,
-    );
+  /**
+   * Versions seen reporting inside the same range the list is showing, newest first.
+   *
+   * The same range, not a window of its own. These were separate — options from the last 24 hours,
+   * list over 30 days — so a version with rows in the list was missing from the picker, which reads
+   * as "no such version" rather than "not asked for".
+   */
+  getAppVersions(from: string, to: string) {
+    const params = new URLSearchParams({ from, to });
+    return apiRequest<AppVersion[]>(`/v1/webpanel/analytics/app-versions?${params.toString()}`);
   },
 
   /**

@@ -494,7 +494,8 @@ export default function LiveEventsPage() {
     let cancelled = false;
     async function load() {
       try {
-        const versions = await api.getAppVersions(1440);
+        const iso = toRangeIso(range);
+        const versions = await api.getAppVersions(iso.from, iso.to);
         if (!cancelled) setAppVersions(versions);
       } catch {
         // A missing picker is not worth an error banner over the list it sits above; the list is
@@ -507,7 +508,8 @@ export default function LiveEventsPage() {
       cancelled = true;
       clearInterval(t);
     };
-  }, []);
+    // The range belongs here: change it and the set of versions worth offering changes with it.
+  }, [range]);
 
   // poll selected user's events
   useEffect(() => {
