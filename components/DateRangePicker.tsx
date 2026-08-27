@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 /**
  * A date range, held as local calendar days rather than instants.
@@ -183,6 +184,16 @@ export function DateRangePicker({
   const [pending, setPending] = useState<Date | null>(null);
   const [leftMonth, setLeftMonth] = useState<Date>(addMonths(value.to, -1));
   const boxRef = useRef<HTMLDivElement | null>(null);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  /**
+   * Where to draw the panel, in viewport coordinates.
+   *
+   * It is rendered into document.body rather than beside the trigger, because the trigger lives
+   * inside a card with `overflow: hidden` that is narrower than the panel: positioned normally,
+   * 210 of its 630 pixels were cut off — the second month and the End field — and the control
+   * looked broken while being perfectly correct.
+   */
+  const [anchor, setAnchor] = useState<{ top: number; left: number } | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -191,10 +202,40 @@ export function DateRangePicker({
     setLeftMonth(addMonths(value.to, -1));
   }, [open, value]);
 
+  // Before paint, so the panel never appears at 0,0 for a frame and jump.
+  useLayoutEffect(() => {
+    if (!open) {
+      setAnchor(null);
+      return;
+    }
+    function place() {
+      const t = triggerRef.current?.getBoundingClientRect();
+      if (!t) return;
+      const width = 630;
+      const margin = 8;
+      // Prefer left-aligned with the trigger; pull back when that would run off the right edge,
+      // which it does at this control's position on any normal laptop.
+      const left = Math.max(margin, Math.min(t.left, window.innerWidth - width - margin));
+      setAnchor({ top: t.bottom + 6, left });
+    }
+    place();
+    window.addEventListener("resize", place);
+    window.addEventListener("scroll", place, true);
+    return () => {
+      window.removeEventListener("resize", place);
+      window.removeEventListener("scroll", place, true);
+    };
+  }, [open]);
+
   useEffect(() => {
     if (!open) return;
     function onDocClick(e: MouseEvent) {
-      if (boxRef.current && !boxRef.current.contains(e.target as Node)) setOpen(false);
+      const t = e.target as Node;
+      // The panel is not inside boxRef any more — it is in a portal — so both have to be checked
+      // or the first click inside the calendar closes it.
+      const inTrigger = boxRef.current?.contains(t);
+      const inPanel = (e.target as HTMLElement)?.closest?.(".drp-pop");
+      if (!inTrigger && !inPanel) setOpen(false);
     }
     function onEsc(e: KeyboardEvent) {
       if (e.key === "Escape") setOpen(false);
@@ -225,13 +266,19 @@ export function DateRangePicker({
 
   return (
     <div className="drp" ref={boxRef}>
-      <button type="button" className="input drp-trigger" onClick={() => setOpen((v) => !v)}>
+      <button
+        type="button"
+        ref={triggerRef}
+        className="input drp-trigger"
+        onClick={() => setOpen((v) => !v)}
+      >
         {label}
         <span className="drp-caret">▾</span>
       </button>
 
-      {open ? (
-        <div className="drp-pop">
+      {open && anchor
+        ? createPortal(
+        <div className="drp-pop" style={{ top: anchor.top, left: anchor.left }}>
           <div className="drp-presets">
             {PRESETS.map((p) => {
               const b = p.build(startOfDay(new Date()));
@@ -301,8 +348,10 @@ export function DateRangePicker({
               </button>
             </div>
           </div>
-        </div>
-      ) : null}
+        </div>,
+        document.body,
+          )
+        : null}
     </div>
   );
 }

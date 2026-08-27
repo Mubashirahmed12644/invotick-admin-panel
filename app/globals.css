@@ -3337,7 +3337,9 @@ button {
 }
 .drp-caret { color: var(--color-text-muted); font-size: 0.7rem; }
 .drp-pop {
-  position: absolute; z-index: 60; top: calc(100% + 6px); left: 0;
+  /* Fixed, and in a portal: the card this control sits in has overflow:hidden and is narrower
+     than the panel, which cut 210px off it — the second month and the End field. */
+  position: fixed; z-index: 200;
   display: flex; gap: 0;
   background: var(--color-card);
   border: 1px solid var(--color-border);
