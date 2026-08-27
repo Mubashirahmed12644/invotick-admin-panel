@@ -5,6 +5,7 @@ import type {
   AdminLoginResponse,
   AdminVerifyOtpRequest,
   ActiveUser,
+  ActiveUsersPage,
   AppVersion,
   ApiResponse,
   ApiTokenResponse,
@@ -318,7 +319,7 @@ export const api = {
     if (appVersionCode != null) params.set("appVersionCode", String(appVersionCode));
     if (from) params.set("from", from);
     if (to) params.set("to", to);
-    return apiRequest<ActiveUser[]>(`/v1/webpanel/analytics/active-users?${params.toString()}`);
+    return apiRequest<ActiveUsersPage>(`/v1/webpanel/analytics/active-users?${params.toString()}`);
   },
 
   /**

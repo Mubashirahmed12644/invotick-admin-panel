@@ -218,6 +218,17 @@ export default function LiveEventsPage() {
    * control is wanted for.
    */
   const [range, setRange] = useState<DayRange>(defaultRange);
+  /**
+   * How many rows to ask for. The list was fixed at 200 and silently cut: 199 rows out of at least
+   * 999, under a header that read like a population.
+   */
+  const [pageSize, setPageSize] = useState(200);
+  /** What the page is a part of — total, whether it was cut, and what the build filter is hiding. */
+  const [meta, setMeta] = useState<{ total: number; truncated: boolean; hiddenNoBuild: number | null }>({
+    total: 0,
+    truncated: false,
+    hiddenNoBuild: null,
+  });
   const [buildFilter, setBuildFilter] = useState<BuildFilter>("debug");
   /** null = every version. A versionCode, not a name: names repeat across builds, codes do not. */
   const [versionFilter, setVersionFilter] = useState<number | null>(null);
@@ -450,15 +461,20 @@ export default function LiveEventsPage() {
         // The two config reads are deliberately still not in here: they decorate rows that do not
         // exist yet.
         const iso = toRangeIso(range);
-        const list = await api.getActiveUsers(
-          200,
+        const page = await api.getActiveUsers(
+          pageSize,
           buildFilter,
           versionFilter ?? undefined,
           iso.from,
           iso.to,
         );
         if (!cancelled) {
-          setActiveUsers(list);
+          setActiveUsers(page.users);
+          setMeta({
+            total: page.total,
+            truncated: page.truncated,
+            hiddenNoBuild: page.hiddenWithoutBuildType,
+          });
           setUsersError("");
           setUsersLoaded(true);
         }
@@ -481,7 +497,7 @@ export default function LiveEventsPage() {
     };
     // The filters belong here: changing one changes what the server is being asked for, so the
     // poll has to restart rather than keep fetching the previous question until the next tick.
-  }, [router, handleUnauthorized, buildFilter, versionFilter, range]);
+  }, [router, handleUnauthorized, buildFilter, versionFilter, range, pageSize]);
 
   /**
    * The version picker's options, refreshed far more slowly than the user list.
@@ -682,7 +698,14 @@ export default function LiveEventsPage() {
                 ☰
               </button>
               <h2>
-                Live users <span className="le-livecount">{liveCount} live</span> · {activeUsers.length} active
+                Live users <span className="le-livecount">{liveCount} live</span> ·{" "}
+                {meta.truncated ? (
+                  <span title={`Showing ${activeUsers.length} of ${meta.total}. Raise the row count below to see more.`}>
+                    {activeUsers.length} of {meta.total}
+                  </span>
+                ) : (
+                  <>{meta.total || activeUsers.length} active</>
+                )}
               </h2>
             </div>
 
@@ -730,12 +753,32 @@ export default function LiveEventsPage() {
                 ))}
               </select>
               <DateRangePicker value={range} onChange={setRange} />
+              <select
+                className="input"
+                value={String(pageSize)}
+                onChange={(e) => setPageSize(Number(e.target.value))}
+                title="How many rows to load. Higher is slower to render, not slower to fetch."
+              >
+                {[50, 100, 200, 500, 1000, 2000, 5000].map((n) => (
+                  <option key={n} value={n}>
+                    Show {n}
+                  </option>
+                ))}
+              </select>
               <label className="le-check">
                 <input type="checkbox" checked={liveOnly} onChange={(e) => setLiveOnly(e.target.checked)} />
                 Live only
               </label>
             </div>
 
+            {/* A filter that hides people should say how many. Over seven days this was 451 of
+                632 — the builds that shipped before build_type was stamped on every event. */}
+            {meta.hiddenNoBuild ? (
+              <p className="le-hidden-note">
+                {meta.hiddenNoBuild} user{meta.hiddenNoBuild === 1 ? "" : "s"} in this range report no
+                build type and are in neither list. Set Build to “all” to include them.
+              </p>
+            ) : null}
             {usersError ? <p className="error-text">{usersError}</p> : null}
 
             <div className="le-userlist">

@@ -3392,3 +3392,12 @@ button {
 .drp-off { opacity: 0.3; cursor: default; }
 .drp-off:hover { background: none; }
 .drp-actions { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.6rem; }
+
+/* Said quietly, but said. A filter hiding two thirds of the people in a range and not mentioning it
+   is the same class of lie as a truncated count presented as a population. */
+.le-hidden-note {
+  margin: 0.35rem 0 0;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  color: var(--color-text-muted);
+}

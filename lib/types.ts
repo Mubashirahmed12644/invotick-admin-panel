@@ -81,12 +81,28 @@ export interface ActiveUser {
   recentEventCount: number;
 }
 
+/**
+ * The user list plus what it is a part of.
+ *
+ * The array alone could not say it had been cut: asking for 200 out of 999 returned 199, and the
+ * header read "199 active" as though that were the population rather than the page size.
+ */
+export interface ActiveUsersPage {
+  users: ActiveUser[];
+  total: number;
+  truncated: boolean;
+  /** Users with no build type reported, hidden by the build filter. Null when no filter is on. */
+  hiddenWithoutBuildType: number | null;
+}
+
 /** One app version seen reporting in the window — the options for the version picker. */
 export interface AppVersion {
   appVersion: string | null;
   appVersionCode: number;
   buildType: string | null;
   users: number;
+  /** Distinct installs behind `users`. Lower whenever guest identities churn on one device. */
+  devices: number;
   events: number;
   lastEventAt: string;
 }
