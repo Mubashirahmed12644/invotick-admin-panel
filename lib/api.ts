@@ -299,23 +299,25 @@ export const api = {
   /**
    * @param buildType "release" or "debug" to narrow to one kind of build; omit for both.
    * @param appVersionCode narrow to one build number; omit for every version.
+   * @param from ISO instant, inclusive. @param to ISO instant, exclusive.
    *
-   * Both are sent to the server rather than applied to the result, because the result is already
-   * capped at `limit`. Filtering after that cap is what produced a header reading "3 live" above
-   * "No matching active users" — the count and the list were answering different questions.
+   * Every one of these is sent to the server rather than applied to the result, because the result
+   * is already capped at `limit`. Filtering after that cap is what produced a header reading
+   * "3 live" above "No matching active users" — the count and the list answering different
+   * questions.
    */
   getActiveUsers(
-    withinMinutes = 30,
     limit = 200,
     buildType?: string,
     appVersionCode?: number,
+    from?: string,
+    to?: string,
   ) {
-    const params = new URLSearchParams({
-      withinMinutes: String(withinMinutes),
-      limit: String(limit),
-    });
+    const params = new URLSearchParams({ limit: String(limit) });
     if (buildType && buildType !== "all") params.set("buildType", buildType);
     if (appVersionCode != null) params.set("appVersionCode", String(appVersionCode));
+    if (from) params.set("from", from);
+    if (to) params.set("to", to);
     return apiRequest<ActiveUser[]>(`/v1/webpanel/analytics/active-users?${params.toString()}`);
   },
 

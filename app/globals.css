@@ -3326,3 +3326,67 @@ button {
   border-right-color: var(--md-sys-color-primary);
   border-right-width: 2px;
 }
+
+/* ── Date range picker ──────────────────────────────────────────────────────
+   Presets left, two months right, nothing applied until Apply. Sized so the
+   whole control fits above the user list without the page scrolling to it. */
+.drp { position: relative; }
+.drp-trigger {
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  white-space: nowrap; cursor: pointer;
+}
+.drp-caret { color: var(--color-text-muted); font-size: 0.7rem; }
+.drp-pop {
+  position: absolute; z-index: 60; top: calc(100% + 6px); left: 0;
+  display: flex; gap: 0;
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
+  overflow: hidden;
+}
+.drp-presets {
+  display: flex; flex-direction: column; min-width: 150px;
+  border-right: 1px solid var(--color-border); padding: 0.35rem 0;
+}
+.drp-preset {
+  text-align: left; padding: 0.45rem 0.9rem; font-size: 0.82rem;
+  background: none; border: 0; cursor: pointer; color: inherit; white-space: nowrap;
+}
+.drp-preset:hover { background: rgba(15, 61, 140, 0.07); }
+.drp-preset-on { background: rgba(15, 61, 140, 0.12); font-weight: 600; }
+.drp-right { padding: 0.7rem 0.9rem 0.6rem; }
+.drp-inputs { display: flex; align-items: flex-end; gap: 0.5rem; margin-bottom: 0.5rem; }
+.drp-inputs label {
+  display: flex; flex-direction: column; gap: 0.2rem;
+  font-size: 0.68rem; color: var(--color-text-muted);
+  text-transform: uppercase; letter-spacing: 0.03em;
+}
+.drp-inputs .input { width: 130px; font-size: 0.8rem; }
+.drp-dash { padding-bottom: 0.5rem; color: var(--color-text-muted); }
+.drp-nav { display: flex; justify-content: flex-end; gap: 0.25rem; margin-bottom: 0.2rem; }
+.drp-navbtn {
+  border: 1px solid var(--color-border); background: none; color: inherit;
+  border-radius: 6px; width: 26px; height: 24px; cursor: pointer; line-height: 1;
+}
+.drp-navbtn:disabled { opacity: 0.35; cursor: default; }
+.drp-months { display: flex; gap: 1.1rem; }
+.drp-month-name {
+  font-size: 0.78rem; font-weight: 600; text-align: center; margin-bottom: 0.3rem;
+}
+.drp-grid { display: grid; grid-template-columns: repeat(7, 30px); gap: 1px; }
+.drp-dow {
+  font-size: 0.64rem; color: var(--color-text-muted);
+  text-align: center; padding-bottom: 0.15rem;
+}
+.drp-day {
+  height: 28px; border: 0; background: none; color: inherit; cursor: pointer;
+  font-size: 0.78rem; border-radius: 6px;
+}
+.drp-day:hover { background: rgba(15, 61, 140, 0.1); }
+/* The span reads as one block, its two ends as the days actually chosen. */
+.drp-in { background: rgba(15, 61, 140, 0.10); border-radius: 0; }
+.drp-edge { background: var(--color-primary); color: #fff; border-radius: 6px; }
+.drp-off { opacity: 0.3; cursor: default; }
+.drp-off:hover { background: none; }
+.drp-actions { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.6rem; }

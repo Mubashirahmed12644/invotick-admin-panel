@@ -11,6 +11,7 @@ import { clearAccessToken, isLoggedIn } from "@/lib/auth";
 import type { ActiveUser, AppVersion, LiveEvent } from "@/lib/types";
 import { EventTime, dateTimeWithMillis, timeWithMillis } from "@/lib/eventTime";
 import { copyText, downloadText, fileStamp } from "@/lib/clipboard";
+import { DateRangePicker, defaultRange, formatDay, toRangeIso, type DayRange } from "@/components/DateRangePicker";
 
 const EVENT_POLL_MS = 1200;
 const USERS_POLL_MS = 5000;
@@ -142,21 +143,6 @@ type SortKey = "recent" | "email" | "count";
 /** Which build the list is narrowed to. Applied by the server, not here. */
 type BuildFilter = "debug" | "release" | "all";
 
-/**
- * The windows offered, and why the list stops at thirty days.
- *
- * analytics_events is the busiest table in the product and sits behind the same connection pool as
- * sync and auth; an unbounded scan of it has taken devices offline before. Thirty days is what an
- * indexed created_at range answers without anyone feeling it. A longer range is a different feature
- * — pre-aggregated counts — not a bigger number in a dropdown.
- */
-const WINDOW_LABELS: Record<number, string> = {
-  30: "30 min",
-  120: "2 hours",
-  1440: "24 hours",
-  10080: "7 days",
-  43200: "30 days",
-};
 
 function eventKind(name: string): "screen" | "click" | "lifecycle" | "other" {
   if (SCREEN_VIEW_EVENTS.has(name)) return "screen";
@@ -224,13 +210,14 @@ export default function LiveEventsPage() {
    * filtered one. The page looked broken while it was merely answering two questions at once.
    */
   /**
-   * How far back the user list looks, in minutes.
+   * The range the user list covers. Thirty days by default.
    *
-   * Thirty minutes was hard-coded, which was fine while this page only ever watched a phone on the
-   * desk. It is not fine with a version filter: "who is on 1.4.1" is a question about a rollout,
-   * and a rollout does not happen inside half an hour.
+   * It was hard-coded to thirty minutes, which was right while this page only ever watched a phone
+   * on the desk and useless for watching a rollout: "who is on 1.4.1" is not a half-hour question.
+   * A rolling window could not express "1 to 14 August" either, which is most of what a date
+   * control is wanted for.
    */
-  const [windowMinutes, setWindowMinutes] = useState(30);
+  const [range, setRange] = useState<DayRange>(defaultRange);
   const [buildFilter, setBuildFilter] = useState<BuildFilter>("debug");
   /** null = every version. A versionCode, not a name: names repeat across builds, codes do not. */
   const [versionFilter, setVersionFilter] = useState<number | null>(null);
@@ -462,11 +449,13 @@ export default function LiveEventsPage() {
         //
         // The two config reads are deliberately still not in here: they decorate rows that do not
         // exist yet.
+        const iso = toRangeIso(range);
         const list = await api.getActiveUsers(
-          windowMinutes,
           200,
           buildFilter,
           versionFilter ?? undefined,
+          iso.from,
+          iso.to,
         );
         if (!cancelled) {
           setActiveUsers(list);
@@ -492,7 +481,7 @@ export default function LiveEventsPage() {
     };
     // The filters belong here: changing one changes what the server is being asked for, so the
     // poll has to restart rather than keep fetching the previous question until the next tick.
-  }, [router, handleUnauthorized, buildFilter, versionFilter, windowMinutes]);
+  }, [router, handleUnauthorized, buildFilter, versionFilter, range]);
 
   /**
    * The version picker's options, refreshed far more slowly than the user list.
@@ -667,8 +656,8 @@ export default function LiveEventsPage() {
     const version = versionFilter == null
       ? "all versions"
       : `${v?.appVersion ?? "?"} (${versionFilter})`;
-    return `build ${buildFilter}, ${version}, last ${WINDOW_LABELS[windowMinutes] ?? `${windowMinutes}m`}`;
-  }, [buildFilter, versionFilter, appVersions, windowMinutes]);
+    return `build ${buildFilter}, ${version}, ${formatDay(range.from)} to ${formatDay(range.to)}`;
+  }, [buildFilter, versionFilter, appVersions, range]);
 
   const liveCount = activeUsers.filter((u) => liveState(u.lastEventAt) === "live").length;
   const selectedUser = activeUsers.find((u) => u.userId === selectedId);
@@ -738,18 +727,7 @@ export default function LiveEventsPage() {
                   </option>
                 ))}
               </select>
-              <select
-                className="input"
-                value={String(windowMinutes)}
-                onChange={(e) => setWindowMinutes(Number(e.target.value))}
-                title="How far back the user list looks. The build and version filters hold across whatever is chosen."
-              >
-                {Object.entries(WINDOW_LABELS).map(([m, label]) => (
-                  <option key={m} value={m}>
-                    Last {label}
-                  </option>
-                ))}
-              </select>
+              <DateRangePicker value={range} onChange={setRange} />
               <label className="le-check">
                 <input type="checkbox" checked={liveOnly} onChange={(e) => setLiveOnly(e.target.checked)} />
                 Live only
