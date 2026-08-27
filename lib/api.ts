@@ -326,16 +326,31 @@ export const api = {
     );
   },
 
-  getLiveEvents(userId: string, since?: string, limit = 100) {
+  /**
+   * @param appVersionCode narrow the stream to one build; omit for the user's whole journey.
+   *
+   * Filtering the user list alone was not enough: the list decides who can be opened, this decides
+   * what is then seen. Asking for 1.4.1 and opening somebody returned months of their old build.
+   */
+  getLiveEvents(userId: string, since?: string, limit = 100, appVersionCode?: number) {
     const params = new URLSearchParams({ userId, limit: String(limit) });
+    if (appVersionCode != null) params.set("appVersionCode", String(appVersionCode));
     if (since) params.set("since", since);
     return apiRequest<LiveEvent[]>(`/v1/webpanel/analytics/live-events?${params.toString()}`);
   },
 
   // PERMANENTLY deletes a user's stream events (they won't reappear). Returns the deleted count.
-  clearLiveEvents(userId: string) {
+  /**
+   * @param appVersionCode delete only this build's events; omit to delete the whole stream.
+   *
+   * A destructive action has to remove what the screen is showing. Filtered to one version this
+   * deleted the user's entire history while twenty rows were displayed.
+   */
+  clearLiveEvents(userId: string, appVersionCode?: number) {
+    const params = new URLSearchParams({ userId });
+    if (appVersionCode != null) params.set("appVersionCode", String(appVersionCode));
     return apiRequest<number>(
-      `/v1/webpanel/analytics/live-events?userId=${encodeURIComponent(userId)}`,
+      `/v1/webpanel/analytics/live-events?${params.toString()}`,
       { method: "DELETE" },
     );
   },
@@ -634,8 +649,11 @@ export const api = {
     );
   },
 
-  getEventDiscovery(debugOnly = true, showIgnored = false, userId?: string) {
+  getEventDiscovery(debugOnly = true, showIgnored = false, userId?: string, appVersionCode?: number) {
     const params = new URLSearchParams({ debugOnly: String(debugOnly), showIgnored: String(showIgnored) });
+    // Same narrowing as the stream these counts are compared against — counted over every version
+    // they disagreed with it, and the disagreement read as a bug in whichever was trusted less.
+    if (appVersionCode != null) params.set("appVersionCode", String(appVersionCode));
     // Scoping to a user is what makes the firing count comparable to that user's live stream.
     // Unscoped it counts the whole install base, which for a presence ping is tens of thousands.
     if (userId) params.set("userId", userId);

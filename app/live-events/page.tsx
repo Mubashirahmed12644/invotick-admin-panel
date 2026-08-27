@@ -9,7 +9,7 @@ import Sidebar from "@/components/Sidebar";
 import { api, getErrorMessage, isUnauthorizedError, ApiError } from "@/lib/api";
 import { clearAccessToken, isLoggedIn } from "@/lib/auth";
 import type { ActiveUser, AppVersion, LiveEvent } from "@/lib/types";
-import { EventTime, timeWithMillis } from "@/lib/eventTime";
+import { EventTime, dateTimeWithMillis, timeWithMillis } from "@/lib/eventTime";
 import { copyText, downloadText, fileStamp } from "@/lib/clipboard";
 
 const EVENT_POLL_MS = 1200;
@@ -112,10 +112,15 @@ function buildStreamReport(
     userId: string;
     invotickId?: string | null;
     names: Map<string, string>;
+    /** What the page was narrowed to when this was copied. */
+    filter?: string;
   },
 ): string {
   const head = [
     `# Live Events — ${ctx.invotickId ? `Invotick ID ${ctx.invotickId}, ` : ""}user ${ctx.userId}`,
+    // A report that does not say what it was filtered to gets read as everything. This one was:
+    // copied while the page showed one version, and taken as the user's whole history.
+    `# filter: ${ctx.filter ?? "all versions"}`,
     `# ${events.length} events, oldest first, copied ${new Date().toISOString()}`,
     "",
   ];
@@ -126,7 +131,7 @@ function buildStreamReport(
     const shown = ctx.names.get(ident);
     const label = shown && shown !== ident ? `${ident}  [shown as ${shown}]` : ident;
     const params = e.params && Object.keys(e.params).length ? JSON.stringify(e.params) : "-";
-    return `${String(i + 1).padStart(3)}  ${timeWithMillis(e.eventTimestamp)}  ${label}\n      screen=${screen || "-"}  params=${params}`;
+    return `${String(i + 1).padStart(3)}  ${dateTimeWithMillis(e.eventTimestamp)}  ${label}\n      screen=${screen || "-"}  params=${params}`;
   });
   return [...head, ...body].join("\n");
 }
@@ -136,6 +141,22 @@ type SortKey = "recent" | "email" | "count";
 
 /** Which build the list is narrowed to. Applied by the server, not here. */
 type BuildFilter = "debug" | "release" | "all";
+
+/**
+ * The windows offered, and why the list stops at thirty days.
+ *
+ * analytics_events is the busiest table in the product and sits behind the same connection pool as
+ * sync and auth; an unbounded scan of it has taken devices offline before. Thirty days is what an
+ * indexed created_at range answers without anyone feeling it. A longer range is a different feature
+ * — pre-aggregated counts — not a bigger number in a dropdown.
+ */
+const WINDOW_LABELS: Record<number, string> = {
+  30: "30 min",
+  120: "2 hours",
+  1440: "24 hours",
+  10080: "7 days",
+  43200: "30 days",
+};
 
 function eventKind(name: string): "screen" | "click" | "lifecycle" | "other" {
   if (SCREEN_VIEW_EVENTS.has(name)) return "screen";
@@ -202,6 +223,14 @@ export default function LiveEventsPage() {
    * above "No matching active users": the count came from the whole list and the rows from the
    * filtered one. The page looked broken while it was merely answering two questions at once.
    */
+  /**
+   * How far back the user list looks, in minutes.
+   *
+   * Thirty minutes was hard-coded, which was fine while this page only ever watched a phone on the
+   * desk. It is not fine with a version filter: "who is on 1.4.1" is a question about a rollout,
+   * and a rollout does not happen inside half an hour.
+   */
+  const [windowMinutes, setWindowMinutes] = useState(30);
   const [buildFilter, setBuildFilter] = useState<BuildFilter>("debug");
   /** null = every version. A versionCode, not a name: names repeat across builds, codes do not. */
   const [versionFilter, setVersionFilter] = useState<number | null>(null);
@@ -434,7 +463,7 @@ export default function LiveEventsPage() {
         // The two config reads are deliberately still not in here: they decorate rows that do not
         // exist yet.
         const list = await api.getActiveUsers(
-          30,
+          windowMinutes,
           200,
           buildFilter,
           versionFilter ?? undefined,
@@ -463,7 +492,7 @@ export default function LiveEventsPage() {
     };
     // The filters belong here: changing one changes what the server is being asked for, so the
     // poll has to restart rather than keep fetching the previous question until the next tick.
-  }, [router, handleUnauthorized, buildFilter, versionFilter]);
+  }, [router, handleUnauthorized, buildFilter, versionFilter, windowMinutes]);
 
   /**
    * The version picker's options, refreshed far more slowly than the user list.
@@ -519,7 +548,7 @@ export default function LiveEventsPage() {
         // are exactly what Discovery counts. Later polls are incremental and 100 is more than a few
         // seconds can produce.
         const first = sinceRef.current === null;
-        const batch = await api.getLiveEvents(selectedRef.current, sinceRef.current ?? undefined, first ? 500 : 100);
+        const batch = await api.getLiveEvents(selectedRef.current, sinceRef.current ?? undefined, first ? 500 : 100, versionFilter ?? undefined);
         if (cancelled) return;
         const fresh = batch.filter((e) => e.id && !seenRef.current.has(e.id));
         if (fresh.length > 0) {
@@ -570,7 +599,9 @@ export default function LiveEventsPage() {
       cancelled = true;
       clearInterval(t);
     };
-  }, [selectedId, handleUnauthorized]);
+    // versionFilter belongs here: it changes what the stream is being asked for, so the poll
+    // has to restart rather than keep appending to a stream built under the previous filter.
+  }, [selectedId, handleUnauthorized, versionFilter]);
 
   /**
    * Chosen once, and then left alone.
@@ -629,6 +660,15 @@ export default function LiveEventsPage() {
     return list;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeUsers, search, roleFilter, liveOnly, sortBy]);
+
+  /** What the page is narrowed to right now, in words — for the copied report's header. */
+  const filterLabel = useMemo(() => {
+    const v = appVersions.find((a) => a.appVersionCode === versionFilter);
+    const version = versionFilter == null
+      ? "all versions"
+      : `${v?.appVersion ?? "?"} (${versionFilter})`;
+    return `build ${buildFilter}, ${version}, last ${WINDOW_LABELS[windowMinutes] ?? `${windowMinutes}m`}`;
+  }, [buildFilter, versionFilter, appVersions, windowMinutes]);
 
   const liveCount = activeUsers.filter((u) => liveState(u.lastEventAt) === "live").length;
   const selectedUser = activeUsers.find((u) => u.userId === selectedId);
@@ -695,6 +735,18 @@ export default function LiveEventsPage() {
                 {appVersions.map((v) => (
                   <option key={v.appVersionCode} value={v.appVersionCode}>
                     {v.appVersion ?? "—"} ({v.appVersionCode}) · {v.users}
+                  </option>
+                ))}
+              </select>
+              <select
+                className="input"
+                value={String(windowMinutes)}
+                onChange={(e) => setWindowMinutes(Number(e.target.value))}
+                title="How far back the user list looks. The build and version filters hold across whatever is chosen."
+              >
+                {Object.entries(WINDOW_LABELS).map(([m, label]) => (
+                  <option key={m} value={m}>
+                    Last {label}
                   </option>
                 ))}
               </select>
@@ -826,6 +878,7 @@ export default function LiveEventsPage() {
                             userId: selectedId,
                             invotickId: selectedUser?.invotickId,
                             names: displayNamesRef.current,
+                            filter: filterLabel,
                           }),
                         );
                         setCopyState(r);
@@ -845,6 +898,7 @@ export default function LiveEventsPage() {
                             userId: selectedId,
                             invotickId: selectedUser?.invotickId,
                             names: displayNamesRef.current,
+                            filter: filterLabel,
                           }),
                         )
                       }
@@ -875,10 +929,16 @@ export default function LiveEventsPage() {
                       className="btn btn-outline"
                       onClick={async () => {
                         if (!selectedRef.current) return;
-                        if (!confirm("Permanently delete ALL of this user's events? They will NOT reappear."))
-                          return;
+                        // The dialog names the scope the button actually has. It used to say "ALL"
+                        // while the page was filtered to one version, so twenty visible rows and
+                        // three and a half months of history were the same click.
+                        const scope =
+                          versionFilter == null
+                            ? "ALL of this user's events, every version"
+                            : `this user's events from ${appVersions.find((a) => a.appVersionCode === versionFilter)?.appVersion ?? "?"} (${versionFilter}) only`;
+                        if (!confirm(`Permanently delete ${scope}? They will NOT reappear.`)) return;
                         try {
-                          await api.clearLiveEvents(selectedRef.current);
+                          await api.clearLiveEvents(selectedRef.current, versionFilter ?? undefined);
                           setEvents([]);
                           seenRef.current = new Set();
                           sinceRef.current = null;

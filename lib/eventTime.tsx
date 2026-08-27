@@ -11,6 +11,24 @@ import React from "react";
  * 24-hour and fixed-width on purpose: these are read as a column, and a 12-hour clock puts a
  * variable-width "PM" where the eye is scanning for a digit.
  */
+/**
+ * The same instant, with the date in front — for text that leaves the screen.
+ *
+ * The on-screen stream deliberately shows time only: the rows are read together, space is tight,
+ * and the date repeats. A copied report is read somewhere else, and there the missing date was not
+ * a small thing — a user's 343 cold starts spanning 13 May to 22 August printed as times alone,
+ * so three and a half months of ordinary daily launches collapsed into what looked like one
+ * chaotic day with the clock running backwards, and were reported as a burst.
+ */
+export function dateTimeWithMillis(iso: string): string {
+  const at = new Date(iso);
+  if (Number.isNaN(at.getTime())) return "—";
+  const y = at.getFullYear();
+  const mo = String(at.getMonth() + 1).padStart(2, "0");
+  const d = String(at.getDate()).padStart(2, "0");
+  return `${y}-${mo}-${d} ${timeWithMillis(iso)}`;
+}
+
 export function timeWithMillis(iso: string): string {
   const at = new Date(iso);
   if (Number.isNaN(at.getTime())) return "—";
