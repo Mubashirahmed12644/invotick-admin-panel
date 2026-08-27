@@ -73,7 +73,22 @@ export interface ActiveUser {
   country: string | null;
   countryCode: string | null;
   lastEventAt: string;
+  /** What the device last reported. Null for a build old enough to have sent neither. */
+  appVersion: string | null;
+  appVersionCode: number | null;
+  /** "release" or "debug". */
+  buildType: string | null;
   recentEventCount: number;
+}
+
+/** One app version seen reporting in the window — the options for the version picker. */
+export interface AppVersion {
+  appVersion: string | null;
+  appVersionCode: number;
+  buildType: string | null;
+  users: number;
+  events: number;
+  lastEventAt: string;
 }
 
 export interface LiveEvent {

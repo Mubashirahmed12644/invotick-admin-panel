@@ -8,14 +8,12 @@ import Navbar from "@/components/Navbar";
 import Sidebar from "@/components/Sidebar";
 import { api, getErrorMessage, isUnauthorizedError, ApiError } from "@/lib/api";
 import { clearAccessToken, isLoggedIn } from "@/lib/auth";
-import type { ActiveUser, LiveEvent } from "@/lib/types";
+import type { ActiveUser, AppVersion, LiveEvent } from "@/lib/types";
 import { EventTime, timeWithMillis } from "@/lib/eventTime";
 import { copyText, downloadText, fileStamp } from "@/lib/clipboard";
 
 const EVENT_POLL_MS = 1200;
 const USERS_POLL_MS = 5000;
-/** How long the "which of these are test phones" answer is reused before asking again. */
-const DEBUG_SET_TTL_MS = 60_000;
 // Names and the ignored set change when a person decides they do, not on a stream's schedule — but
 // they DO change while a stream is open, which is the normal way to work: Discovery in one window,
 // this in another. Re-read on a slow beat rather than once at mount.
@@ -136,6 +134,9 @@ function buildStreamReport(
 
 type SortKey = "recent" | "email" | "count";
 
+/** Which build the list is narrowed to. Applied by the server, not here. */
+type BuildFilter = "debug" | "release" | "all";
+
 function eventKind(name: string): "screen" | "click" | "lifecycle" | "other" {
   if (SCREEN_VIEW_EVENTS.has(name)) return "screen";
   if (name.startsWith("app_")) return "lifecycle";
@@ -189,21 +190,22 @@ export default function LiveEventsPage() {
    */
   const [liveOnly, setLiveOnly] = useState(true);
   /**
-   * Only the phones doing the testing. On by default — this page exists to watch a run, and a run is
-   * on a debug build; four thousand real users in the same list only make that one harder to find.
+   * Which build to show: "debug" for the phones doing the testing, "release" for the people using
+   * the product, "all" for both. Defaults to debug — this page exists to watch a test run, and four
+   * thousand real users in the same list only make that one phone harder to find.
    *
-   * There is no flag on a user saying so, because "debug" is a property of the build an event came
-   * from rather than of the person. It is answered by the same list Event Discovery picks a run
-   * from, and `loaded` is tracked separately: until that list arrives the set is empty, and filtering
-   * on an empty set would show no users at all — which reads as "nobody is here" rather than "not
-   * known yet", the most alarming thing this page can say wrongly.
+   * This was a checkbox, and a checkbox can only say debug-or-everyone. Watching what a *release*
+   * build does — the reason the page was opened at all after 1.4.1 shipped — was not expressible.
+   *
+   * Both this and [versionFilter] are now applied by the **server**. They were client-side, over a
+   * list the server had already capped at 200, and that produced a header reading "3 live" directly
+   * above "No matching active users": the count came from the whole list and the rows from the
+   * filtered one. The page looked broken while it was merely answering two questions at once.
    */
-  const [debugOnly, setDebugOnly] = useState(true);
-  const debugUsersRef = useRef<{ set: Set<string>; loaded: boolean; fetchedAt: number }>({
-    set: new Set(),
-    loaded: false,
-    fetchedAt: 0,
-  });
+  const [buildFilter, setBuildFilter] = useState<BuildFilter>("debug");
+  /** null = every version. A versionCode, not a name: names repeat across builds, codes do not. */
+  const [versionFilter, setVersionFilter] = useState<number | null>(null);
+  const [appVersions, setAppVersions] = useState<AppVersion[]>([]);
   /** True once the user list has arrived — the signal the slower, decorative reads wait for. */
   const [usersLoaded, setUsersLoaded] = useState(false);
   const [sortBy, setSortBy] = useState<SortKey>("recent");
@@ -422,42 +424,22 @@ export default function LiveEventsPage() {
       if (usersInFlight || Date.now() < usersNextAt) return;
       usersInFlight = true;
       try {
-        // These two together, and nothing else with them.
+        // One request. The build filter used to need a second one — a separate list of debug
+        // devices, fetched on its own schedule and intersected here — and every problem that
+        // arrangement had came from the two lists disagreeing: a phone that started sending after
+        // the set was captured stayed invisible until the set refreshed, while the header, which
+        // counted the unfiltered list, cheerfully reported it as live. The server applies the
+        // filter now, so there is one list and it cannot disagree with itself.
         //
-        // Measured on a cold reload: the list arrived at 3.2s unfiltered, the debug set at 5.8s, and
-        // the list then re-rendered filtered — the flicker of a list you have already started
-        // reading rearranging itself. Running them one after the other caused that; running them
-        // together costs the slower of the two instead of the sum, and the list is drawn once,
-        // already right. The two config reads are deliberately not in here: they decorate rows that
-        // do not exist yet.
-        //
-        // Refreshed on an interval, not once.
-        //
-        // "Fetched on the first pass only" was the fix for a real cost — re-asking on every poll
-        // took 2.6s to 5.5s of server time. But it made a new debug device permanently invisible:
-        // the set is captured when the page loads, and a phone that starts sending afterwards (a
-        // fresh guest id, a reinstall, cleared data) is never in it, so `debugOnly` filters it out
-        // for ever. The header counts without that filter, which is how the page came to say
-        // "1 live" above "No matching active users" — and plugging in a phone and watching it is
-        // the entire purpose of this page.
-        //
-        // Once a minute rather than every poll: the query is now indexed (idx_analytics_events_
-        // created_user took it from 8.5s to 0.44s), so the original cost is gone, and a minute is
-        // far below how long anyone would sit wondering why their device is missing.
-        const debugSetAge = Date.now() - debugUsersRef.current.fetchedAt;
-        const needDebugSet = !debugUsersRef.current.loaded || debugSetAge > DEBUG_SET_TTL_MS;
-        const [list, debugDevices] = await Promise.all([
-          api.getActiveUsers(30, 200),
-          needDebugSet ? api.getDebugDevices(720, 200) : Promise.resolve(null),
-        ]);
+        // The two config reads are deliberately still not in here: they decorate rows that do not
+        // exist yet.
+        const list = await api.getActiveUsers(
+          30,
+          200,
+          buildFilter,
+          versionFilter ?? undefined,
+        );
         if (!cancelled) {
-          if (debugDevices) {
-            debugUsersRef.current = {
-              set: new Set(debugDevices.map((d) => d.userId)),
-              loaded: true,
-              fetchedAt: Date.now(),
-            };
-          }
           setActiveUsers(list);
           setUsersError("");
           setUsersLoaded(true);
@@ -479,7 +461,35 @@ export default function LiveEventsPage() {
       cancelled = true;
       clearInterval(t);
     };
-  }, [router, handleUnauthorized]);
+    // The filters belong here: changing one changes what the server is being asked for, so the
+    // poll has to restart rather than keep fetching the previous question until the next tick.
+  }, [router, handleUnauthorized, buildFilter, versionFilter]);
+
+  /**
+   * The version picker's options, refreshed far more slowly than the user list.
+   *
+   * A day-long window rather than the list's thirty minutes: a version that stopped reporting an
+   * hour ago is still one somebody may want to look back at, and an option list that empties itself
+   * while being read is worse than one that is slightly generous.
+   */
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      try {
+        const versions = await api.getAppVersions(1440);
+        if (!cancelled) setAppVersions(versions);
+      } catch {
+        // A missing picker is not worth an error banner over the list it sits above; the list is
+        // what the page is for, and it is unaffected.
+      }
+    }
+    load();
+    const t = setInterval(load, 5 * 60_000);
+    return () => {
+      cancelled = true;
+      clearInterval(t);
+    };
+  }, []);
 
   // poll selected user's events
   useEffect(() => {
@@ -573,10 +583,10 @@ export default function LiveEventsPage() {
   const autoSelected = useRef(false);
   useEffect(() => {
     if (autoSelected.current || selectedId || activeUsers.length === 0) return;
-    if (!debugUsersRef.current.loaded) return;
-    const candidates = activeUsers
-      .filter((u) => debugUsersRef.current.set.has(u.userId))
-      .sort((a, b) => (a.lastEventAt < b.lastEventAt ? 1 : -1));
+    // The list is already narrowed to whatever build was asked for, so the newest row in it is the
+    // right one to open. This used to intersect a separately-fetched debug set, and did nothing at
+    // all until that set arrived.
+    const candidates = [...activeUsers].sort((a, b) => (a.lastEventAt < b.lastEventAt ? 1 : -1));
     const newest = candidates[0];
     if (!newest || liveState(newest.lastEventAt) !== "live") return;
     autoSelected.current = true;
@@ -601,8 +611,7 @@ export default function LiveEventsPage() {
     let list = activeUsers.filter((u) => {
       if (roleFilter !== "all" && (u.role ?? "").toLowerCase() !== roleFilter) return false;
       if (liveOnly && liveState(u.lastEventAt) !== "live") return false;
-      // Not applied before the answer is known — see the note on debugOnly.
-      if (debugOnly && debugUsersRef.current.loaded && !debugUsersRef.current.set.has(u.userId)) return false;
+      // Build and version are not filtered here: the server already applied them, before the limit.
       if (q) {
         return (
           (u.email ?? "").toLowerCase().includes(q) ||
@@ -619,7 +628,7 @@ export default function LiveEventsPage() {
     });
     return list;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeUsers, search, roleFilter, liveOnly, debugOnly, sortBy]);
+  }, [activeUsers, search, roleFilter, liveOnly, sortBy]);
 
   const liveCount = activeUsers.filter((u) => liveState(u.lastEventAt) === "live").length;
   const selectedUser = activeUsers.find((u) => u.userId === selectedId);
@@ -664,10 +673,31 @@ export default function LiveEventsPage() {
                 <option value="count">Sort: events</option>
                 <option value="email">Sort: email</option>
               </select>
-              <label className="le-check" title="Only phones running a debug build — the ones a test round is done on. Off shows every user in the last 30 minutes.">
-                <input type="checkbox" checked={debugOnly} onChange={(e) => setDebugOnly(e.target.checked)} />
-                Debug users only
-              </label>
+              <select
+                className="input"
+                value={buildFilter}
+                onChange={(e) => setBuildFilter(e.target.value as BuildFilter)}
+                title="Which build to show. Debug is the phones a test round is done on; release is the people actually using the product."
+              >
+                <option value="debug">Build: debug</option>
+                <option value="release">Build: release</option>
+                <option value="all">Build: all</option>
+              </select>
+              <select
+                className="input"
+                value={versionFilter == null ? "all" : String(versionFilter)}
+                onChange={(e) =>
+                  setVersionFilter(e.target.value === "all" ? null : Number(e.target.value))
+                }
+                title="App version, by build number. Only versions that reported in the last 24 hours are listed."
+              >
+                <option value="all">All versions</option>
+                {appVersions.map((v) => (
+                  <option key={v.appVersionCode} value={v.appVersionCode}>
+                    {v.appVersion ?? "—"} ({v.appVersionCode}) · {v.users}
+                  </option>
+                ))}
+              </select>
               <label className="le-check">
                 <input type="checkbox" checked={liveOnly} onChange={(e) => setLiveOnly(e.target.checked)} />
                 Live only
@@ -681,6 +711,7 @@ export default function LiveEventsPage() {
                 <span>User</span>
                 <span>Role</span>
                 <span>Country</span>
+                <span>Build</span>
                 <span>Last</span>
                 <span>Ev</span>
               </div>
@@ -716,6 +747,22 @@ export default function LiveEventsPage() {
                     ) : (
                       "—"
                     )}
+                  </span>
+                  {/*
+                    Shown rather than only filterable. "Which version is this person on" is asked far
+                    more often than it is filtered on, and answering it by narrowing the list hides
+                    every other row to read one field.
+                  */}
+                  <span
+                    className="le-build"
+                    title={
+                      u.appVersion || u.buildType
+                        ? `${u.appVersion ?? "unknown version"} (${u.appVersionCode ?? "?"}) · ${u.buildType ?? "build unknown"}`
+                        : "This build reported no version"
+                    }
+                  >
+                    {u.appVersion ?? "—"}
+                    {u.buildType === "debug" ? <span className="le-dbg">dbg</span> : null}
                   </span>
                   <span className="le-last">{relTime(u.lastEventAt)}</span>
                   <span className="le-count">{u.recentEventCount}</span>

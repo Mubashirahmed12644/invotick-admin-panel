@@ -5,6 +5,7 @@ import type {
   AdminLoginResponse,
   AdminVerifyOtpRequest,
   ActiveUser,
+  AppVersion,
   ApiResponse,
   ApiTokenResponse,
   AuthResponse,
@@ -295,12 +296,34 @@ export const api = {
     });
   },
 
-  getActiveUsers(withinMinutes = 30, limit = 200) {
+  /**
+   * @param buildType "release" or "debug" to narrow to one kind of build; omit for both.
+   * @param appVersionCode narrow to one build number; omit for every version.
+   *
+   * Both are sent to the server rather than applied to the result, because the result is already
+   * capped at `limit`. Filtering after that cap is what produced a header reading "3 live" above
+   * "No matching active users" — the count and the list were answering different questions.
+   */
+  getActiveUsers(
+    withinMinutes = 30,
+    limit = 200,
+    buildType?: string,
+    appVersionCode?: number,
+  ) {
     const params = new URLSearchParams({
       withinMinutes: String(withinMinutes),
       limit: String(limit),
     });
+    if (buildType && buildType !== "all") params.set("buildType", buildType);
+    if (appVersionCode != null) params.set("appVersionCode", String(appVersionCode));
     return apiRequest<ActiveUser[]>(`/v1/webpanel/analytics/active-users?${params.toString()}`);
+  },
+
+  /** Versions seen reporting in the window, newest first. Polled far less often than the user list. */
+  getAppVersions(withinMinutes = 1440) {
+    return apiRequest<AppVersion[]>(
+      `/v1/webpanel/analytics/app-versions?withinMinutes=${withinMinutes}`,
+    );
   },
 
   getLiveEvents(userId: string, since?: string, limit = 100) {

@@ -2668,7 +2668,8 @@ th {
 
 .le-user-headrow, .le-userrow {
   display: grid;
-  grid-template-columns: 1fr 52px 52px 62px 34px;
+  /* User · Role · Country · Build · Last · Ev */
+  grid-template-columns: 1fr 52px 52px 58px 62px 34px;
   gap: 0.4rem;
   align-items: center;
   padding: 0.4rem 0.5rem;
@@ -2694,6 +2695,29 @@ th {
   border-left: 3px solid transparent;
 }
 .le-userrow:hover { background: rgba(15, 61, 140, 0.05); }
+
+/* The build a row is on. Muted, because it is context for the row rather than the row itself —
+   it earns a column so the version can be read without narrowing the list to it. */
+.le-build {
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Debug builds get a mark rather than a colour: this list is read at a glance for which phone is
+   the test one, and a colour alone does not survive being printed, screenshotted or colour-blind. */
+.le-dbg {
+  margin-left: 0.25rem;
+  padding: 0 0.2rem;
+  border-radius: 3px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--color-primary);
+  border: 1px solid currentColor;
+}
+
 .le-userrow-active { background: rgba(15, 61, 140, 0.1); border-left-color: var(--color-primary); }
 
 .le-user-id {
