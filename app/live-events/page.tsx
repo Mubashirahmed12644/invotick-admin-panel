@@ -166,16 +166,37 @@ const isGa4Only = (n: string) => n.startsWith("All_") || n.startsWith("ASE_") ||
  * "# Events" in the table as an event with zero count, so the comments are dropped and the header
  * is found rather than assumed to be line 1.
  */
-function parseGa4Csv(text: string): { counts: Map<string, number>; range: string | null } {
+function parseGa4Csv(text: string): {
+  counts: Map<string, number>;
+  label: string | null;
+  appVersion: string | null;
+  from: Date | null;
+  to: Date | null;
+} {
   const counts = new Map<string, number>();
-  let range: string | null = null;
+  let label: string | null = null;
+  let appVersion: string | null = null;
+  let from: Date | null = null;
+  let to: Date | null = null;
   let started = false;
+  // GA4 writes the dates as YYYYMMDD with no separators, and they are the filter the numbers below
+  // were produced under. Reading them means the table can match the export instead of asking
+  // somebody to line up three controls by hand — which is the one mistake that makes every row
+  // disagree for a reason that has nothing to do with the app.
+  const day = (v: string): Date | null => {
+    const m = v.match(/^(\d{4})(\d{2})(\d{2})$/);
+    return m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : null;
+  };
   for (const raw of text.split(/\r?\n/)) {
     const line = raw.trim();
     if (!line) continue;
     if (line.startsWith("#")) {
-      const m = line.match(/App version[^,]*/i);
-      if (m) range = m[0].replace(/^#\s*/, "");
+      const v = line.match(/App version[^,]*?matches\s+(\S+)/i);
+      if (v) { appVersion = v[1]; label = line.replace(/^#\s*/, ""); }
+      const sd = line.match(/Start date:\s*(\d{8})/i);
+      if (sd) from = day(sd[1]);
+      const ed = line.match(/End date:\s*(\d{8})/i);
+      if (ed) to = day(ed[1]);
       continue;
     }
     if (!started) {
@@ -191,7 +212,7 @@ function parseGa4Csv(text: string): { counts: Map<string, number>; range: string
     counts.set(name, (counts.get(name) ?? 0) + count);
     started = true;
   }
-  return { counts, range };
+  return { counts, label, appVersion, from, to };
 }
 
 function eventKind(name: string): "screen" | "click" | "lifecycle" | "other" {
@@ -302,9 +323,25 @@ export default function LiveEventsPage() {
    * loud that its filters are its own, because two tables on one page showing different numbers is
    * alarming until you know why.
    */
+  /**
+   * The table's own controls, shaped for what it is — a population, not a live feed.
+   *
+   * Version is held as a NAME, not a build number, because that is the unit GA4 reports in: an
+   * export filtered to "1.4.2" covers build 93 and 94 together, and comparing it against one code
+   * would show every row short by whatever the other code sent. The codes behind a name are fetched
+   * and summed.
+   *
+   * Defaults are release and the newest version, because that is the question this table is opened
+   * to answer. [versionTouched] exists so that default cannot overwrite a choice the user has
+   * already made when the version list refreshes underneath them.
+   */
   const [sumBuild, setSumBuild] = useState<BuildFilter>("release");
-  const [sumVersion, setSumVersion] = useState<number | null>(null);
+  const [sumVersionNames, setSumVersionNames] = useState<string[]>([]);
+  const [versionTouched, setVersionTouched] = useState(false);
   const [sumRange, setSumRange] = useState<DayRange>(defaultRange);
+  const [sumSort, setSumSort] = useState<"ours" | "diff" | "name">("ours");
+  const [onlyDiff, setOnlyDiff] = useState(false);
+
 
 
   /**
@@ -351,6 +388,39 @@ export default function LiveEventsPage() {
     missing.sort((a, b) => (ga4.get(b.eventName) ?? 0) - (ga4.get(a.eventName) ?? 0));
     return [...rows, ...missing];
   }, [summary, ga4]);
+  /**
+   * What the table actually draws: merged, searched, optionally narrowed to disagreements, sorted.
+   *
+   * Kept in one place because the Copy button must hand over exactly what is on screen. Copying an
+   * unfiltered table from a filtered view is how a number ends up in a message meaning something
+   * other than what the sender was looking at.
+   */
+  const visibleSummaryRows = useMemo(() => {
+    const q = summaryQuery.trim().toLowerCase();
+    let rows = mergedRows.filter((r) => r.eventName.toLowerCase().includes(q));
+    if (ga4 && onlyDiff) {
+      rows = rows.filter((r) => {
+        // A GA4-only name has no comparison to fail, so it is not a difference — it is a channel
+        // boundary, and leaving it in would fill the list with rows nobody can act on.
+        if (isGa4Only(r.eventName)) return false;
+        const g = ga4.get(r.eventName);
+        if (g == null) return false;
+        const d = Math.abs(r.events - g);
+        return d >= 3 && (d * 100) / Math.max(g, 1) >= 10;
+      });
+    }
+    const sorted = [...rows];
+    if (sumSort === "name") sorted.sort((a, b) => a.eventName.localeCompare(b.eventName));
+    else if (sumSort === "diff" && ga4) {
+      const gap = (r: EventSummaryRow) => {
+        const g = ga4.get(r.eventName);
+        return g == null ? -1 : Math.abs(r.events - g);
+      };
+      sorted.sort((a, b) => gap(b) - gap(a));
+    } else sorted.sort((a, b) => b.events - a.events);
+    return sorted;
+  }, [mergedRows, summaryQuery, ga4, onlyDiff, sumSort]);
+
 
 
   const [buildFilter, setBuildFilter] = useState<BuildFilter>("debug");
@@ -622,8 +692,53 @@ export default function LiveEventsPage() {
     // The filters belong here: changing one changes what the server is being asked for, so the
     // poll has to restart rather than keep fetching the previous question until the next tick.
   }, [router, handleUnauthorized, buildFilter, versionFilter, range, pageSize]);
-  // Reporting table. Same filters as the list, fetched once per change rather than polled: this is
-  // a population, and a number that moves under the eye invites reading it as a live feed.
+  /**
+   * Version names available in the table's own range, newest first, each carrying its build numbers.
+   *
+   * Fetched from this range and not the list's: a picker offering fewer versions than the view
+   * behind it makes the missing option read as "no such version", and with the two ranges now
+   * independent that gap could open up again.
+   */
+  const [sumVersions, setSumVersions] = useState<AppVersion[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const iso = toRangeIso(sumRange);
+        const versions = await api.getAppVersions(iso.from, iso.to);
+        if (!cancelled) setSumVersions(versions);
+      } catch {
+        // The numbers below are still readable without the picker.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [sumRange]);
+
+  /** name -> the build numbers reporting under it, newest first. */
+  const versionGroups = useMemo(() => {
+    const m = new Map<string, number[]>();
+    for (const v of sumVersions) {
+      if (!v.appVersion) continue;
+      const list = m.get(v.appVersion) ?? [];
+      list.push(v.appVersionCode);
+      m.set(v.appVersion, list);
+    }
+    return m;
+  }, [sumVersions]);
+
+  // Land on the newest version rather than on everything: "all versions" mixes a build being
+  // rolled out with the one it replaced, and every rate read off that mixture is an average of two
+  // different apps. Only until the user picks something.
+  useEffect(() => {
+    if (versionTouched || sumVersionNames.length > 0) return;
+    const newest = sumVersions.find((v) => v.appVersion)?.appVersion;
+    if (newest) setSumVersionNames([newest]);
+  }, [sumVersions, versionTouched, sumVersionNames]);
+
+  // Reporting table. One request per build number behind the chosen name, summed — see the note on
+  // sumVersionName for why a name and not a number.
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -631,8 +746,39 @@ export default function LiveEventsPage() {
       setSummaryError(null);
       try {
         const iso = toRangeIso(sumRange);
-        const page = await api.getEventSummary(iso.from, iso.to, sumVersion ?? undefined, sumBuild);
-        if (!cancelled) setSummary(page);
+        // Several names can be on at once, so the codes behind them are unioned. Deduped because
+        // two names could in principle report the same build number, and asking for it twice would
+        // double every count under it.
+        const codes = [
+          ...new Set(sumVersionNames.flatMap((n) => versionGroups.get(n) ?? [])),
+        ];
+        const pages = codes.length
+          ? await Promise.all(codes.map((c) => api.getEventSummary(iso.from, iso.to, c, sumBuild)))
+          : [await api.getEventSummary(iso.from, iso.to, undefined, sumBuild)];
+
+        const byName = new Map<string, EventSummaryRow>();
+        for (const page of pages) {
+          for (const r of page.rows) {
+            const prev = byName.get(r.eventName);
+            if (!prev) { byName.set(r.eventName, { ...r }); continue; }
+            prev.events += r.events;
+            // Users and devices are distinct counts per build, so adding them can double-count
+            // anyone who upgraded mid-range. Max is the honest floor: never fewer than the largest
+            // build saw, never a sum that claims more people than exist.
+            prev.users = Math.max(prev.users, r.users);
+            prev.devices = Math.max(prev.devices, r.devices);
+            prev.perDevice = prev.devices > 0 ? prev.events / prev.devices : 0;
+            if (r.lastAt > prev.lastAt) prev.lastAt = r.lastAt;
+          }
+        }
+        const rows = [...byName.values()].sort((a, b) => b.events - a.events);
+        if (!cancelled) {
+          setSummary({
+            rows,
+            totalEvents: rows.reduce((n, r) => n + r.events, 0),
+            distinctNames: rows.length,
+          });
+        }
       } catch (err) {
         if (!cancelled && !handleUnauthorized(err)) {
           setSummaryError(getErrorMessage(err, "Could not load the event summary."));
@@ -644,32 +790,7 @@ export default function LiveEventsPage() {
     return () => {
       cancelled = true;
     };
-  }, [handleUnauthorized, sumBuild, sumVersion, sumRange]);
-  /**
-   * Version options for the table's own picker, read from the table's own range.
-   *
-   * Sharing the list's options would reintroduce the fault the backend note already records: a
-   * picker offering fewer versions than the view behind it, where the missing option reads as "no
-   * such version". With the two ranges now independent, a 90-day table under a 7-day list would
-   * have been offered only the versions seen in 7 days.
-   */
-  const [sumVersions, setSumVersions] = useState<AppVersion[]>([]);
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const iso = toRangeIso(sumRange);
-        const versions = await api.getAppVersions(iso.from, iso.to);
-        if (!cancelled) setSumVersions(versions);
-      } catch {
-        // The table below is still readable without its picker; an error banner here would be
-        // about a control, not about the numbers.
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [sumRange]);
+  }, [handleUnauthorized, sumBuild, sumVersionNames, versionGroups, sumRange]);
 
 
 
@@ -1380,20 +1501,72 @@ export default function LiveEventsPage() {
                 <option value="debug">Build: debug</option>
                 <option value="all">Build: all</option>
               </select>
+              <DateRangePicker value={sumRange} onChange={setSumRange} />
               <select
                 className="input"
-                value={sumVersion == null ? "all" : String(sumVersion)}
-                onChange={(e) => setSumVersion(e.target.value === "all" ? null : Number(e.target.value))}
-                title="App version, by build number."
+                value={sumSort}
+                onChange={(e) => setSumSort(e.target.value as "ours" | "diff" | "name")}
+                title="What to put at the top."
               >
-                <option value="all">All versions</option>
-                {sumVersions.map((v) => (
-                  <option key={v.appVersionCode} value={v.appVersionCode}>
-                    {v.appVersion ?? "—"} ({v.appVersionCode}) · {v.users}
-                  </option>
-                ))}
+                <option value="ours">Sort: volume</option>
+                <option value="diff">Sort: biggest gap</option>
+                <option value="name">Sort: name</option>
               </select>
-              <DateRangePicker value={sumRange} onChange={setSumRange} />
+              {ga4 && (
+                <label className="le-check" title="Hide every row where the two systems agree.">
+                  <input type="checkbox" checked={onlyDiff} onChange={(e) => setOnlyDiff(e.target.checked)} />
+                  Only differences
+                </label>
+              )}
+              <button
+                className="ga4-clear"
+                title="Copy exactly what is on screen, as TSV."
+                onClick={() => {
+                  const head = ga4 ? "event\tours\tga4\tdiff\tusers\tdevices" : "event\tours\tusers\tdevices";
+                  const body = visibleSummaryRows
+                    .map((r) => {
+                      const g = ga4?.get(r.eventName);
+                      return ga4
+                        ? `${r.eventName}\t${r.events}\t${g ?? ""}\t${g != null ? r.events - g : ""}\t${r.users}\t${r.devices}`
+                        : `${r.eventName}\t${r.events}\t${r.users}\t${r.devices}`;
+                    })
+                    .join("\n");
+                  copyText(`${head}\n${body}`);
+                }}
+              >
+                Copy
+              </button>
+            </div>
+
+            {/* Versions as toggles rather than a dropdown: one or several, and which ones is
+                readable without opening anything. A single-select cannot answer "did 1.4.2 change
+                this from 1.4.1", which is most of why anyone opens this table. */}
+            <div className="ver-chips">
+              <button
+                className={`ver-chip${sumVersionNames.length === 0 ? " ver-chip-on" : ""}`}
+                onClick={() => { setVersionTouched(true); setSumVersionNames([]); }}
+                title="Every version in range, added together."
+              >
+                All versions
+              </button>
+              {[...versionGroups].map(([name, codes]) => {
+                const on = sumVersionNames.includes(name);
+                return (
+                  <button
+                    key={name}
+                    className={`ver-chip${on ? " ver-chip-on" : ""}`}
+                    title={`Build ${codes.join(", ")}. GA4 reports this as one version; the builds behind it are summed.`}
+                    onClick={() => {
+                      setVersionTouched(true);
+                      setSumVersionNames((cur) =>
+                        cur.includes(name) ? cur.filter((n) => n !== name) : [...cur, name],
+                      );
+                    }}
+                  >
+                    {name} <span className="ver-chip-codes">({codes.join(", ")})</span>
+                  </button>
+                );
+              })}
             </div>
 
             {/* GA4 comparison. Loaded from a file rather than fetched: GA4 is a second measurement
@@ -1412,17 +1585,26 @@ export default function LiveEventsPage() {
                     if (!file) return;
                     setGa4Error(null);
                     try {
-                      const { counts, range } = parseGa4Csv(await file.text());
+                      const { counts, label, appVersion, from, to } = parseGa4Csv(await file.text());
                       if (counts.size === 0) {
                         setGa4Error("No event rows found in that file.");
                         return;
                       }
                       setGa4(counts);
-                      setGa4Label(range ?? file.name);
+                      setGa4Label(label ?? file.name);
                       localStorage.setItem(
                         "ga4-events",
-                        JSON.stringify({ label: range ?? file.name, counts: [...counts] }),
+                        JSON.stringify({ label: label ?? file.name, counts: [...counts] }),
                       );
+                      // The export states the filters it was produced under, so match them instead
+                      // of asking somebody to line up three controls by hand. Mismatched filters
+                      // make every row disagree for a reason that has nothing to do with the app,
+                      // and that is the one way this comparison can quietly mislead.
+                      if (from && to) setSumRange({ from, to });
+                      if (appVersion) {
+                        setVersionTouched(true);
+                        setSumVersionNames([appVersion]);
+                      }
                     } catch {
                       setGa4Error("That file could not be read as a GA4 export.");
                     }
@@ -1450,8 +1632,8 @@ export default function LiveEventsPage() {
             </div>
             {ga4 && (
               <p className="muted-line">
-                This table&apos;s own build, version and date filters must match the export, or every
-                row will differ for that reason alone. Rows marked <em>GA4 only</em> reach Firebase through
+                Date range and version were set from the export&apos;s own header, so the two sides
+                cover the same thing. Build stays yours — GA4 does not record it. Rows marked <em>GA4 only</em> reach Firebase through
                 the ads SDK or Firebase&apos;s own lifecycle and never come to us — their absence is
                 a channel boundary, not a loss.
               </p>
@@ -1487,9 +1669,7 @@ export default function LiveEventsPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {mergedRows
-                      .filter((r) => r.eventName.toLowerCase().includes(summaryQuery.trim().toLowerCase()))
-                      .map((r, i) => {
+                    {visibleSummaryRows.map((r, i) => {
                         const g = ga4?.get(r.eventName);
                         const onlyGa4 = isGa4Only(r.eventName);
                         const diff = g != null ? r.events - g : null;

@@ -3458,3 +3458,29 @@ button {
 @media (prefers-color-scheme: dark) {
   .ga4-diff-notable { color: #f97066; }
 }
+
+/* ── Version chips on the Events sent table ───────────────────────────────── */
+/* Toggles rather than a dropdown: one version or several, and which ones is readable without
+   opening anything. A single-select cannot answer "did 1.4.2 change this from 1.4.1". */
+.ver-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0 2px;
+}
+.ver-chip {
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border, #d0d5dd);
+  background: transparent;
+  font-size: 12px;
+  cursor: pointer;
+  color: inherit;
+}
+.ver-chip:hover { border-color: var(--border-strong, #98a2b3); }
+.ver-chip-on {
+  border-color: #2970ff;
+  background: rgba(41, 112, 255, 0.1);
+  font-weight: 500;
+}
+.ver-chip-codes { opacity: 0.6; }
