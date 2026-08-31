@@ -8,7 +8,7 @@ import Navbar from "@/components/Navbar";
 import Sidebar from "@/components/Sidebar";
 import { api, getErrorMessage, isUnauthorizedError, ApiError } from "@/lib/api";
 import { clearAccessToken, isLoggedIn } from "@/lib/auth";
-import type { ActiveUser, AppVersion, LiveEvent } from "@/lib/types";
+import type { ActiveUser, AppVersion, EventSummaryPage, LiveEvent } from "@/lib/types";
 import { EventTime, dateTimeWithMillis, timeWithMillis } from "@/lib/eventTime";
 import { copyText, downloadText, fileStamp } from "@/lib/clipboard";
 import { DateRangePicker, defaultRange, formatDay, toRangeIso, type DayRange } from "@/components/DateRangePicker";
@@ -229,6 +229,18 @@ export default function LiveEventsPage() {
     truncated: false,
     hiddenNoBuild: null,
   });
+  /**
+   * The reporting table under the feed: every event name this build sent, not one person's stream.
+   *
+   * Kept on the same filters as the list above it deliberately. Two controls that look like one
+   * control and answer different ranges is the fault this page already had once — the version
+   * picker offered less than the list behind it, and the missing option read as "no such version".
+   */
+  const [summary, setSummary] = useState<EventSummaryPage | null>(null);
+  const [summaryError, setSummaryError] = useState<string | null>(null);
+  const [summaryLoading, setSummaryLoading] = useState(false);
+  const [summaryQuery, setSummaryQuery] = useState("");
+
   const [buildFilter, setBuildFilter] = useState<BuildFilter>("debug");
   /** null = every version. A versionCode, not a name: names repeat across builds, codes do not. */
   const [versionFilter, setVersionFilter] = useState<number | null>(null);
@@ -498,6 +510,30 @@ export default function LiveEventsPage() {
     // The filters belong here: changing one changes what the server is being asked for, so the
     // poll has to restart rather than keep fetching the previous question until the next tick.
   }, [router, handleUnauthorized, buildFilter, versionFilter, range, pageSize]);
+  // Reporting table. Same filters as the list, fetched once per change rather than polled: this is
+  // a population, and a number that moves under the eye invites reading it as a live feed.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setSummaryLoading(true);
+      setSummaryError(null);
+      try {
+        const iso = toRangeIso(range);
+        const page = await api.getEventSummary(iso.from, iso.to, versionFilter ?? undefined, buildFilter);
+        if (!cancelled) setSummary(page);
+      } catch (err) {
+        if (!cancelled && !handleUnauthorized(err)) {
+          setSummaryError(getErrorMessage(err, "Could not load the event summary."));
+        }
+      } finally {
+        if (!cancelled) setSummaryLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [handleUnauthorized, buildFilter, versionFilter, range]);
+
 
   /**
    * The version picker's options, refreshed far more slowly than the user list.
@@ -1175,6 +1211,77 @@ export default function LiveEventsPage() {
                   </div>
                 )}
               </>
+            )}
+          </div>
+        </section>
+        {/* Reporting table — what this build is sending, underneath what one person is doing. */}
+        <section className="content-wrap">
+          <div className="section-card">
+            <div className="le-left-head">
+              <h2>
+                Events sent{" "}
+                <span className="muted">
+                  {summary ? `${summary.distinctNames} names · ${summary.totalEvents.toLocaleString()} events` : ""}
+                </span>
+              </h2>
+            </div>
+            <p className="muted-line">
+              Raw event names, exactly as the app sends them — not the display names shown in the
+              feed above. Same build, version and date filters as the list.
+            </p>
+            <input
+              className="le-search"
+              placeholder="Filter event name…"
+              value={summaryQuery}
+              onChange={(e) => setSummaryQuery(e.target.value)}
+            />
+            {summaryError ? (
+              <p className="error-text">{summaryError}</p>
+            ) : summaryLoading && !summary ? (
+              <p className="muted-line">Loading…</p>
+            ) : !summary || summary.rows.length === 0 ? (
+              <p className="muted-line">No events in this range.</p>
+            ) : (
+              <div className="live-table-wrap">
+                <table className="live-table">
+                  <thead>
+                    <tr>
+                      <th className="live-th" style={{ width: 44 }}>#</th>
+                      <th className="live-th">Event name (raw)</th>
+                      <th className="live-th" style={{ width: 110 }}>Events</th>
+                      <th className="live-th" style={{ width: 80 }}>Share</th>
+                      <th className="live-th" style={{ width: 90 }}>Users</th>
+                      <th className="live-th" style={{ width: 90 }}>Devices</th>
+                      <th className="live-th" style={{ width: 110 }}>Per device</th>
+                      <th className="live-th" style={{ width: 130 }}>Last seen</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {summary.rows
+                      .filter((r) => r.eventName.toLowerCase().includes(summaryQuery.trim().toLowerCase()))
+                      .map((r, i) => (
+                        <tr key={r.eventName} className="live-row">
+                          <td className="muted">{i + 1}</td>
+                          <td>
+                            <code>{r.eventName}</code>
+                          </td>
+                          <td>{r.events.toLocaleString()}</td>
+                          {/* Against the whole build, never against the rows drawn — a share of a
+                              filtered view reads as a share of everything. */}
+                          <td className="muted">
+                            {summary.totalEvents > 0
+                              ? `${((r.events / summary.totalEvents) * 100).toFixed(1)}%`
+                              : "—"}
+                          </td>
+                          <td>{r.users.toLocaleString()}</td>
+                          <td>{r.devices.toLocaleString()}</td>
+                          <td>{r.perDevice.toFixed(1)}</td>
+                          <td className="muted">{relTime(r.lastAt)}</td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
         </section>

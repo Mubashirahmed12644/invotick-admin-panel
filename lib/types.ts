@@ -95,6 +95,29 @@ export interface ActiveUsersPage {
   hiddenWithoutBuildType: number | null;
 }
 
+/**
+ * One event name and how much of it arrived — a row of the reporting table under the live feed.
+ *
+ * `eventName` is the RAW name the app sends, not the display name shown in the feed. The two
+ * differ (`sync_failed` is displayed as "sync failure"), and grepping the app for the displayed
+ * one finds nothing — so this table shows the raw name and says so in the header.
+ */
+export interface EventSummaryRow {
+  eventName: string;
+  events: number;
+  users: number;
+  devices: number;
+  perDevice: number;
+  lastAt: string;
+}
+
+export interface EventSummaryPage {
+  rows: EventSummaryRow[];
+  /** Across every name, not just the rows drawn — a share against a partial total is a lie. */
+  totalEvents: number;
+  distinctNames: number;
+}
+
 /** One app version seen reporting in the window — the options for the version picker. */
 export interface AppVersion {
   appVersion: string | null;

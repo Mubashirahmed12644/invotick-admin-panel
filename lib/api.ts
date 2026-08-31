@@ -6,6 +6,7 @@ import type {
   AdminVerifyOtpRequest,
   ActiveUser,
   ActiveUsersPage,
+  EventSummaryPage,
   AppVersion,
   ApiResponse,
   ApiTokenResponse,
@@ -320,6 +321,22 @@ export const api = {
     if (from) params.set("from", from);
     if (to) params.set("to", to);
     return apiRequest<ActiveUsersPage>(`/v1/webpanel/analytics/active-users?${params.toString()}`);
+  },
+
+  /**
+   * Every event name this build sent in range, with volume and reach.
+   *
+   * The live feed shows one person's stream, which cannot separate "this user did not do it" from
+   * "this event never ships at all". This can, and it is the check to run before trusting any
+   * funnel built on top of an event.
+   */
+  getEventSummary(from?: string, to?: string, appVersionCode?: number, buildType?: string) {
+    const params = new URLSearchParams();
+    if (from) params.set("from", from);
+    if (to) params.set("to", to);
+    if (appVersionCode != null) params.set("appVersionCode", String(appVersionCode));
+    if (buildType && buildType !== "all") params.set("buildType", buildType);
+    return apiRequest<EventSummaryPage>(`/v1/webpanel/analytics/event-summary?${params.toString()}`);
   },
 
   /**
