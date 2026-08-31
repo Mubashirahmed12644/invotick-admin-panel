@@ -292,6 +292,22 @@ export default function LiveEventsPage() {
   const [summaryQuery, setSummaryQuery] = useState("");
 
   /**
+   * The table's own filters, deliberately not the list's.
+   *
+   * They were shared, and sharing them made one question impossible to ask: the list is normally
+   * pinned to a single debug device being tested, while this table is read as a population — "what
+   * is the released build sending". One set of controls forced those two into the same answer.
+   *
+   * Defaulted to release for that reason, which is not the list's default. The section says out
+   * loud that its filters are its own, because two tables on one page showing different numbers is
+   * alarming until you know why.
+   */
+  const [sumBuild, setSumBuild] = useState<BuildFilter>("release");
+  const [sumVersion, setSumVersion] = useState<number | null>(null);
+  const [sumRange, setSumRange] = useState<DayRange>(defaultRange);
+
+
+  /**
    * A GA4 "Events" export, held in the browser so the two numbers can be read on one row.
    *
    * Kept client-side on purpose: GA4 is a second measurement system, not a second source of truth,
@@ -614,8 +630,8 @@ export default function LiveEventsPage() {
       setSummaryLoading(true);
       setSummaryError(null);
       try {
-        const iso = toRangeIso(range);
-        const page = await api.getEventSummary(iso.from, iso.to, versionFilter ?? undefined, buildFilter);
+        const iso = toRangeIso(sumRange);
+        const page = await api.getEventSummary(iso.from, iso.to, sumVersion ?? undefined, sumBuild);
         if (!cancelled) setSummary(page);
       } catch (err) {
         if (!cancelled && !handleUnauthorized(err)) {
@@ -628,7 +644,33 @@ export default function LiveEventsPage() {
     return () => {
       cancelled = true;
     };
-  }, [handleUnauthorized, buildFilter, versionFilter, range]);
+  }, [handleUnauthorized, sumBuild, sumVersion, sumRange]);
+  /**
+   * Version options for the table's own picker, read from the table's own range.
+   *
+   * Sharing the list's options would reintroduce the fault the backend note already records: a
+   * picker offering fewer versions than the view behind it, where the missing option reads as "no
+   * such version". With the two ranges now independent, a 90-day table under a 7-day list would
+   * have been offered only the versions seen in 7 days.
+   */
+  const [sumVersions, setSumVersions] = useState<AppVersion[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const iso = toRangeIso(sumRange);
+        const versions = await api.getAppVersions(iso.from, iso.to);
+        if (!cancelled) setSumVersions(versions);
+      } catch {
+        // The table below is still readable without its picker; an error banner here would be
+        // about a control, not about the numbers.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [sumRange]);
+
 
 
   /**
@@ -1323,8 +1365,36 @@ export default function LiveEventsPage() {
             </div>
             <p className="muted-line">
               Raw event names, exactly as the app sends them — not the display names shown in the
-              feed above. Same build, version and date filters as the list.
+              feed above. <strong>This table has its own filters</strong>, so it can be read as a
+              population while the list above stays pinned to one device.
             </p>
+
+            <div className="le-filters">
+              <select
+                className="input"
+                value={sumBuild}
+                onChange={(e) => setSumBuild(e.target.value as BuildFilter)}
+                title="Which build to count. Release is the people actually using the product."
+              >
+                <option value="release">Build: release</option>
+                <option value="debug">Build: debug</option>
+                <option value="all">Build: all</option>
+              </select>
+              <select
+                className="input"
+                value={sumVersion == null ? "all" : String(sumVersion)}
+                onChange={(e) => setSumVersion(e.target.value === "all" ? null : Number(e.target.value))}
+                title="App version, by build number."
+              >
+                <option value="all">All versions</option>
+                {sumVersions.map((v) => (
+                  <option key={v.appVersionCode} value={v.appVersionCode}>
+                    {v.appVersion ?? "—"} ({v.appVersionCode}) · {v.users}
+                  </option>
+                ))}
+              </select>
+              <DateRangePicker value={sumRange} onChange={setSumRange} />
+            </div>
 
             {/* GA4 comparison. Loaded from a file rather than fetched: GA4 is a second measurement
                 system, and a number of ours sitting beside a number of theirs is the only way to
@@ -1380,8 +1450,8 @@ export default function LiveEventsPage() {
             </div>
             {ga4 && (
               <p className="muted-line">
-                The date range and version filters above must match the export, or every row will
-                differ for that reason alone. Rows marked <em>GA4 only</em> reach Firebase through
+                This table&apos;s own build, version and date filters must match the export, or every
+                row will differ for that reason alone. Rows marked <em>GA4 only</em> reach Firebase through
                 the ads SDK or Firebase&apos;s own lifecycle and never come to us — their absence is
                 a channel boundary, not a loss.
               </p>
