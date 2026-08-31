@@ -3401,3 +3401,60 @@ button {
   line-height: 1.35;
   color: var(--color-text-muted);
 }
+
+/* ── GA4 comparison strip under the Events sent table ─────────────────────── */
+.ga4-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 10px 0 4px;
+}
+
+/* A label wrapping a hidden input: a bare file input cannot be styled, and the browser's default
+   reads as a form control on a page that has none. */
+.ga4-upload {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  border: 1px solid var(--border, #d0d5dd);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  background: var(--surface-1, transparent);
+}
+.ga4-upload:hover { border-color: var(--border-strong, #98a2b3); }
+.ga4-upload input { display: none; }
+
+.ga4-clear {
+  border: none;
+  background: none;
+  padding: 0;
+  font-size: 13px;
+  cursor: pointer;
+  text-decoration: underline;
+  color: inherit;
+  opacity: 0.7;
+}
+.ga4-clear:hover { opacity: 1; }
+
+/* Marks a name that reaches Firebase through the ads SDK or Firebase's own lifecycle and never
+   comes to us, so a zero on our side is not read as a loss. */
+.ga4-tag {
+  margin-left: 8px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 11px;
+  border: 1px solid var(--border, #d0d5dd);
+  opacity: 0.75;
+  white-space: nowrap;
+}
+
+/* Only a gap worth chasing is coloured — every row shouting is the same as none shouting. */
+.ga4-diff-notable {
+  color: #b42318;
+  font-weight: 500;
+}
+@media (prefers-color-scheme: dark) {
+  .ga4-diff-notable { color: #f97066; }
+}

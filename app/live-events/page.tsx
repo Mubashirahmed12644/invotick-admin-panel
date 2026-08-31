@@ -8,7 +8,7 @@ import Navbar from "@/components/Navbar";
 import Sidebar from "@/components/Sidebar";
 import { api, getErrorMessage, isUnauthorizedError, ApiError } from "@/lib/api";
 import { clearAccessToken, isLoggedIn } from "@/lib/auth";
-import type { ActiveUser, AppVersion, EventSummaryPage, LiveEvent } from "@/lib/types";
+import type { ActiveUser, AppVersion, EventSummaryPage, EventSummaryRow, LiveEvent } from "@/lib/types";
 import { EventTime, dateTimeWithMillis, timeWithMillis } from "@/lib/eventTime";
 import { copyText, downloadText, fileStamp } from "@/lib/clipboard";
 import { DateRangePicker, defaultRange, formatDay, toRangeIso, type DayRange } from "@/components/DateRangePicker";
@@ -144,6 +144,56 @@ type SortKey = "recent" | "email" | "count";
 type BuildFilter = "debug" | "release" | "all";
 
 
+/**
+ * Names that exist in GA4 and can never be in ours, so their absence is not a fault.
+ *
+ * The ad-mediation wrapper (`core/ads/AdsAnalytics`) talks to Firebase directly and never touches
+ * our gateway, and Firebase mints its own lifecycle events. Both show up in a GA4 export. Reading
+ * either as "an event we are losing" sends someone hunting for a bug that is a channel boundary.
+ */
+const GA4_ONLY = new Set([
+  "session_start", "first_open", "user_engagement", "app_update", "app_remove",
+  "app_exception", "notification_receive", "notification_foreground", "ad_impression",
+  "install_referrer",
+]);
+const isGa4Only = (n: string) => n.startsWith("All_") || n.startsWith("ASE_") || GA4_ONLY.has(n);
+
+/**
+ * Reads a GA4 "Events" export into name → count.
+ *
+ * The export is not a plain CSV: it opens with `#` comment lines carrying the account, property and
+ * date range, then a header row, then the data. Feeding the whole file to a naive split puts
+ * "# Events" in the table as an event with zero count, so the comments are dropped and the header
+ * is found rather than assumed to be line 1.
+ */
+function parseGa4Csv(text: string): { counts: Map<string, number>; range: string | null } {
+  const counts = new Map<string, number>();
+  let range: string | null = null;
+  let started = false;
+  for (const raw of text.split(/\r?\n/)) {
+    const line = raw.trim();
+    if (!line) continue;
+    if (line.startsWith("#")) {
+      const m = line.match(/App version[^,]*/i);
+      if (m) range = m[0].replace(/^#\s*/, "");
+      continue;
+    }
+    if (!started) {
+      // The header row, whatever its exact column set — everything after it is data.
+      if (/^event name/i.test(line)) { started = true; continue; }
+      // Some exports have no header at all; fall through and treat this as data.
+    }
+    const parts = line.split(",");
+    if (parts.length < 2) continue;
+    const name = parts[0].trim();
+    const count = Number(parts[1]);
+    if (!name || !Number.isFinite(count)) continue;
+    counts.set(name, (counts.get(name) ?? 0) + count);
+    started = true;
+  }
+  return { counts, range };
+}
+
 function eventKind(name: string): "screen" | "click" | "lifecycle" | "other" {
   if (SCREEN_VIEW_EVENTS.has(name)) return "screen";
   if (name.startsWith("app_")) return "lifecycle";
@@ -240,6 +290,52 @@ export default function LiveEventsPage() {
   const [summaryError, setSummaryError] = useState<string | null>(null);
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [summaryQuery, setSummaryQuery] = useState("");
+
+  /**
+   * A GA4 "Events" export, held in the browser so the two numbers can be read on one row.
+   *
+   * Kept client-side on purpose: GA4 is a second measurement system, not a second source of truth,
+   * and storing its numbers on our server would make them look like ours the moment somebody
+   * queried them a month later. Persisted to localStorage so a reload does not throw the file away.
+   */
+  const [ga4, setGa4] = useState<Map<string, number> | null>(null);
+  const [ga4Label, setGa4Label] = useState<string | null>(null);
+  const [ga4Error, setGa4Error] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("ga4-events");
+      if (!raw) return;
+      const saved = JSON.parse(raw) as { label: string | null; counts: [string, number][] };
+      setGa4(new Map(saved.counts));
+      setGa4Label(saved.label);
+    } catch {
+      // A corrupt or unreadable entry is not worth a broken page — start without it.
+    }
+  }, []);
+
+  /**
+   * Our rows, plus any name GA4 saw that we did not.
+   *
+   * Without the union an event we never received simply is not in the table, which reads as "no
+   * such event" — the one outcome the comparison exists to make visible. A GA4-only name is drawn
+   * with zeros on our side so the gap is a row you can see rather than an absence you must notice.
+   */
+  const mergedRows = useMemo(() => {
+    const rows = summary?.rows ?? [];
+    if (!ga4) return rows;
+    const have = new Set(rows.map((r) => r.eventName));
+    const missing: EventSummaryRow[] = [];
+    for (const [name] of ga4) {
+      if (have.has(name)) continue;
+      missing.push({ eventName: name, events: 0, users: 0, devices: 0, perDevice: 0, lastAt: "" });
+    }
+    // Sorted by GA4 volume so the biggest thing we are missing is at the top of its group, not
+    // buried under a hundred one-off names.
+    missing.sort((a, b) => (ga4.get(b.eventName) ?? 0) - (ga4.get(a.eventName) ?? 0));
+    return [...rows, ...missing];
+  }, [summary, ga4]);
+
 
   const [buildFilter, setBuildFilter] = useState<BuildFilter>("debug");
   /** null = every version. A versionCode, not a name: names repeat across builds, codes do not. */
@@ -1229,6 +1325,68 @@ export default function LiveEventsPage() {
               Raw event names, exactly as the app sends them — not the display names shown in the
               feed above. Same build, version and date filters as the list.
             </p>
+
+            {/* GA4 comparison. Loaded from a file rather than fetched: GA4 is a second measurement
+                system, and a number of ours sitting beside a number of theirs is the only way to
+                see which events disagree — the totals matched to 0.3% while individual events were
+                out by 2x in both directions. */}
+            <div className="ga4-bar">
+              <label className="ga4-upload">
+                {ga4 ? "Replace GA4 export" : "Compare with GA4 export…"}
+                <input
+                  type="file"
+                  accept=".csv,text/csv"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    e.target.value = "";
+                    if (!file) return;
+                    setGa4Error(null);
+                    try {
+                      const { counts, range } = parseGa4Csv(await file.text());
+                      if (counts.size === 0) {
+                        setGa4Error("No event rows found in that file.");
+                        return;
+                      }
+                      setGa4(counts);
+                      setGa4Label(range ?? file.name);
+                      localStorage.setItem(
+                        "ga4-events",
+                        JSON.stringify({ label: range ?? file.name, counts: [...counts] }),
+                      );
+                    } catch {
+                      setGa4Error("That file could not be read as a GA4 export.");
+                    }
+                  }}
+                />
+              </label>
+              {ga4 && (
+                <>
+                  <span className="muted">
+                    {ga4.size} GA4 names · {ga4Label}
+                  </span>
+                  <button
+                    className="ga4-clear"
+                    onClick={() => {
+                      setGa4(null);
+                      setGa4Label(null);
+                      localStorage.removeItem("ga4-events");
+                    }}
+                  >
+                    Clear
+                  </button>
+                </>
+              )}
+              {ga4Error && <span className="error-text">{ga4Error}</span>}
+            </div>
+            {ga4 && (
+              <p className="muted-line">
+                The date range and version filters above must match the export, or every row will
+                differ for that reason alone. Rows marked <em>GA4 only</em> reach Firebase through
+                the ads SDK or Firebase&apos;s own lifecycle and never come to us — their absence is
+                a channel boundary, not a loss.
+              </p>
+            )}
+
             <input
               className="le-search"
               placeholder="Filter event name…"
@@ -1248,37 +1406,57 @@ export default function LiveEventsPage() {
                     <tr>
                       <th className="live-th" style={{ width: 44 }}>#</th>
                       <th className="live-th">Event name (raw)</th>
-                      <th className="live-th" style={{ width: 110 }}>Events</th>
-                      <th className="live-th" style={{ width: 80 }}>Share</th>
-                      <th className="live-th" style={{ width: 90 }}>Users</th>
+                      <th className="live-th" style={{ width: 100 }}>Ours</th>
+                      {ga4 && <th className="live-th" style={{ width: 100 }}>GA4</th>}
+                      {ga4 && <th className="live-th" style={{ width: 150 }}>Difference</th>}
+                      <th className="live-th" style={{ width: 76 }}>Share</th>
+                      <th className="live-th" style={{ width: 84 }}>Users</th>
                       <th className="live-th" style={{ width: 90 }}>Devices</th>
-                      <th className="live-th" style={{ width: 110 }}>Per device</th>
-                      <th className="live-th" style={{ width: 130 }}>Last seen</th>
+                      <th className="live-th" style={{ width: 100 }}>Per device</th>
+                      <th className="live-th" style={{ width: 120 }}>Last seen</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {summary.rows
+                    {mergedRows
                       .filter((r) => r.eventName.toLowerCase().includes(summaryQuery.trim().toLowerCase()))
-                      .map((r, i) => (
-                        <tr key={r.eventName} className="live-row">
-                          <td className="muted">{i + 1}</td>
-                          <td>
-                            <code>{r.eventName}</code>
-                          </td>
-                          <td>{r.events.toLocaleString()}</td>
-                          {/* Against the whole build, never against the rows drawn — a share of a
-                              filtered view reads as a share of everything. */}
-                          <td className="muted">
-                            {summary.totalEvents > 0
-                              ? `${((r.events / summary.totalEvents) * 100).toFixed(1)}%`
-                              : "—"}
-                          </td>
-                          <td>{r.users.toLocaleString()}</td>
-                          <td>{r.devices.toLocaleString()}</td>
-                          <td>{r.perDevice.toFixed(1)}</td>
-                          <td className="muted">{relTime(r.lastAt)}</td>
-                        </tr>
-                      ))}
+                      .map((r, i) => {
+                        const g = ga4?.get(r.eventName);
+                        const onlyGa4 = isGa4Only(r.eventName);
+                        const diff = g != null ? r.events - g : null;
+                        const pct = g != null && g > 0 ? (Math.abs(diff!) * 100) / g : null;
+                        // Loud only when it matters: a 1-vs-2 gap is noise, a 35% gap on 30 events
+                        // is a measurement to chase. Both conditions, never either.
+                        const notable = diff != null && Math.abs(diff) >= 3 && (pct ?? 0) >= 10;
+                        return (
+                          <tr key={r.eventName} className="live-row">
+                            <td className="muted">{i + 1}</td>
+                            <td>
+                              <code>{r.eventName}</code>
+                              {ga4 && onlyGa4 && <span className="ga4-tag">GA4 only</span>}
+                            </td>
+                            <td>{r.events.toLocaleString()}</td>
+                            {ga4 && <td>{g != null ? g.toLocaleString() : "—"}</td>}
+                            {ga4 && (
+                              <td className={notable && !onlyGa4 ? "ga4-diff-notable" : "muted"}>
+                                {diff == null
+                                  ? "—"
+                                  : diff === 0
+                                    ? "same"
+                                    : `${diff > 0 ? "+" : ""}${diff.toLocaleString()}${pct != null ? ` (${pct.toFixed(0)}%)` : ""}`}
+                              </td>
+                            )}
+                            <td className="muted">
+                              {summary.totalEvents > 0
+                                ? `${((r.events / summary.totalEvents) * 100).toFixed(1)}%`
+                                : "—"}
+                            </td>
+                            <td>{r.users.toLocaleString()}</td>
+                            <td>{r.devices.toLocaleString()}</td>
+                            <td>{r.perDevice.toFixed(1)}</td>
+                            <td className="muted">{r.lastAt ? relTime(r.lastAt) : "—"}</td>
+                          </tr>
+                        );
+                      })}
                   </tbody>
                 </table>
               </div>
