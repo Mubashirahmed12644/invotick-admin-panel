@@ -111,6 +111,33 @@ export interface EventSummaryRow {
   lastAt: string;
 }
 
+/** One value a parameter carried, and how much of the event it accounts for. */
+export interface ParamValue {
+  /** "(absent)" when the event was sent without this key at all — usually the finding. */
+  value: string;
+  events: number;
+  users: number;
+  share: number;
+}
+
+/** One parameter of an event, broken down by the values it carried. */
+export interface EventParam {
+  key: string;
+  /** -1 when the value list was cut, because the real count was not measured past the cap. */
+  distinctValues: number;
+  values: ParamValue[];
+  truncated: boolean;
+}
+
+/** The drill-down behind one row of the events table. */
+export interface EventDetail {
+  eventName: string;
+  events: number;
+  users: number;
+  devices: number;
+  params: EventParam[];
+}
+
 export interface EventSummaryPage {
   rows: EventSummaryRow[];
   /** Across every name, not just the rows drawn — a share against a partial total is a lie. */

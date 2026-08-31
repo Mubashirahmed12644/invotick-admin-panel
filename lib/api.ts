@@ -6,6 +6,7 @@ import type {
   AdminVerifyOtpRequest,
   ActiveUser,
   ActiveUsersPage,
+  EventDetail,
   EventSummaryPage,
   AppVersion,
   ApiResponse,
@@ -337,6 +338,27 @@ export const api = {
     if (appVersionCode != null) params.set("appVersionCode", String(appVersionCode));
     if (buildType && buildType !== "all") params.set("buildType", buildType);
     return apiRequest<EventSummaryPage>(`/v1/webpanel/analytics/event-summary?${params.toString()}`);
+  },
+
+  /**
+   * One event broken down by every parameter it carries — the dialog behind a table row.
+   *
+   * Keys come from the data, not from a list anyone maintains: a maintained list goes stale the
+   * first time somebody adds a parameter and forgets this file.
+   */
+  getEventDetail(
+    eventName: string,
+    from?: string,
+    to?: string,
+    appVersionCode?: number,
+    buildType?: string,
+  ) {
+    const params = new URLSearchParams({ eventName });
+    if (from) params.set("from", from);
+    if (to) params.set("to", to);
+    if (appVersionCode != null) params.set("appVersionCode", String(appVersionCode));
+    if (buildType && buildType !== "all") params.set("buildType", buildType);
+    return apiRequest<EventDetail>(`/v1/webpanel/analytics/event-detail?${params.toString()}`);
   },
 
   /**

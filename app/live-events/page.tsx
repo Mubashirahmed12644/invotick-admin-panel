@@ -8,7 +8,7 @@ import Navbar from "@/components/Navbar";
 import Sidebar from "@/components/Sidebar";
 import { api, getErrorMessage, isUnauthorizedError, ApiError } from "@/lib/api";
 import { clearAccessToken, isLoggedIn } from "@/lib/auth";
-import type { ActiveUser, AppVersion, EventSummaryPage, EventSummaryRow, LiveEvent } from "@/lib/types";
+import type { ActiveUser, AppVersion, EventDetail, EventSummaryPage, EventSummaryRow, LiveEvent } from "@/lib/types";
 import { EventTime, dateTimeWithMillis, timeWithMillis } from "@/lib/eventTime";
 import { copyText, downloadText, fileStamp } from "@/lib/clipboard";
 import { DateRangePicker, defaultRange, formatDay, toRangeIso, type DayRange } from "@/components/DateRangePicker";
@@ -73,6 +73,26 @@ const COLUMN_LABELS_LIVE_EVENTS: Record<string, string> = {
  * happened, it carries the display name typed against it in Event Discovery, and it is what gives
  * every tap after it a location.
  */
+/**
+ * Columns of the events table, in their default order.
+ *
+ * The GA4 pair sits immediately after ours because that is the comparison — a column of theirs at
+ * the far right of a scrolling table is a number nobody puts next to anything.
+ */
+const COLUMN_ORDER_SUMMARY = ["idx", "event", "ours", "ga4", "diff", "share", "users", "devices", "perDevice", "lastAt"];
+const COLUMN_LABELS_SUMMARY: Record<string, string> = {
+  idx: "#",
+  event: "Event name (raw)",
+  ours: "Ours",
+  ga4: "GA4",
+  diff: "Difference",
+  share: "Share",
+  users: "Users",
+  devices: "Devices",
+  perDevice: "Per device",
+  lastAt: "Last seen",
+};
+
 const PRESENCE_ONLY = new Set(["app_heartbeat"]);
 
 /**
@@ -495,6 +515,19 @@ export default function LiveEventsPage() {
    */
   const [trackedOnly, setTrackedOnly] = useState(false);
 
+  /**
+   * The events table has its own column state, under its own key.
+   *
+   * Sharing the list's would put one table's hidden column on the other, which is the same fault as
+   * sharing filters was: two tables that look independent and are not.
+   */
+  const sumCols = useColumnWidths(
+    "events-summary",
+    { idx: 44, event: 320, ours: 96, ga4: 96, diff: 140, share: 78, users: 84, devices: 90, perDevice: 100, lastAt: 120 },
+    COLUMN_ORDER_SUMMARY,
+  );
+
+
   /** Column widths, dragged from the header edges and kept across reloads. */
   const { widths: colW, startResize, reset: resetWidths, autoFit, tableRef, order: colOrder, hidden: colHidden, visibleOrder, toggleColumn, moveColumnTo } = useColumnWidths("live-events", {
     idx: 44,
@@ -791,6 +824,49 @@ export default function LiveEventsPage() {
       cancelled = true;
     };
   }, [handleUnauthorized, sumBuild, sumVersionNames, versionGroups, sumRange]);
+
+  /** The event whose breakdown is open, and what came back for it. */
+  const [detailFor, setDetailFor] = useState<string | null>(null);
+  const [detail, setDetail] = useState<EventDetail | null>(null);
+  const [detailError, setDetailError] = useState<string | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+
+  useEffect(() => {
+    if (!detailFor) return;
+    let cancelled = false;
+    (async () => {
+      setDetailLoading(true);
+      setDetailError(null);
+      setDetail(null);
+      try {
+        const iso = toRangeIso(sumRange);
+        // One build number at a time. The dialog says which one it is showing, because a breakdown
+        // summed across two builds cannot answer "did the new version change this", which is the
+        // reason to open it.
+        const codes = [...new Set(sumVersionNames.flatMap((n) => versionGroups.get(n) ?? []))];
+        const d = await api.getEventDetail(detailFor, iso.from, iso.to, codes[0], sumBuild);
+        if (!cancelled) setDetail(d);
+      } catch (err) {
+        if (!cancelled && !handleUnauthorized(err)) {
+          setDetailError(getErrorMessage(err, "Could not load that event."));
+        }
+      } finally {
+        if (!cancelled) setDetailLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [detailFor, sumRange, sumVersionNames, versionGroups, sumBuild, handleUnauthorized]);
+
+  // Escape closes it. A dialog that can only be dismissed by finding its button is a dialog people
+  // reload the page to get out of.
+  useEffect(() => {
+    if (!detailFor) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setDetailFor(null); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [detailFor]);
 
 
 
@@ -1518,6 +1594,14 @@ export default function LiveEventsPage() {
                   Only differences
                 </label>
               )}
+              <ColumnsMenu
+                labels={COLUMN_LABELS_SUMMARY}
+                order={sumCols.order}
+                hidden={sumCols.hidden}
+                onToggle={sumCols.toggleColumn}
+                onMoveTo={sumCols.moveColumnTo}
+                onReset={sumCols.reset}
+              />
               <button
                 className="ga4-clear"
                 title="Copy exactly what is on screen, as TSV."
@@ -1653,66 +1737,176 @@ export default function LiveEventsPage() {
               <p className="muted-line">No events in this range.</p>
             ) : (
               <div className="live-table-wrap">
-                <table className="live-table">
+                <table ref={sumCols.tableRef} className="live-table sum-table">
+                  <colgroup>
+                    {sumCols.visibleOrder.map((k) => (
+                      <col key={k} style={{ width: sumCols.widths[k] }} />
+                    ))}
+                  </colgroup>
                   <thead>
                     <tr>
-                      <th className="live-th" style={{ width: 44 }}>#</th>
-                      <th className="live-th">Event name (raw)</th>
-                      <th className="live-th" style={{ width: 100 }}>Ours</th>
-                      {ga4 && <th className="live-th" style={{ width: 100 }}>GA4</th>}
-                      {ga4 && <th className="live-th" style={{ width: 150 }}>Difference</th>}
-                      <th className="live-th" style={{ width: 76 }}>Share</th>
-                      <th className="live-th" style={{ width: 84 }}>Users</th>
-                      <th className="live-th" style={{ width: 90 }}>Devices</th>
-                      <th className="live-th" style={{ width: 100 }}>Per device</th>
-                      <th className="live-th" style={{ width: 120 }}>Last seen</th>
+                      {sumCols.visibleOrder.map((k) => (
+                        <th
+                          key={k}
+                          className="live-th"
+                          style={{ position: "relative", ...(k === "idx" ? { cursor: "pointer" } : {}) }}
+                          onDoubleClick={k === "idx" ? sumCols.reset : undefined}
+                          title={k === "idx" ? "Double-click to put every column back." : undefined}
+                        >
+                          {COLUMN_LABELS_SUMMARY[k]}
+                          <span
+                            className={RESIZE_HANDLE_CLASS}
+                            title="Drag to resize. Double-click to fit the column to its contents."
+                            onMouseDown={(e) => sumCols.startResize(k, e)}
+                            onDoubleClick={(e) => { e.stopPropagation(); sumCols.autoFit(k); }}
+                          />
+                        </th>
+                      ))}
                     </tr>
                   </thead>
                   <tbody>
                     {visibleSummaryRows.map((r, i) => {
-                        const g = ga4?.get(r.eventName);
-                        const onlyGa4 = isGa4Only(r.eventName);
-                        const diff = g != null ? r.events - g : null;
-                        const pct = g != null && g > 0 ? (Math.abs(diff!) * 100) / g : null;
-                        // Loud only when it matters: a 1-vs-2 gap is noise, a 35% gap on 30 events
-                        // is a measurement to chase. Both conditions, never either.
-                        const notable = diff != null && Math.abs(diff) >= 3 && (pct ?? 0) >= 10;
-                        return (
-                          <tr key={r.eventName} className="live-row">
-                            <td className="muted">{i + 1}</td>
-                            <td>
-                              <code>{r.eventName}</code>
-                              {ga4 && onlyGa4 && <span className="ga4-tag">GA4 only</span>}
-                            </td>
-                            <td>{r.events.toLocaleString()}</td>
-                            {ga4 && <td>{g != null ? g.toLocaleString() : "—"}</td>}
-                            {ga4 && (
-                              <td className={notable && !onlyGa4 ? "ga4-diff-notable" : "muted"}>
-                                {diff == null
-                                  ? "—"
-                                  : diff === 0
-                                    ? "same"
-                                    : `${diff > 0 ? "+" : ""}${diff.toLocaleString()}${pct != null ? ` (${pct.toFixed(0)}%)` : ""}`}
-                              </td>
-                            )}
-                            <td className="muted">
-                              {summary.totalEvents > 0
-                                ? `${((r.events / summary.totalEvents) * 100).toFixed(1)}%`
-                                : "—"}
-                            </td>
-                            <td>{r.users.toLocaleString()}</td>
-                            <td>{r.devices.toLocaleString()}</td>
-                            <td>{r.perDevice.toFixed(1)}</td>
-                            <td className="muted">{r.lastAt ? relTime(r.lastAt) : "—"}</td>
-                          </tr>
-                        );
-                      })}
+                      const g = ga4?.get(r.eventName);
+                      const onlyGa4 = isGa4Only(r.eventName);
+                      const diff = g != null ? r.events - g : null;
+                      const pct = g != null && g > 0 ? (Math.abs(diff!) * 100) / g : null;
+                      // Loud only when it matters: a 1-vs-2 gap is noise, a 35% gap on 30 events is
+                      // a measurement to chase. Both conditions, never either.
+                      const notable = diff != null && Math.abs(diff) >= 3 && (pct ?? 0) >= 10;
+                      const cells: Record<string, React.ReactNode> = {
+                        idx: <td key="idx" className="muted">{i + 1}</td>,
+                        event: (
+                          <td key="event">
+                            <code>{r.eventName}</code>
+                            {ga4 && onlyGa4 && <span className="ga4-tag">GA4 only</span>}
+                          </td>
+                        ),
+                        ours: <td key="ours">{r.events.toLocaleString()}</td>,
+                        ga4: <td key="ga4">{g != null ? g.toLocaleString() : "—"}</td>,
+                        diff: (
+                          <td key="diff" className={notable && !onlyGa4 ? "ga4-diff-notable" : "muted"}>
+                            {diff == null
+                              ? "—"
+                              : diff === 0
+                                ? "same"
+                                : `${diff > 0 ? "+" : ""}${diff.toLocaleString()}${pct != null ? ` (${pct.toFixed(0)}%)` : ""}`}
+                          </td>
+                        ),
+                        share: (
+                          <td key="share" className="muted">
+                            {summary.totalEvents > 0
+                              ? `${((r.events / summary.totalEvents) * 100).toFixed(1)}%`
+                              : "—"}
+                          </td>
+                        ),
+                        users: <td key="users">{r.users.toLocaleString()}</td>,
+                        devices: <td key="devices">{r.devices.toLocaleString()}</td>,
+                        perDevice: <td key="perDevice">{r.perDevice.toFixed(1)}</td>,
+                        lastAt: <td key="lastAt" className="muted">{r.lastAt ? relTime(r.lastAt) : "—"}</td>,
+                      };
+                      return (
+                        <tr
+                          key={r.eventName}
+                          className="live-row sum-row"
+                          // Rows we never received have nothing to break down; opening a dialog that
+                          // can only say "nothing here" is worse than the row not being clickable.
+                          onClick={r.events > 0 ? () => setDetailFor(r.eventName) : undefined}
+                          title={r.events > 0 ? "Open the parameter breakdown" : "Not received here — nothing to break down"}
+                          style={r.events > 0 ? undefined : { cursor: "default", opacity: 0.65 }}
+                        >
+                          {sumCols.visibleOrder.map((k) => cells[k])}
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
             )}
           </div>
         </section>
+
+        {/* Parameter breakdown. A count tells you an event fired; this tells you what those firings
+            were, which is where a number becomes something to act on. */}
+        {detailFor && (
+          <div className="ev-modal-scrim" onClick={() => setDetailFor(null)}>
+            <div
+              className="ev-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-label={`Breakdown of ${detailFor}`}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="ev-modal-head">
+                <div>
+                  <h3><code>{detailFor}</code></h3>
+                  <p className="muted-line">
+                    {detail
+                      ? `${detail.events.toLocaleString()} events · ${detail.users.toLocaleString()} users · ${detail.devices.toLocaleString()} devices`
+                      : detailLoading
+                        ? "Loading…"
+                        : ""}
+                    {" · "}
+                    {sumBuild}
+                    {sumVersionNames.length > 0 ? ` · ${sumVersionNames.join(", ")}` : " · all versions"}
+                  </p>
+                </div>
+                <button className="ev-modal-close" onClick={() => setDetailFor(null)} title="Close (Esc)">
+                  ✕
+                </button>
+              </div>
+
+              <div className="ev-modal-body">
+                {detailError ? (
+                  <p className="error-text">{detailError}</p>
+                ) : detailLoading ? (
+                  <p className="muted-line">Loading…</p>
+                ) : !detail || detail.params.length === 0 ? (
+                  <p className="muted-line">This event carries no parameters.</p>
+                ) : (
+                  detail.params.map((p) => (
+                    <div key={p.key} className="ev-param">
+                      <div className="ev-param-head">
+                        <code>{p.key}</code>
+                        <span className="muted">
+                          {p.truncated
+                            ? `top ${p.values.length} of many`
+                            : `${p.values.length} value${p.values.length === 1 ? "" : "s"}`}
+                        </span>
+                      </div>
+                      <table className="live-table ev-param-table">
+                        <tbody>
+                          {p.values.map((v) => (
+                            <tr key={v.value}>
+                              <td className="ev-param-val">
+                                {/* An absent key is a finding, not a value — it reads differently
+                                    and should look different. */}
+                                {v.value === "(absent)" ? <em className="muted">not sent</em> : <code>{v.value}</code>}
+                              </td>
+                              <td className="ev-param-bar">
+                                {/* The bar is the share, so a long tail is readable at a glance
+                                    without reading every number. */}
+                                <span className="ev-bar" style={{ width: `${Math.max(v.share, 0.5)}%` }} />
+                              </td>
+                              <td className="ev-param-n">{v.events.toLocaleString()}</td>
+                              <td className="ev-param-pct muted">{v.share.toFixed(1)}%</td>
+                              <td className="ev-param-u muted">{v.users.toLocaleString()} users</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      {p.truncated && (
+                        <p className="muted-line ev-param-note">
+                          Cut at {p.values.length}. A parameter with more distinct values than this is
+                          an id, not a dimension — the ones below the cut are not a tail worth reading.
+                        </p>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </main>
   );
