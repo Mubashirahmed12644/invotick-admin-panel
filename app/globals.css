@@ -3560,3 +3560,58 @@ button {
   min-width: 2px;
 }
 .ev-param-note { margin-top: 4px; }
+
+/* ── First invoice journey ────────────────────────────────────────────────── */
+.fij { display: flex; flex-direction: column; gap: 14px; }
+.fij-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+.fij-headline { display: flex; align-items: baseline; gap: 10px; }
+.fij-big {
+  font-size: 34px;
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: #0E7C6B;
+}
+.fij-of { font-size: 18px; opacity: .5; }
+@media (prefers-color-scheme: dark) { .fij-big { color: #3FBFA8; } }
+
+.fij-ladder {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border, #e4e7ec);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.fij-rung {
+  display: grid;
+  grid-template-columns: 1fr 110px;
+  align-items: center;
+  gap: 18px;
+  padding: 13px 18px;
+  border-bottom: 1px solid var(--border, #eceff2);
+}
+.fij-rung:last-child { border-bottom: 0; }
+.fij-rung-label { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.fij-name { font-size: 14px; font-weight: 500; }
+
+/* The bar carries who is still walking. Loss shows as absence of ink rather than a second colour,
+   so a long funnel reads as draining instead of as eight competing warnings. */
+.fij-bar { height: 8px; border-radius: 999px; background: rgba(128,140,155,.16); overflow: hidden; }
+.fij-bar span { display: block; height: 100%; border-radius: 999px; background: #0E7C6B; }
+@media (prefers-color-scheme: dark) { .fij-bar span { background: #3FBFA8; } }
+
+.fij-lost { font-size: 12px; color: #A8452B; }
+.fij-lost.none { color: inherit; opacity: .45; }
+@media (prefers-color-scheme: dark) { .fij-lost { color: #E08163; } }
+
+.fij-nums { display: flex; align-items: baseline; justify-content: flex-end; gap: 8px; font-variant-numeric: tabular-nums; }
+.fij-n { font-size: 19px; font-weight: 600; }
+.fij-pct { font-size: 12px; opacity: .6; }
+
+@media (max-width: 600px) { .fij-rung { grid-template-columns: 1fr 80px; gap: 12px; } }

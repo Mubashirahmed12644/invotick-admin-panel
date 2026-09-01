@@ -2,7 +2,7 @@
 
 import { useSyncExternalStore } from "react";
 import Sidebar from "@/components/Sidebar";
-import { FunnelDashboard } from "@/features/funnel-analysis";
+import { FirstInvoiceJourney, FunnelDashboard } from "@/features/funnel-analysis";
 
 function subscribe() {
   return () => {};
@@ -23,6 +23,9 @@ export default function FunnelPageClient() {
     <main className="app-shell">
       <Sidebar />
       <div className="app-main">
+        {/* The journey sits above the screen-by-screen funnel: it answers whether the
+            product was reached at all, which decides whether the rest is worth reading. */}
+        {isClient ? <FirstInvoiceJourney /> : null}
         {isClient ? <FunnelDashboard /> : null}
       </div>
     </main>

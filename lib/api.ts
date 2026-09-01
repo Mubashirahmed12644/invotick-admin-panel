@@ -7,6 +7,7 @@ import type {
   ActiveUser,
   ActiveUsersPage,
   EventDetail,
+  JourneyReport,
   EventSummaryPage,
   AppVersion,
   ApiResponse,
@@ -359,6 +360,21 @@ export const api = {
     if (appVersionCode != null) params.set("appVersionCode", String(appVersionCode));
     if (buildType && buildType !== "all") params.set("buildType", buildType);
     return apiRequest<EventDetail>(`/v1/webpanel/analytics/event-detail?${params.toString()}`);
+  },
+
+  /**
+   * Where first-time users stop on the way to a first invoice.
+   *
+   * Grouped on the server. The same answer built from the per-user feed took 218 requests, hit a
+   * 500-event cap on four of them, and had to be corrected three times.
+   */
+  getFirstInvoiceJourney(from?: string, to?: string, appVersionCode?: number, buildType?: string) {
+    const params = new URLSearchParams();
+    if (from) params.set("from", from);
+    if (to) params.set("to", to);
+    if (appVersionCode != null) params.set("appVersionCode", String(appVersionCode));
+    if (buildType && buildType !== "all") params.set("buildType", buildType);
+    return apiRequest<JourneyReport>(`/v1/webpanel/analytics/first-invoice-journey?${params.toString()}`);
   },
 
   /**

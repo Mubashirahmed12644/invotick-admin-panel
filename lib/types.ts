@@ -138,6 +138,36 @@ export interface EventDetail {
   params: EventParam[];
 }
 
+/** One rung of the ladder from opening the app to saving a first invoice. */
+export interface JourneyStep {
+  step: number;
+  label: string;
+  /** People who got at least this far. */
+  reached: number;
+  /** People whose furthest point was exactly this. */
+  stoppedHere: number;
+  share: number;
+}
+
+export interface JourneyUser {
+  userId: string;
+  invotickId: string | null;
+  country: string | null;
+  step: number;
+  stoppedAt: string;
+  events: number;
+  firstAt: string;
+  lastAt: string;
+}
+
+/** Where first-time users stop on the way to their first invoice. */
+export interface JourneyReport {
+  firstTimeUsers: number;
+  createdInvoice: number;
+  steps: JourneyStep[];
+  users: JourneyUser[];
+}
+
 export interface EventSummaryPage {
   rows: EventSummaryRow[];
   /** Across every name, not just the rows drawn — a share against a partial total is a lie. */
