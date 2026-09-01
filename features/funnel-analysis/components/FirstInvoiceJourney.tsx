@@ -14,6 +14,24 @@ import type { AppVersion, JourneyReport } from "@/lib/types";
  * twice because a background wake-up's events folded into a real session and once because the feed
  * carried no user id. None of those failure modes exist here.
  */
+/**
+ * Rung ke naam yahan hain, backend par nahi.
+ *
+ * Backend ka data layer angrezi mein rehta hai — usay panel ki zaban se bandhna ka matlab hai ke
+ * kal koi doosra caller wahi alfaz dekhega jo sirf is screen ke liye chune gaye the. Yahan rakhne
+ * se export bhi wahi alfaz uthata hai jo screen par likhe hain.
+ */
+const RUNG: Record<number, string> = {
+  1: "Pehli baar app kholi",
+  2: "Splash screen paar ki",
+  3: "Invoice wali screen kholi",
+  4: "Business ka form shuru kiya",
+  5: "Business save kar liya",
+  6: "Client save kar liya",
+  7: "Item add kiya",
+  8: "Invoice ban gayi",
+};
+
 export function FirstInvoiceJourney() {
   const [range, setRange] = useState<DayRange>(defaultRange);
   const [build, setBuild] = useState("release");
@@ -77,10 +95,10 @@ export function FirstInvoiceJourney() {
 
   const exportTsv = useCallback(() => {
     if (!report) return;
-    const head = "userId\tinvotickId\tcountry\tstep\tstoppedAt\tevents\tfirstAt\tlastAt";
+    const head = "userId\tinvotickId\tmulk\tstep\tkahan_ruka\tevents\tfirstAt\tlastAt";
     const body = report.users
       .map((u) =>
-        [u.userId, u.invotickId ?? "", u.country ?? "", u.step, u.stoppedAt, u.events, u.firstAt, u.lastAt].join("\t"),
+        [u.userId, u.invotickId ?? "", u.country ?? "", u.step, RUNG[u.step] ?? u.stoppedAt, u.events, u.firstAt, u.lastAt].join("\t"),
       )
       .join("\n");
     downloadText(`first-invoice-journey-${fileStamp()}.tsv`, `${head}\n${body}`);
@@ -93,10 +111,11 @@ export function FirstInvoiceJourney() {
     <section className="section-card fij">
       <div className="fij-head">
         <div>
-          <h2>First invoice journey</h2>
+          <h2>Pehli invoice ka safar</h2>
           <p className="muted-line">
-            Every person who opened the app for the first time in this range, and the furthest step
-            they reached. Grouped on the server, so no user is sampled or cut short.
+            Sirf wo log jinhon ne is arse mein <strong>pehli baar</strong> app kholi — jo pehle se
+            aate hain wo is ginti mein hain hi nahi. Har shakhs ka sab se aage wala qadam dikhaya gaya
+            hai. Ye adad server par gine gaye hain, is liye na koi namoona hai na kisi ka data kata.
           </p>
         </div>
         {report && (
@@ -106,7 +125,7 @@ export function FirstInvoiceJourney() {
               <span className="fij-of">/{total}</span>
             </span>
             <span className="muted">
-              created an invoice{total > 0 ? ` · ${Math.round((made / total) * 100)}%` : ""}
+              naye users mein se itnon ne invoice banai{total > 0 ? ` · ${Math.round((made / total) * 100)}%` : ""}
             </span>
           </div>
         )}
@@ -135,35 +154,35 @@ export function FirstInvoiceJourney() {
         </select>
         <DateRangePicker value={range} onChange={setRange} />
         <button className="ga4-clear" onClick={exportTsv} disabled={!report}>
-          Download rows
+          Rows download karein
         </button>
         <button className="ga4-clear" onClick={() => setShowUsers((v) => !v)} disabled={!report}>
-          {showUsers ? "Hide users" : "Show users"}
+          {showUsers ? "Users chhupayein" : "Users dikhayein"}
         </button>
       </div>
 
       {error ? (
         <p className="error-text">{error}</p>
       ) : loading && !report ? (
-        <p className="muted-line">Loading…</p>
+        <p className="muted-line">Load ho raha hai…</p>
       ) : !report || total === 0 ? (
-        <p className="muted-line">No first-time users in this range.</p>
+        <p className="muted-line">Is arse mein koi pehli baar aane wala user nahi.</p>
       ) : (
         <>
           <div className="fij-ladder">
             {report.steps.map((s) => (
               <div className="fij-rung" key={s.step}>
                 <div className="fij-rung-label">
-                  <span className="fij-name">{s.label}</span>
+                  <span className="fij-name">{RUNG[s.step] ?? s.label}</span>
                   <div className="fij-bar">
                     <span style={{ width: `${s.share}%` }} />
                   </div>
                   {s.stoppedHere > 0 ? (
                     <span className="fij-lost">
-                      {s.stoppedHere} stopped here — went no further
+                      {s.stoppedHere} yahin ruk gaye — aage aik qadam bhi nahi
                     </span>
                   ) : (
-                    <span className="fij-lost none">nobody stopped here</span>
+                    <span className="fij-lost none">yahan koi nahi ruka</span>
                   )}
                 </div>
                 <div className="fij-nums">
@@ -174,9 +193,20 @@ export function FirstInvoiceJourney() {
             ))}
           </div>
 
+          {/* Pehli rung tak na pohanchne wale: flag kehta hai pehla open, magar us ka cold_start
+              is arse mein aaya hi nahi. Inhein chupana matlab seerhi ka jama total se kam rehna,
+              jise koe bhi ginne wala pakar lega — aur phir poori report par shak karega. */}
+          {report.steps.length > 0 && total > report.steps[0].reached && (
+            <p className="muted-line">
+              <strong>{total - report.steps[0].reached}</strong> aise bhi hain jinhein app ne pehla
+              open to kaha, magar un ka cold start is arse mein pohancha hi nahi — na to wo kisi rung
+              par hain, na hi bhulaye gaye. Ye aksar der se pohanchne wale events hote hain.
+            </p>
+          )}
+
           <p className="muted-line">
-            Showing {build} · {versionLabel}. The bar is who was still walking; the number on the
-            right is how many got at least this far.
+            {build} · {versionLabel} ka hisaab. Bar dikhata hai ke itne log abhi tak chal rahe the;
+            daayen taraf ka adad ye ke kam az kam itne yahan tak pohanche.
           </p>
 
           {showUsers && (
@@ -186,10 +216,10 @@ export function FirstInvoiceJourney() {
                   <tr>
                     <th className="live-th">User</th>
                     <th className="live-th">Invotick ID</th>
-                    <th className="live-th">Country</th>
-                    <th className="live-th">Stopped at</th>
+                    <th className="live-th">Mulk</th>
+                    <th className="live-th">Kahan ruka</th>
                     <th className="live-th">Events</th>
-                    <th className="live-th">Last seen</th>
+                    <th className="live-th">Aakhri baar</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -198,7 +228,7 @@ export function FirstInvoiceJourney() {
                       <td><code>{u.userId.slice(0, 8)}</code></td>
                       <td>{u.invotickId ?? "—"}</td>
                       <td>{u.country ?? "—"}</td>
-                      <td>{u.stoppedAt}</td>
+                      <td>{RUNG[u.step] ?? u.stoppedAt}</td>
                       <td>{u.events}</td>
                       <td className="muted">{new Date(u.lastAt).toLocaleString()}</td>
                     </tr>
