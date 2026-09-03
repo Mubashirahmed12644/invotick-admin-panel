@@ -37,6 +37,30 @@ const RUNG: Record<number, string> = {
  * (JourneyStopReasons.kt); an unknown key is shown raw rather than dropped, so a new rule appears
  * on the page before anyone has translated it.
  */
+/** Sub-grouping dimensions inside a bucket, and the values that need a word. */
+const FACET_LABELS: Record<string, string> = {
+  time_on_splash: "Splash par kitni der ruka, phir gaya",
+  network: "Network (cold start par)",
+  install_source: "Install kahan se aaya",
+  install_to_open: "Install se pehli baar kholne tak",
+  came_back: "Baad mein wapas aaya",
+  country: "Mulk",
+  webview: "WebView",
+};
+const FACET_VALUE_LABELS: Record<string, string> = {
+  no_background: "app band hui, background event nahi",
+  no_referrer: "referrer nahi aaya",
+  organic: "organic (Play, bina campaign)",
+  facebook: "Facebook campaign",
+  google_play: "Google Play campaign",
+  offline: "offline",
+  unknown: "pata nahi",
+  yes: "haan",
+  no: "nahi",
+  available: "mojood",
+  missing: "ghaib",
+};
+
 const REASON_LABELS: Record<string, string> = {
   guest_login_failed: "Guest login fail hua",
   died_after_ad_dismissed: "Ad band hui, phir app chup — aage gaya hi nahi (bug shape)",
@@ -85,6 +109,8 @@ export function FirstInvoiceJourney() {
   const [pinnedStep, setPinnedStep] = useState<number | null>(null);
   /** A chosen reason narrows the table below to the devices behind it. */
   const [reasonFilter, setReasonFilter] = useState<{ step: number; key: string } | null>(null);
+  /** The bucket whose breakup is open — the sub-section inside the sub-section. */
+  const [openBucket, setOpenBucket] = useState<{ step: number; key: string } | null>(null);
 
   useEffect(() => {
     let dead = false;
@@ -252,21 +278,52 @@ export function FirstInvoiceJourney() {
                     <div className="fij-reasons">
                       {(s.reasons ?? []).map((r) => {
                         const on = reasonFilter?.step === s.step && reasonFilter.key === r.key;
+                        const open = openBucket?.step === s.step && openBucket.key === r.key;
                         return (
-                          <button
-                            type="button"
-                            key={r.key}
-                            className={`fij-reason${on ? " on" : ""}`}
-                            title={r.key}
-                            onClick={() => {
-                              setReasonFilter(on ? null : { step: s.step, key: r.key });
-                              if (!on) setShowUsers(true);
-                            }}
-                          >
-                            <span className="fij-reason-bar" style={{ width: `${(r.count * 100) / s.stoppedHere}%` }} />
-                            <span className="fij-reason-label">{REASON_LABELS[r.key] ?? r.key}</span>
-                            <span className="fij-reason-n">{r.count}</span>
-                          </button>
+                          <div key={r.key} className="fij-reason-wrap">
+                            <div className={`fij-reason${on ? " on" : ""}`} title={r.key}>
+                              <span className="fij-reason-bar" style={{ width: `${(r.count * 100) / s.stoppedHere}%` }} />
+                              <button
+                                type="button"
+                                className="fij-reason-main"
+                                onClick={() => {
+                                  setReasonFilter(on ? null : { step: s.step, key: r.key });
+                                  if (!on) setShowUsers(true);
+                                }}
+                              >
+                                <span className="fij-reason-label">{REASON_LABELS[r.key] ?? r.key}</span>
+                                <span className="fij-reason-n">{r.count}</span>
+                              </button>
+                              {/* The reason is the state at the stop; the breakup is where the cause is.
+                                  Blaming the visible thing is easy — the owner asked for the split. */}
+                              <button
+                                type="button"
+                                className={`fij-reason-more${open ? " on" : ""}`}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setOpenBucket(open ? null : { step: s.step, key: r.key });
+                                }}
+                              >
+                                breakup {open ? "▴" : "▾"}
+                              </button>
+                            </div>
+                            {open && (r.facets ?? []).length > 0 && (
+                              <div className="fij-facets">
+                                {(r.facets ?? []).map((f) => (
+                                  <div key={f.dimension} className="fij-facet">
+                                    <div className="fij-facet-name">{FACET_LABELS[f.dimension] ?? f.dimension}</div>
+                                    {f.values.map((v) => (
+                                      <div key={v.value} className="fij-facet-row">
+                                        <span className="fij-facet-bar" style={{ width: `${(v.count * 100) / r.count}%` }} />
+                                        <span className="fij-facet-label">{FACET_VALUE_LABELS[v.value] ?? v.value}</span>
+                                        <span className="fij-facet-n">{v.count}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
                         );
                       })}
                     </div>

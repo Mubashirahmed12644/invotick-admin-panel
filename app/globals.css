@@ -3621,15 +3621,32 @@ button {
 .fij-lost-btn.on { text-decoration: underline; }
 @media (prefers-color-scheme: dark) { .fij-lost-btn { color: #E08163; } }
 .fij-reasons { display: flex; flex-direction: column; gap: 4px; margin-top: 4px; max-width: 560px; }
+.fij-reason-wrap { display: flex; flex-direction: column; gap: 3px; }
 .fij-reason {
   position: relative; overflow: hidden;
-  display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center;
-  padding: 5px 9px; font: inherit; font-size: 12px; text-align: left; color: inherit; cursor: pointer;
-  background: none; border: 1px solid var(--border, #e4e7ec); border-radius: 6px;
+  display: grid; grid-template-columns: 1fr auto; gap: 6px; align-items: stretch;
+  font-size: 12px; color: inherit;
+  border: 1px solid var(--border, #e4e7ec); border-radius: 6px;
 }
 .fij-reason:hover { border-color: #A8452B; }
 .fij-reason.on { border-color: #A8452B; box-shadow: inset 0 0 0 1px #A8452B; }
 .fij-reason-bar { position: absolute; left: 0; top: 0; bottom: 0; background: rgba(168,69,43,.10); pointer-events: none; }
-.fij-reason-label, .fij-reason-n { position: relative; }
+.fij-reason-main {
+  position: relative; display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center;
+  padding: 5px 9px; font: inherit; font-size: 12px; text-align: left; color: inherit; cursor: pointer;
+  background: none; border: 0;
+}
 .fij-reason-n { font-variant-numeric: tabular-nums; font-weight: 600; }
+.fij-reason-more {
+  position: relative; padding: 0 9px; font: inherit; font-size: 11px; color: inherit; opacity: .7; cursor: pointer;
+  background: none; border: 0; border-left: 1px solid var(--border, #e4e7ec); white-space: nowrap;
+}
+.fij-reason-more.on { opacity: 1; font-weight: 600; }
+/* The breakup: one small table per dimension, indented under its bucket. */
+.fij-facets { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 8px 14px; padding: 4px 0 6px 14px; border-left: 2px solid rgba(168,69,43,.25); margin-left: 6px; }
+.fij-facet-name { font-size: 11px; text-transform: uppercase; letter-spacing: .03em; opacity: .65; margin-bottom: 3px; }
+.fij-facet-row { position: relative; overflow: hidden; display: grid; grid-template-columns: 1fr auto; gap: 8px; font-size: 12px; padding: 2px 6px; border-radius: 4px; }
+.fij-facet-bar { position: absolute; left: 0; top: 0; bottom: 0; background: rgba(128,140,155,.14); pointer-events: none; }
+.fij-facet-label, .fij-facet-n { position: relative; }
+.fij-facet-n { font-variant-numeric: tabular-nums; font-weight: 600; }
 

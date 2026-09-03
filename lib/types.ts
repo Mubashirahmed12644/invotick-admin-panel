@@ -155,6 +155,13 @@ export interface JourneyStep {
 export interface JourneyReason {
   key: string;
   count: number;
+  /** The same devices grouped again by each dimension — the breakup inside the bucket. */
+  facets: JourneyFacet[];
+}
+
+export interface JourneyFacet {
+  dimension: string;
+  values: { value: string; count: number }[];
 }
 
 export interface JourneyUser {
