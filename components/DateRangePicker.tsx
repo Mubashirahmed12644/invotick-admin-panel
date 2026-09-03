@@ -304,12 +304,12 @@ export function DateRangePicker({
             <div className="drp-inputs">
               <label>
                 Start
-                <input className="input" readOnly value={formatDay(draft.from)} />
+                <input className="input" readOnly value={formatDay(pending ?? draft.from)} />
               </label>
               <span className="drp-dash">–</span>
               <label>
                 End
-                <input className="input" readOnly value={formatDay(draft.to)} />
+                <input className="input" readOnly value={formatDay(pending ?? draft.to)} />
               </label>
             </div>
 
@@ -340,7 +340,10 @@ export function DateRangePicker({
                 type="button"
                 className="btn"
                 onClick={() => {
-                  onChange(draft);
+                  // One click and Apply is a day, not nothing. A start with no end used to be
+                  // thrown away here, so "pick 20 Aug, press Apply" reloaded the old range and
+                  // the control read as broken — it had simply been waiting for a second click.
+                  onChange(pending ? { from: pending, to: pending } : draft);
                   setOpen(false);
                 }}
               >

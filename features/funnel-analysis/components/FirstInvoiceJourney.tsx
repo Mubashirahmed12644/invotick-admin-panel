@@ -146,6 +146,13 @@ export function FirstInvoiceJourney() {
           }}
         >
           <option value="all">All versions</option>
+          {/* The chosen build stays in the list even when the range has no rows for it. Without
+              this, picking a week from before 1.4.2 shipped made the control fall back to reading
+              "All versions" while the query underneath was still filtered to 94 — a label saying
+              one thing and the numbers meaning another. */}
+          {versionCode != null && !versions.some((v) => v.appVersionCode === versionCode) ? (
+            <option value={versionCode}>{versionLabel} — is arse mein koi nahi</option>
+          ) : null}
           {versions.map((v) => (
             <option key={v.appVersionCode} value={v.appVersionCode}>
               {v.appVersion ?? "—"} ({v.appVersionCode})
