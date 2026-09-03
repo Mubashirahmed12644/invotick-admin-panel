@@ -150,7 +150,10 @@ export interface JourneyStep {
 }
 
 export interface JourneyUser {
-  userId: string;
+  /** The device the first open was counted on — the row's identity. */
+  deviceId: string;
+  /** A user seen on that device, when any event carried one; null for a guest whose session had not restored. */
+  userId: string | null;
   invotickId: string | null;
   country: string | null;
   step: number;

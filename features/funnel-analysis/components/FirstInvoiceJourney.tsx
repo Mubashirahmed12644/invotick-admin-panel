@@ -95,10 +95,10 @@ export function FirstInvoiceJourney() {
 
   const exportTsv = useCallback(() => {
     if (!report) return;
-    const head = "userId\tinvotickId\tmulk\tstep\tkahan_ruka\tevents\tfirstAt\tlastAt";
+    const head = "deviceId\tuserId\tinvotickId\tmulk\tstep\tkahan_ruka\tevents\tfirstAt\tlastAt";
     const body = report.users
       .map((u) =>
-        [u.userId, u.invotickId ?? "", u.country ?? "", u.step, RUNG[u.step] ?? u.stoppedAt, u.events, u.firstAt, u.lastAt].join("\t"),
+        [u.deviceId, u.userId ?? "", u.invotickId ?? "", u.country ?? "", u.step, RUNG[u.step] ?? u.stoppedAt, u.events, u.firstAt, u.lastAt].join("\t"),
       )
       .join("\n");
     downloadText(`first-invoice-journey-${fileStamp()}.tsv`, `${head}\n${body}`);
@@ -231,8 +231,8 @@ export function FirstInvoiceJourney() {
                 </thead>
                 <tbody>
                   {report.users.map((u) => (
-                    <tr key={u.userId} className="live-row">
-                      <td><code>{u.userId.slice(0, 8)}</code></td>
+                    <tr key={u.deviceId} className="live-row">
+                      <td><code>{(u.userId ?? u.deviceId).slice(0, 8)}</code></td>
                       <td>{u.invotickId ?? "—"}</td>
                       <td>{u.country ?? "—"}</td>
                       <td>{RUNG[u.step] ?? u.stoppedAt}</td>
