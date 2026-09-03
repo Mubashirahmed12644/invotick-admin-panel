@@ -32,6 +32,44 @@ const RUNG: Record<number, string> = {
   8: "Invoice ban gayi",
 };
 
+/**
+ * Stop reasons, in the panel's language. Keys come from the server's ordered rules
+ * (JourneyStopReasons.kt); an unknown key is shown raw rather than dropped, so a new rule appears
+ * on the page before anyone has translated it.
+ */
+const REASON_LABELS: Record<string, string> = {
+  guest_login_failed: "Guest login fail hua",
+  died_after_ad_dismissed: "Ad band hui, phir app chup — aage gaya hi nahi (bug shape)",
+  died_during_ad: "Ad chal rahi thi, app band ho gayi",
+  died_after_ad_failed: "Ad fail hui, phir app chup — aage gaya hi nahi",
+  died_waiting_for_ad: "Ad ka intezaar, app band ho gayi (background nahi)",
+  died_on_splash: "Splash par hi app band ho gayi (background nahi)",
+  left_after_gate_released: "Ad gate khul chuka tha, phir bhi chala gaya",
+  left_during_ad: "Ad ke dauran chala gaya",
+  left_waiting_for_ad: "Ad ka intezaar karte hue chala gaya",
+  left_after_splash_ready: "Splash ready ke baad chala gaya (ad request nahi)",
+  left_after_guest_login: "Guest login ke baad, splash ready se pehle chala gaya",
+  left_before_guest_login: "Guest login se pehle hi chala gaya",
+  exit_confirmed: "Back → exit dialog → app band ki",
+  back_pressed: "Back daba kar dashboard par gaya",
+  exit_dialog_shown: "Exit dialog dikha, band nahi ki, phir gaya",
+  tapped_around: "Idhar udhar tap kiya, kuch add nahi kiya",
+  process_died: "App band ho gayi (background nahi)",
+  left_untouched: "Kuch chhuay bina chala gaya",
+  save_validation_failed: "Save dabaya, validation fail",
+  save_ad_show_failed: "Save → ad dikhni thi, fail hui, invoice nahi",
+  save_watch_ad_no_invoice: "Save → Watch ad chuna, invoice phir bhi nahi",
+  save_gate_dismissed: "Save → ad/premium dialog band kar diya",
+  save_then_nothing: "Save dabaya, uske baad kuch nahi",
+  discard_confirmed: "Discard kar diya",
+  discard_dialog_closed: "Discard dialog dikha, band kiya, phir gaya",
+  saved_as_draft: "Draft mein rakha",
+  preview_only: "Sirf preview dekha, save nahi",
+  left_without_save: "Save dabaye bina chala gaya",
+  no_signals: "Is device ke events nahi mile",
+  completed: "Invoice ban gayi",
+};
+
 export function FirstInvoiceJourney() {
   const [range, setRange] = useState<DayRange>(defaultRange);
   const [build, setBuild] = useState("release");
@@ -42,6 +80,11 @@ export function FirstInvoiceJourney() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [showUsers, setShowUsers] = useState(false);
+  /** The rung whose reasons are open — on hover, or pinned by a click. */
+  const [openStep, setOpenStep] = useState<number | null>(null);
+  const [pinnedStep, setPinnedStep] = useState<number | null>(null);
+  /** A chosen reason narrows the table below to the devices behind it. */
+  const [reasonFilter, setReasonFilter] = useState<{ step: number; key: string } | null>(null);
 
   useEffect(() => {
     let dead = false;
@@ -95,10 +138,10 @@ export function FirstInvoiceJourney() {
 
   const exportTsv = useCallback(() => {
     if (!report) return;
-    const head = "deviceId\tuserId\tinvotickId\tmulk\tstep\tkahan_ruka\tevents\tfirstAt\tlastAt";
+    const head = "deviceId\tuserId\tinvotickId\tmulk\tstep\tkahan_ruka\twajah\tevents\tfirstAt\tlastAt";
     const body = report.users
       .map((u) =>
-        [u.deviceId, u.userId ?? "", u.invotickId ?? "", u.country ?? "", u.step, RUNG[u.step] ?? u.stoppedAt, u.events, u.firstAt, u.lastAt].join("\t"),
+        [u.deviceId, u.userId ?? "", u.invotickId ?? "", u.country ?? "", u.step, RUNG[u.step] ?? u.stoppedAt, REASON_LABELS[u.stopReason] ?? u.stopReason, u.events, u.firstAt, u.lastAt].join("\t"),
       )
       .join("\n");
     downloadText(`first-invoice-journey-${fileStamp()}.tsv`, `${head}\n${body}`);
@@ -178,18 +221,52 @@ export function FirstInvoiceJourney() {
         <>
           <div className="fij-ladder">
             {report.steps.map((s) => (
-              <div className="fij-rung" key={s.step}>
+              <div
+                className="fij-rung"
+                key={s.step}
+                onMouseEnter={() => setOpenStep(s.step)}
+                onMouseLeave={() => setOpenStep(null)}
+              >
                 <div className="fij-rung-label">
                   <span className="fij-name">{RUNG[s.step] ?? s.label}</span>
                   <div className="fij-bar">
                     <span style={{ width: `${s.share}%` }} />
                   </div>
                   {s.stoppedHere > 0 ? (
-                    <span className="fij-lost">
-                      {s.stoppedHere} yahin ruk gaye — aage aik qadam bhi nahi
-                    </span>
+                    <button
+                      type="button"
+                      className={`fij-lost fij-lost-btn${pinnedStep === s.step ? " on" : ""}`}
+                      onClick={() => setPinnedStep((p) => (p === s.step ? null : s.step))}
+                    >
+                      {s.stoppedHere} yahin ruk gaye — aage aik qadam bhi nahi · wajah ▾
+                    </button>
                   ) : (
                     <span className="fij-lost none">yahan koi nahi ruka</span>
+                  )}
+                  {/* Every one of the stopped is in exactly one bucket, so the counts add up to the
+                      line above — a breakdown that does not is the first thing anyone checks. */}
+                  {s.stoppedHere > 0 && (openStep === s.step || pinnedStep === s.step) && (
+                    <div className="fij-reasons">
+                      {(s.reasons ?? []).map((r) => {
+                        const on = reasonFilter?.step === s.step && reasonFilter.key === r.key;
+                        return (
+                          <button
+                            type="button"
+                            key={r.key}
+                            className={`fij-reason${on ? " on" : ""}`}
+                            title={r.key}
+                            onClick={() => {
+                              setReasonFilter(on ? null : { step: s.step, key: r.key });
+                              if (!on) setShowUsers(true);
+                            }}
+                          >
+                            <span className="fij-reason-bar" style={{ width: `${(r.count * 100) / s.stoppedHere}%` }} />
+                            <span className="fij-reason-label">{REASON_LABELS[r.key] ?? r.key}</span>
+                            <span className="fij-reason-n">{r.count}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
                   )}
                 </div>
                 <div className="fij-nums">
@@ -225,17 +302,21 @@ export function FirstInvoiceJourney() {
                     <th className="live-th">Invotick ID</th>
                     <th className="live-th">Mulk</th>
                     <th className="live-th">Kahan ruka</th>
+                    <th className="live-th">Wajah</th>
                     <th className="live-th">Events</th>
                     <th className="live-th">Aakhri baar</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {report.users.map((u) => (
+                  {report.users
+                    .filter((u) => !reasonFilter || (u.step === reasonFilter.step && u.stopReason === reasonFilter.key))
+                    .map((u) => (
                     <tr key={u.deviceId} className="live-row">
                       <td><code>{(u.userId ?? u.deviceId).slice(0, 8)}</code></td>
                       <td>{u.invotickId ?? "—"}</td>
                       <td>{u.country ?? "—"}</td>
                       <td>{RUNG[u.step] ?? u.stoppedAt}</td>
+                      <td>{REASON_LABELS[u.stopReason] ?? u.stopReason}</td>
                       <td>{u.events}</td>
                       <td className="muted">{new Date(u.lastAt).toLocaleString()}</td>
                     </tr>

@@ -147,6 +147,14 @@ export interface JourneyStep {
   /** People whose furthest point was exactly this. */
   stoppedHere: number;
   share: number;
+  /** Why the people who stopped here stopped — every one of them is in exactly one bucket. */
+  reasons: JourneyReason[];
+}
+
+/** One bucket of stop reasons on a rung; `key` is stable, the label lives in the page. */
+export interface JourneyReason {
+  key: string;
+  count: number;
 }
 
 export interface JourneyUser {
@@ -158,6 +166,8 @@ export interface JourneyUser {
   country: string | null;
   step: number;
   stoppedAt: string;
+  /** The reason key this device stopped for; "completed" past the last rung. */
+  stopReason: string;
   events: number;
   firstAt: string;
   lastAt: string;

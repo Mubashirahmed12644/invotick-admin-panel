@@ -3615,3 +3615,21 @@ button {
 .fij-pct { font-size: 12px; opacity: .6; }
 
 @media (max-width: 600px) { .fij-rung { grid-template-columns: 1fr 80px; gap: 12px; } }
+
+/* The lost line is the door to the reasons: hover opens, click pins. */
+.fij-lost-btn { background: none; border: 0; padding: 0; font: inherit; font-size: 12px; cursor: pointer; text-align: left; color: #A8452B; }
+.fij-lost-btn.on { text-decoration: underline; }
+@media (prefers-color-scheme: dark) { .fij-lost-btn { color: #E08163; } }
+.fij-reasons { display: flex; flex-direction: column; gap: 4px; margin-top: 4px; max-width: 560px; }
+.fij-reason {
+  position: relative; overflow: hidden;
+  display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center;
+  padding: 5px 9px; font: inherit; font-size: 12px; text-align: left; color: inherit; cursor: pointer;
+  background: none; border: 1px solid var(--border, #e4e7ec); border-radius: 6px;
+}
+.fij-reason:hover { border-color: #A8452B; }
+.fij-reason.on { border-color: #A8452B; box-shadow: inset 0 0 0 1px #A8452B; }
+.fij-reason-bar { position: absolute; left: 0; top: 0; bottom: 0; background: rgba(168,69,43,.10); pointer-events: none; }
+.fij-reason-label, .fij-reason-n { position: relative; }
+.fij-reason-n { font-variant-numeric: tabular-nums; font-weight: 600; }
+
