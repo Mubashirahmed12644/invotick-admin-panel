@@ -232,7 +232,10 @@ export function FirstInvoiceJourney() {
                   <div className="fij-bar">
                     <span style={{ width: `${s.share}%` }} />
                   </div>
-                  {s.stoppedHere > 0 ? (
+                  {/* The last rung is not a place anyone got stuck: stopping there is finishing. */}
+                  {s.step === report.steps.length ? (
+                    <span className="fij-lost none">{s.stoppedHere} ne invoice bana li — yahi manzil hai</span>
+                  ) : s.stoppedHere > 0 ? (
                     <button
                       type="button"
                       className={`fij-lost fij-lost-btn${pinnedStep === s.step ? " on" : ""}`}
@@ -245,7 +248,7 @@ export function FirstInvoiceJourney() {
                   )}
                   {/* Every one of the stopped is in exactly one bucket, so the counts add up to the
                       line above — a breakdown that does not is the first thing anyone checks. */}
-                  {s.stoppedHere > 0 && (openStep === s.step || pinnedStep === s.step) && (
+                  {s.step !== report.steps.length && s.stoppedHere > 0 && (openStep === s.step || pinnedStep === s.step) && (
                     <div className="fij-reasons">
                       {(s.reasons ?? []).map((r) => {
                         const on = reasonFilter?.step === s.step && reasonFilter.key === r.key;
