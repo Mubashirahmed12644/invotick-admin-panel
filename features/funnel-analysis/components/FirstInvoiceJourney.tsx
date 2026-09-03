@@ -40,6 +40,7 @@ const RUNG: Record<number, string> = {
 /** Sub-grouping dimensions inside a bucket, and the values that need a word. */
 const FACET_LABELS: Record<string, string> = {
   time_on_splash: "Splash par kitni der ruka, phir gaya",
+  after_ready: "App tayyar (splash_ready) hone ke baad kitna intezaar kiya",
   network: "Network (cold start par)",
   install_source: "Install kahan se aaya",
   install_to_open: "Install se pehli baar kholne tak",
@@ -49,6 +50,8 @@ const FACET_LABELS: Record<string, string> = {
 };
 const FACET_VALUE_LABELS: Record<string, string> = {
   no_background: "app band hui, background event nahi",
+  never_ready: "app kabhi tayyar hui hi nahi",
+  before_ready: "tayyar hone se pehle hi gaya",
   no_referrer: "referrer nahi aaya",
   organic: "organic (Play, bina campaign)",
   facebook: "Facebook campaign",
