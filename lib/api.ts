@@ -368,12 +368,15 @@ export const api = {
    * Grouped on the server. The same answer built from the per-user feed took 218 requests, hit a
    * 500-event cap on four of them, and had to be corrected three times.
    */
-  getFirstInvoiceJourney(from?: string, to?: string, appVersionCode?: number, buildType?: string) {
+  getFirstInvoiceJourney(from?: string, to?: string, appVersionCode?: number, buildType?: string, uiMode?: string) {
     const params = new URLSearchParams();
     if (from) params.set("from", from);
     if (to) params.set("to", to);
     if (appVersionCode != null) params.set("appVersionCode", String(appVersionCode));
     if (buildType && buildType !== "all") params.set("buildType", buildType);
+    // The mode the screen was actually in (dark/light) — stamped on every event from the release
+    // after 1.4.2; older builds carry nothing, so filtering them returns an empty journey, honestly.
+    if (uiMode && uiMode !== "all") params.set("uiMode", uiMode);
     return apiRequest<JourneyReport>(`/v1/webpanel/analytics/first-invoice-journey?${params.toString()}`);
   },
 

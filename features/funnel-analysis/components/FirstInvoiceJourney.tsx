@@ -47,6 +47,8 @@ const FACET_LABELS: Record<string, string> = {
   came_back: "Baad mein wapas aaya",
   country: "Mulk",
   webview: "WebView",
+  ui_mode: "Screen ka mode (dark / light)",
+  theme_pref: "Theme setting (system / light / dark)",
 };
 const FACET_VALUE_LABELS: Record<string, string> = {
   no_background: "app band hui, background event nahi",
@@ -62,6 +64,9 @@ const FACET_VALUE_LABELS: Record<string, string> = {
   no: "nahi",
   available: "mojood",
   missing: "ghaib",
+  dark: "dark",
+  light: "light",
+  system: "system (phone ke mutabiq)",
 };
 
 const REASON_LABELS: Record<string, string> = {
@@ -120,6 +125,8 @@ function Facets({ facets, total, tone }: { facets: JourneyFacet[]; total: number
 export function FirstInvoiceJourney() {
   const [range, setRange] = useState<DayRange>(defaultRange);
   const [build, setBuild] = useState("release");
+  /** Dark or light — the mode the screen was in, not the phone's setting. "all" = no filter. */
+  const [uiMode, setUiMode] = useState("all");
   const [versionCode, setVersionCode] = useState<number | null>(null);
   const [touched, setTouched] = useState(false);
   const [versions, setVersions] = useState<AppVersion[]>([]);
@@ -168,7 +175,7 @@ export function FirstInvoiceJourney() {
       setError(null);
       try {
         const iso = toRangeIso(range);
-        const r = await api.getFirstInvoiceJourney(iso.from, iso.to, versionCode ?? undefined, build);
+        const r = await api.getFirstInvoiceJourney(iso.from, iso.to, versionCode ?? undefined, build, uiMode);
         if (!dead) setReport(r);
       } catch (err) {
         if (!dead) setError(getErrorMessage(err, "Could not load the journey."));
@@ -179,7 +186,7 @@ export function FirstInvoiceJourney() {
     return () => {
       dead = true;
     };
-  }, [range, build, versionCode]);
+  }, [range, build, versionCode, uiMode]);
 
   const versionLabel = useMemo(() => {
     if (versionCode == null) return "all versions";
@@ -230,6 +237,11 @@ export function FirstInvoiceJourney() {
           <option value="release">Build: release</option>
           <option value="debug">Build: debug</option>
           <option value="all">Build: all</option>
+        </select>
+        <select className="input" value={uiMode} onChange={(e) => setUiMode(e.target.value)} title="Screen ka mode — release after 1.4.2 se stamp hota hai">
+          <option value="all">Mode: all</option>
+          <option value="dark">Mode: dark</option>
+          <option value="light">Mode: light</option>
         </select>
         <select
           className="input"
