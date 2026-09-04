@@ -1,0 +1,63 @@
+# The eye that lives somewhere else.
+#
+# The watchdog and the sentinel both run on the VPS, so they can only report "the app died" — not
+# "the machine died". On 2026-09-04 the app was up-but-dead for 3 h 43 m and nothing said so; if the
+# box itself goes, even the fixed alerting goes with it. This runs on GitHub's machines: it asks the
+# public URL the same question a customer's phone asks, and shouts on the same channels.
+#
+# Five minutes is GitHub's floor for a schedule, and it drifts under load — that is fine here. The
+# on-box watchdog already covers the fast case at one minute; this one exists for the case where
+# there is no on-box anything.
+name: Uptime watch
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ask the API twice
+        id: probe
+        run: |
+          probe() { curl -s -o /dev/null -m 25 -w '%{http_code}' https://stage.invotick.com/actuator/health/deploy || echo 000; }
+          first=$(probe)
+          if [ "$first" = "200" ]; then echo "state=up" >> "$GITHUB_OUTPUT"; exit 0; fi
+          sleep 20
+          second=$(probe)
+          if [ "$second" = "200" ]; then echo "state=up" >> "$GITHUB_OUTPUT"; exit 0; fi
+          # Is it us or is it the internet? Ask something that is not ours before blaming the server.
+          control=$(curl -s -o /dev/null -m 20 -w '%{http_code}' https://www.google.com || echo 000)
+          echo "state=down" >> "$GITHUB_OUTPUT"
+          echo "code=$second" >> "$GITHUB_OUTPUT"
+          echo "control=$control" >> "$GITHUB_OUTPUT"
+
+      - name: Say so
+        if: steps.probe.outputs.state == 'down'
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+        run: |
+          WHEN=$(TZ=Asia/Karachi date '+%d %b, %I:%M %p')
+          BODY="Bahar se dekhne wale check ne bhi fail kiya — HTTP ${{ steps.probe.outputs.code }}, ${WHEN} PKT.
+Ye alert GitHub ke server se aaya hai, hamare apne server se nahi — yani ho sakta hai poori machine hi band ho.
+(Internet theek hai ya nahi ka check: google.com ne ${{ steps.probe.outputs.control }} diya.)
+
+KYA KAREIN:
+1) admin.invotick.com aur app dono kholein — dono band hain to server hi gaya hai.
+2) Hostinger ka panel kholein aur dekhein ke VPS chal raha hai ya nahi; zaroorat par wahin se restart karein.
+3) Fable ko batayein aur ye paighaam dikhayein."
+          if [ -n "$NTFY_TOPIC" ]; then
+            curl -s -H "Title: Server bahar se bhi jawab nahi de raha" -H "Priority: 5" -H "Tags: rotating_light" \
+                 -d "$BODY" "https://ntfy.sh/${NTFY_TOPIC}" >/dev/null
+          fi
+          if [ -n "$SLACK_WEBHOOK" ]; then
+            python3 - "$BODY" <<'PY' > /tmp/p.json
+import json, sys
+print(json.dumps({"text": "<!channel> :rotating_light: *Server bahar se bhi jawab nahi de raha*\n" + sys.argv[1]}))
+PY
+            curl -s -X POST -H 'Content-type: application/json' --data @/tmp/p.json "$SLACK_WEBHOOK" >/dev/null
+          fi
+          exit 1
