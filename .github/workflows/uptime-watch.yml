@@ -1,13 +1,13 @@
 # The eye that lives somewhere else.
 #
-# The watchdog and the sentinel both run on the VPS, so they can only report "the app died" — not
-# "the machine died". On 2026-09-04 the app was up-but-dead for 3 h 43 m and nothing said so; if the
-# box itself goes, even the fixed alerting goes with it. This runs on GitHub's machines: it asks the
-# public URL the same question a customer's phone asks, and shouts on the same channels.
+# The watchdog and the sentinel both run on the VPS, so between them they can say the app died but
+# never that the machine did. On 2026-09-04 the app was up-but-dead for 3 h 43 m and nothing said
+# so; if the box itself goes, the fixed alerting goes with it. This runs on GitHub's machines.
 #
-# Five minutes is GitHub's floor for a schedule, and it drifts under load — that is fine here. The
-# on-box watchdog already covers the fast case at one minute; this one exists for the case where
-# there is no on-box anything.
+# Five minutes is GitHub's floor for a schedule and it drifts under load — fine here: the on-box
+# watchdog covers the fast case at one minute, and this one exists for when there is no on-box
+# anything. It asks a site that is not ours before blaming the server, so a network blip on the
+# runner does not become an outage report.
 name: Uptime watch
 
 on:
@@ -28,36 +28,40 @@ jobs:
           sleep 20
           second=$(probe)
           if [ "$second" = "200" ]; then echo "state=up" >> "$GITHUB_OUTPUT"; exit 0; fi
-          # Is it us or is it the internet? Ask something that is not ours before blaming the server.
           control=$(curl -s -o /dev/null -m 20 -w '%{http_code}' https://www.google.com || echo 000)
-          echo "state=down" >> "$GITHUB_OUTPUT"
-          echo "code=$second" >> "$GITHUB_OUTPUT"
-          echo "control=$control" >> "$GITHUB_OUTPUT"
+          {
+            echo "state=down"
+            echo "code=$second"
+            echo "control=$control"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Say so
         if: steps.probe.outputs.state == 'down'
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+          CODE: ${{ steps.probe.outputs.code }}
+          CONTROL: ${{ steps.probe.outputs.control }}
         run: |
-          WHEN=$(TZ=Asia/Karachi date '+%d %b, %I:%M %p')
-          BODY="Bahar se dekhne wale check ne bhi fail kiya — HTTP ${{ steps.probe.outputs.code }}, ${WHEN} PKT.
-Ye alert GitHub ke server se aaya hai, hamare apne server se nahi — yani ho sakta hai poori machine hi band ho.
-(Internet theek hai ya nahi ka check: google.com ne ${{ steps.probe.outputs.control }} diya.)
+          WHEN="$(TZ=Asia/Karachi date '+%d %b, %I:%M %p') PKT"
+          BODY=$(cat <<EOF
+          Bahar se dekhne wale check ne bhi fail kiya — HTTP ${CODE}, ${WHEN}.
+          Ye alert GitHub ke server se aaya hai, hamare apne server se nahi — yani mumkin hai poori machine band ho.
+          (Internet theek hai ya nahi: google.com ne ${CONTROL} diya.)
 
-KYA KAREIN:
-1) admin.invotick.com aur app dono kholein — dono band hain to server hi gaya hai.
-2) Hostinger ka panel kholein aur dekhein ke VPS chal raha hai ya nahi; zaroorat par wahin se restart karein.
-3) Fable ko batayein aur ye paighaam dikhayein."
+          KYA KAREIN:
+          1) admin.invotick.com aur app dono kholein. Dono band hain to server hi gaya hai.
+          2) Hostinger ka panel kholein, dekhein VPS chal raha hai ya nahi, zaroorat par wahin se restart karein.
+          3) Fable ko batayein aur ye paighaam dikhayein.
+          EOF
+          )
+          BODY=$(printf '%s\n' "$BODY" | sed 's/^          //')
           if [ -n "$NTFY_TOPIC" ]; then
             curl -s -H "Title: Server bahar se bhi jawab nahi de raha" -H "Priority: 5" -H "Tags: rotating_light" \
                  -d "$BODY" "https://ntfy.sh/${NTFY_TOPIC}" >/dev/null
           fi
           if [ -n "$SLACK_WEBHOOK" ]; then
-            python3 - "$BODY" <<'PY' > /tmp/p.json
-import json, sys
-print(json.dumps({"text": "<!channel> :rotating_light: *Server bahar se bhi jawab nahi de raha*\n" + sys.argv[1]}))
-PY
+            python3 -c "import json,sys; print(json.dumps({'text': '<!channel> :rotating_light: *Server bahar se bhi jawab nahi de raha*' + chr(10) + sys.argv[1]}))" "$BODY" > /tmp/p.json
             curl -s -X POST -H 'Content-type: application/json' --data @/tmp/p.json "$SLACK_WEBHOOK" >/dev/null
           fi
           exit 1
