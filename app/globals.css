@@ -3649,4 +3649,10 @@ button {
 .fij-facet-bar { position: absolute; left: 0; top: 0; bottom: 0; background: rgba(128,140,155,.14); pointer-events: none; }
 .fij-facet-label, .fij-facet-n { position: relative; }
 .fij-facet-n { font-variant-numeric: tabular-nums; font-weight: 600; }
+/* The passers: same tables, the ink of the bar above rather than the loss colour. */
+.fij-passed-btn { background: none; border: 0; padding: 0; margin-top: 4px; font: inherit; font-size: 12px; cursor: pointer; text-align: left; color: #0E7C6B; }
+.fij-passed-btn.on { text-decoration: underline; }
+@media (prefers-color-scheme: dark) { .fij-passed-btn { color: #3FBFA8; } }
+.fij-facets.passed { border-left-color: rgba(14,124,107,.35); }
+.fij-facets.passed .fij-facet-bar { background: rgba(14,124,107,.14); }
 

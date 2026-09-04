@@ -149,6 +149,8 @@ export interface JourneyStep {
   share: number;
   /** Why the people who stopped here stopped — every one of them is in exactly one bucket. */
   reasons: JourneyReason[];
+  /** The people who went past this rung, grouped by the same dimensions — the control group. */
+  passed: { count: number; facets: JourneyFacet[] };
 }
 
 /** One bucket of stop reasons on a rung; `key` is stable, the label lives in the page. */

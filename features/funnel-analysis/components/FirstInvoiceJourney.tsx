@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, getErrorMessage } from "@/lib/api";
 import { downloadText, fileStamp } from "@/lib/clipboard";
 import { DateRangePicker, defaultRange, toRangeIso, type DayRange } from "@/components/DateRangePicker";
-import type { AppVersion, JourneyReport } from "@/lib/types";
+import type { AppVersion, JourneyFacet, JourneyReport } from "@/lib/types";
 
 /**
  * Where first-time users stop on the way to a first invoice.
@@ -97,6 +97,26 @@ const REASON_LABELS: Record<string, string> = {
   completed: "Invoice ban gayi",
 };
 
+/** One small table per dimension; every value's bar is its share of `total`. */
+function Facets({ facets, total, tone }: { facets: JourneyFacet[]; total: number; tone?: "passed" }) {
+  return (
+    <div className={`fij-facets${tone ? ` ${tone}` : ""}`}>
+      {facets.map((f) => (
+        <div key={f.dimension} className="fij-facet">
+          <div className="fij-facet-name">{FACET_LABELS[f.dimension] ?? f.dimension}</div>
+          {f.values.map((v) => (
+            <div key={v.value} className="fij-facet-row">
+              <span className="fij-facet-bar" style={{ width: `${total > 0 ? (v.count * 100) / total : 0}%` }} />
+              <span className="fij-facet-label">{FACET_VALUE_LABELS[v.value] ?? v.value}</span>
+              <span className="fij-facet-n">{v.count}</span>
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function FirstInvoiceJourney() {
   const [range, setRange] = useState<DayRange>(defaultRange);
   const [build, setBuild] = useState("release");
@@ -114,6 +134,8 @@ export function FirstInvoiceJourney() {
   const [reasonFilter, setReasonFilter] = useState<{ step: number; key: string } | null>(null);
   /** The bucket whose breakup is open — the sub-section inside the sub-section. */
   const [openBucket, setOpenBucket] = useState<{ step: number; key: string } | null>(null);
+  /** The rung whose passers' breakup is open. */
+  const [openPassed, setOpenPassed] = useState<number | null>(null);
 
   useEffect(() => {
     let dead = false;
@@ -310,26 +332,26 @@ export function FirstInvoiceJourney() {
                                 breakup {open ? "▴" : "▾"}
                               </button>
                             </div>
-                            {open && (r.facets ?? []).length > 0 && (
-                              <div className="fij-facets">
-                                {(r.facets ?? []).map((f) => (
-                                  <div key={f.dimension} className="fij-facet">
-                                    <div className="fij-facet-name">{FACET_LABELS[f.dimension] ?? f.dimension}</div>
-                                    {f.values.map((v) => (
-                                      <div key={v.value} className="fij-facet-row">
-                                        <span className="fij-facet-bar" style={{ width: `${(v.count * 100) / r.count}%` }} />
-                                        <span className="fij-facet-label">{FACET_VALUE_LABELS[v.value] ?? v.value}</span>
-                                        <span className="fij-facet-n">{v.count}</span>
-                                      </div>
-                                    ))}
-                                  </div>
-                                ))}
-                              </div>
-                            )}
+                            {open && (r.facets ?? []).length > 0 && <Facets facets={r.facets} total={r.count} />}
                           </div>
                         );
                       })}
                     </div>
+                  )}
+                  {/* The control group: the same breakup for the people who went past this rung.
+                      A breakup of the leavers alone says what they looked like; only next to the
+                      passers does it say what was different. */}
+                  {s.step < report.steps.length && (s.passed?.count ?? 0) > 0 && (
+                    <>
+                      <button
+                        type="button"
+                        className={`fij-passed-btn${openPassed === s.step ? " on" : ""}`}
+                        onClick={() => setOpenPassed((p) => (p === s.step ? null : s.step))}
+                      >
+                        {s.passed.count} aage gaye · breakup {openPassed === s.step ? "▴" : "▾"}
+                      </button>
+                      {openPassed === s.step && <Facets facets={s.passed.facets} total={s.passed.count} tone="passed" />}
+                    </>
                   )}
                 </div>
                 <div className="fij-nums">
