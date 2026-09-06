@@ -39,13 +39,22 @@ const RUNG: Record<number, string> = {
  */
 /** Sub-grouping dimensions inside a bucket, and the values that need a word. */
 const FACET_LABELS: Record<string, string> = {
-  time_on_splash: "Splash par kitni der ruka, phir gaya",
-  after_ready: "App tayyar (splash_ready) hone ke baad kitna intezaar kiya",
+  time_on_splash: "Splash par kitna waqt guzra, phir gaya",
+  after_ready: "App tayyar (splash_ready) hone ke baad kitna waqt guzra",
   network: "Network (cold start par)",
   install_source: "Install kahan se aaya",
   install_to_open: "Install se pehli baar kholne tak",
   came_back: "Baad mein wapas aaya",
   country: "Mulk",
+  // Ye "app kis zaban mein thi" NAHI hai. App ka invoice flow poora English hai — sirf app ka naam,
+  // language picker aur splash ki 3 lines translate hui hain. Ye batata hai ke banday ka app locale
+  // kya tha, ya-ni "is banday ko app us ki zaban mein MILI HI NAHI".
+  //
+  // Session se aata hai, event se nahi. Session row abhi sirf ~1% batches par likhti thi, is liye
+  // "pata nahi" sab se bari value hoti hai jab tak Health Centre ka "Session metadata" card green
+  // na ho jaye. Woh row chhupai nahi gayi — chhupa dete to chauthai funnel poora lagta.
+  language_group: "Zaban: English ya localized",
+  language: "Zaban (kaun si)",
   webview: "WebView",
   ui_mode: "Screen ka mode (dark / light)",
   theme_pref: "Theme setting (system / light / dark)",
@@ -67,37 +76,47 @@ const FACET_VALUE_LABELS: Record<string, string> = {
   dark: "dark",
   light: "light",
   system: "system (phone ke mutabiq)",
+  English: "English",
+  Localized: "Localized (English ke ilawa)",
 };
 
+// Har label sirf wo batata hai jo DEKHA gaya — wajah nahi.
+//
+// Yahan pehle "Ad ka intezaar karte hue chala gaya" likha tha. Signals me intezaar jaisi koi cheez
+// hai hi nahi: jo maloom hai wo ye hai ke `splash_ready` ho chuki thi — yani APP TAYYAR THI — aur ek
+// ad request khuli padi thi. Us branch ko "ad ka intezaar" kehna qareeb qareeb ulta tha.
+//
+// Isi tarah "phir bhi chala gaya", "idhar udhar tap kiya", "(bug shape)" — ye teeno faisla hain,
+// mushahida nahi. Jo funnel ki category me hi verdict likha ho, wo har baar wahi verdict dega chahe
+// number kuch bhi kahein (memory/monetisation-measure-never-assume.md).
 const REASON_LABELS: Record<string, string> = {
   guest_login_failed: "Guest login fail hua",
-  died_after_ad_dismissed: "Ad band hui, phir app chup — aage gaya hi nahi (bug shape)",
-  died_during_ad: "Ad chal rahi thi, app band ho gayi",
-  died_after_ad_failed: "Ad fail hui, phir app chup — aage gaya hi nahi",
-  died_waiting_for_ad: "Ad ka intezaar, app band ho gayi (background nahi)",
-  died_on_splash: "Splash par hi app band ho gayi (background nahi)",
-  left_after_gate_released: "Ad gate khul chuka tha, phir bhi chala gaya",
-  left_during_ad: "Ad ke dauran chala gaya",
-  left_waiting_for_ad: "Ad ka intezaar karte hue chala gaya",
-  left_after_splash_ready: "Splash ready ke baad chala gaya (ad request nahi)",
-  left_after_guest_login: "Guest login ke baad, splash ready se pehle chala gaya",
-  left_before_guest_login: "Guest login se pehle hi chala gaya",
+  died_after_ad_dismissed: "Ad band hui, phir process khatam (background event nahi aaya)",
+  died_during_ad: "Ad screen par thi jab process khatam hua",
+  died_after_ad_failed: "Ad fail hui, phir process khatam",
+  died_after_splash_ready_ad_pending: "Splash ready thi, ad request khuli thi, process khatam",
+  died_on_splash: "Splash par process khatam (background event nahi aaya)",
+  left_after_gate_released: "Ad gate khul chuka tha, phir gaya",
+  left_during_ad: "Ad screen par thi jab gaya",
+  left_after_splash_ready_ad_pending: "Splash ready thi, ad request khuli thi, phir gaya",
+  left_after_splash_ready: "Splash ready ke baad gaya (koi ad request nahi thi)",
+  left_after_guest_login: "Guest login ke baad, splash ready se pehle gaya",
+  left_before_guest_login: "Guest login se pehle gaya",
   exit_confirmed: "Back → exit dialog → app band ki",
   back_pressed: "Back daba kar dashboard par gaya",
   exit_dialog_shown: "Exit dialog dikha, band nahi ki, phir gaya",
-  tapped_around: "Idhar udhar tap kiya, kuch add nahi kiya",
-  process_died: "App band ho gayi (background nahi)",
-  left_untouched: "Kuch chhuay bina chala gaya",
+  tapped_around: "Tap hue, koi item add nahi hua",
+  process_died: "Process khatam (background event nahi aaya)",
   save_validation_failed: "Save dabaya, validation fail",
-  save_ad_show_failed: "Save → ad dikhni thi, fail hui, invoice nahi",
-  save_watch_ad_no_invoice: "Save → Watch ad chuna, invoice phir bhi nahi",
+  save_ad_show_failed: "Save dabaya, ad show fail hui, invoice nahi bani",
+  save_then_watch_ad_clicked: "Save dabaya, Watch ad dabaya, invoice nahi bani",
   save_gate_dismissed: "Save → ad/premium dialog band kar diya",
   save_then_nothing: "Save dabaya, uske baad kuch nahi",
   discard_confirmed: "Discard kar diya",
   discard_dialog_closed: "Discard dialog dikha, band kiya, phir gaya",
   saved_as_draft: "Draft mein rakha",
   preview_only: "Sirf preview dekha, save nahi",
-  left_without_save: "Save dabaye bina chala gaya",
+  unknown: "Maloom nahi — is qadam par kuch record nahi hua",
   no_signals: "Is device ke events nahi mile",
   completed: "Invoice ban gayi",
 };
