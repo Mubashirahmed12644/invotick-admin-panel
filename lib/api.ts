@@ -346,6 +346,12 @@ export const api = {
    *
    * Keys come from the data, not from a list anyone maintains: a maintained list goes stale the
    * first time somebody adds a parameter and forgets this file.
+   *
+   * `maxValues: 200` is the server's own ceiling (`maxValues.coerceIn(5, 200)`), and this call was
+   * not sending the parameter at all — so it took the default of 25 and the dialog showed the top
+   * 25 of a list nobody had counted. Beyond the cap the server sets `distinctValues = -1`, meaning
+   * the true number is not merely hidden, it is never computed; asking for the ceiling is the only
+   * lever the client has. On `sync_failed` that is 25 reasons against as many as 200.
    */
   getEventDetail(
     eventName: string,
@@ -354,7 +360,7 @@ export const api = {
     appVersionCode?: number,
     buildType?: string,
   ) {
-    const params = new URLSearchParams({ eventName });
+    const params = new URLSearchParams({ eventName, maxValues: "200" });
     if (from) params.set("from", from);
     if (to) params.set("to", to);
     if (appVersionCode != null) params.set("appVersionCode", String(appVersionCode));

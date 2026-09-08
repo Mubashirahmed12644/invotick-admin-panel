@@ -15,6 +15,13 @@ import {
   listShortLinks,
   type ShortLinkResponse,
 } from "@/lib/utm/shortLinks";
+import {
+  getUtmAttribution,
+  type UtmAttributionReport,
+  type UtmBreakdownRow,
+  type UtmLinkRow,
+  type UtmTagRow,
+} from "@/lib/utm/attribution";
 import { getErrorMessage } from "@/lib/api";
 
 type Tab = "builder" | "links" | "reporting";
@@ -45,9 +52,11 @@ export default function UtmPageClient() {
     }
   }, []);
 
-  // Lazy-load the registry the first time Links/Reporting is opened.
+  // Lazy-load the registry the first time the Links tab is opened. Reporting no longer needs it:
+  // it reads one endpoint that returns the same links WITH their installs, so the two tables can
+  // never disagree about a click count.
   useEffect(() => {
-    if ((tab === "links" || tab === "reporting") && links === null && !loading) {
+    if (tab === "links" && links === null && !loading) {
       loadLinks();
     }
   }, [tab, links, loading, loadLinks]);
@@ -62,8 +71,8 @@ export default function UtmPageClient() {
               UTM &amp; Attribution
             </h1>
             <p style={{ color: "var(--color-text-muted)", marginTop: 6, fontSize: 14 }}>
-              Build consistently-tagged campaign links, shorten them via go.invotick.com, and
-              track where installs come from — all in your own panel.
+              Build consistently-tagged campaign links, shorten them via go.invotick.com, and see
+              the clicks, installs and first invoices each tag produced — all in your own panel.
             </p>
           </header>
 
@@ -107,9 +116,7 @@ export default function UtmPageClient() {
           {tab === "links" && (
             <LinksRegistry links={links} loading={loading} error={error} onRefresh={loadLinks} />
           )}
-          {tab === "reporting" && (
-            <Reporting links={links} loading={loading} error={error} onRefresh={loadLinks} />
-          )}
+          {tab === "reporting" && <Reporting />}
         </div>
       </div>
     </main>
@@ -429,105 +436,235 @@ function LinksRegistry({
 
 /* ─────────────────────────────── Reporting ─────────────────────────────── */
 
-function Reporting({
-  links,
-  loading,
-  error,
-  onRefresh,
-}: {
-  links: ShortLinkResponse[] | null;
-  loading: boolean;
-  error: string | null;
-  onRefresh: () => void;
-}) {
-  const stats = useMemo(() => {
-    if (!links) return null;
-    const totalClicks = links.reduce((s, l) => s + l.clickCount, 0);
-    // Group clicks by any key. Source/medium are read from each link's tagged
-    // webUrl (utm_source/utm_medium live in the URL, not a stored column).
-    const group = (keyOf: (l: ShortLinkResponse) => string): [string, number][] => {
-      const m = new Map<string, number>();
-      for (const l of links) {
-        const k = keyOf(l);
-        m.set(k, (m.get(k) ?? 0) + l.clickCount);
-      }
-      return [...m.entries()].sort((a, b) => b[1] - a[1]);
-    };
-    const bySource = group((l) => utmParam(l.webUrl, "utm_source"));
-    const byMedium = group((l) => utmParam(l.webUrl, "utm_medium"));
-    const byCampaign = group((l) => l.campaign ?? utmParam(l.webUrl, "utm_campaign"));
-    const top = [...links].sort((a, b) => b.clickCount - a.clickCount).slice(0, 5);
-    return { totalLinks: links.length, totalClicks, bySource, byMedium, byCampaign, top };
-  }, [links]);
+/**
+ * Clicks, installs and first invoices for every campaign tag.
+ *
+ * This tab read `short_link.clickCount` and nothing else, while the page header promised to track
+ * "where installs come from". It now reads `/v1/webpanel/analytics/utm-attribution`, which joins the
+ * registry to `install_referrer` — the one event that carries a UTM tag — and follows those devices
+ * to `invoice_created_success` and `invoice_shared_success`.
+ *
+ * Three things about the numbers, all of which shaped the layout:
+ *
+ * 1. **A zero is rendered as `0`.** Most links produced no installs, and that is the answer. Blanks
+ *    and em dashes are what let the old subtitle stand for two months.
+ * 2. **Installs belong to a tag, not to a link.** The short code never reaches the Play referrer, so
+ *    seven links carrying `google_ads · cpc · android_installs_2026q3` share one install count. The
+ *    row says so rather than repeating the number as if it were seven separate results.
+ * 3. **Most installs are not ours.** Facebook-for-Android sets its own install referrer, so the bulk
+ *    of arrivals carry `apps.facebook.com`. Those are listed separately and never credited to a
+ *    campaign — the last time they were folded in by a substring match, the panel labelled 932
+ *    installs "Facebook campaign".
+ */
+function Reporting() {
+  const [report, setReport] = useState<UtmAttributionReport | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [days, setDays] = useState(30);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      setReport(await getUtmAttribution({ withinMinutes: days * 24 * 60 }));
+    } catch (e) {
+      setError(getErrorMessage(e, "Couldn't load attribution."));
+    } finally {
+      setLoading(false);
+    }
+  }, [days]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const untaggedInstalls = report ? report.totals.installsAllSources - report.totals.installs : 0;
 
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
-        <button onClick={onRefresh} style={copyBtnStyle(false)}>↻ Refresh</button>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, gap: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 12.5, color: "var(--color-text-muted)", fontWeight: 600 }}>Installs in</span>
+          <select
+            value={days}
+            onChange={(e) => setDays(Number(e.target.value))}
+            style={{ ...inputStyle(), width: "auto", padding: "6px 10px", fontSize: 12.5 }}
+          >
+            <option value={7}>last 7 days</option>
+            <option value={30}>last 30 days</option>
+            <option value={90}>last 90 days</option>
+            <option value={365}>last 365 days</option>
+          </select>
+        </div>
+        <button onClick={load} style={copyBtnStyle(false)}>↻ Refresh</button>
       </div>
 
       {loading && <section style={cardStyle}><Muted>Loading…</Muted></section>}
       {error && !loading && <section style={cardStyle}><ErrorNote message={error} /></section>}
 
-      {!loading && !error && stats && (
+      {!loading && !error && report && (
         <>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
-            <StatCard label="Total links" value={stats.totalLinks} />
-            <StatCard label="Total clicks" value={stats.totalClicks} accent />
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 8 }}>
+            <StatCard label="Total links" value={report.totals.links} />
+            <StatCard label="Clicks (all time)" value={report.totals.clicks} />
+            <StatCard label={`Installs (${days}d)`} value={report.totals.installs} accent />
+            <StatCard label={`First invoice (${days}d)`} value={report.totals.madeInvoice} accent />
           </div>
 
-          <Breakdown title="Clicks by source" data={stats.bySource} />
-          <Breakdown title="Clicks by medium" data={stats.byMedium} />
-          <Breakdown title="Clicks by campaign" data={stats.byCampaign} />
-
-          <section style={cardStyle}>
-            <SectionTitle>Top links</SectionTitle>
-            {stats.top.length === 0 ? (
-              <Muted>No links yet.</Muted>
-            ) : (
-              stats.top.map((l) => (
-                <div
-                  key={l.code}
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    padding: "8px 0",
-                    borderTop: "1px solid var(--color-border)",
-                  }}
-                >
-                  <div style={{ minWidth: 0 }}>
-                    <div style={{ fontWeight: 600, color: "var(--color-text)", fontSize: 13 }}>
-                      {l.label ?? l.campaign ?? l.code}
-                    </div>
-                    <div
-                      style={{
-                        fontSize: 11.5,
-                        fontFamily: "var(--font-space-mono), monospace",
-                        color: "var(--color-text-muted)",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {l.shortUrl}
-                    </div>
-                  </div>
-                  <span style={{ fontWeight: 700, color: "var(--color-primary)", marginLeft: 12 }}>
-                    {l.clickCount}
-                  </span>
-                </div>
-              ))
+          {/*
+            The two numbers above are counted over two different spans on purpose, and saying so is
+            cheaper than making them agree. `clickCount` is a running total the redirect keeps and
+            has never been windowed; installs are read from events, which are.
+          */}
+          <p style={{ color: "var(--color-text-muted)", fontSize: 12, margin: "0 2px 16px", lineHeight: 1.6 }}>
+            Clicks are a running total kept by the go.invotick.com redirect since each link was
+            created. Installs and invoices are devices whose Play install referrer carried one of
+            these exact tags in the last {days} days, followed to their first saved invoice.{" "}
+            <b>{report.totals.sharedInvoice.toLocaleString()}</b> of those went on to share one (G1).
+            {untaggedInstalls > 0 && (
+              <>
+                {" "}
+                <b>{untaggedInstalls.toLocaleString()}</b> more installs arrived in the same window
+                carrying a referrer none of these links set — listed at the bottom, and not credited
+                to any campaign.
+              </>
             )}
-          </section>
-
-          <p style={{ color: "var(--color-text-muted)", fontSize: 12, marginTop: 14 }}>
-            Click data comes from your own go.invotick.com redirects — richer install/signup
-            attribution (source × medium funnels, viral loop) lands as the next backend phase.
           </p>
+
+          {report.truncated && (
+            <p style={{ color: "var(--color-danger)", fontSize: 12.5, margin: "0 2px 16px" }}>
+              More distinct tags than this report returns — the tail is not shown.
+            </p>
+          )}
+
+          <Breakdown title="By source" rows={report.bySource} />
+          <Breakdown title="By medium" rows={report.byMedium} />
+          <Breakdown title="By campaign" rows={report.byCampaign} />
+
+          <LinkResults links={report.links} />
+          <UntaggedInstalls rows={report.untagged} days={days} />
         </>
       )}
     </div>
+  );
+}
+
+/** Per-link results, with the ambiguity that the data genuinely has stated on the row. */
+function LinkResults({ links }: { links: UtmLinkRow[] }) {
+  const ordered = useMemo(
+    () => [...links].sort((a, b) => (b.installs ?? -1) - (a.installs ?? -1) || b.clicks - a.clicks),
+    [links],
+  );
+  return (
+    <section style={{ ...cardStyle, marginBottom: 16 }}>
+      <SectionTitle>Links</SectionTitle>
+      {ordered.length === 0 ? (
+        <Muted>No links yet — create one in the Link Builder tab.</Muted>
+      ) : (
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+            <thead>
+              <tr style={{ textAlign: "left", color: "var(--color-text-muted)" }}>
+                <Th>Link</Th>
+                <Th>Tag</Th>
+                <Th style={{ textAlign: "right" }}>Clicks</Th>
+                <Th style={{ textAlign: "right" }}>Installs</Th>
+                <Th style={{ textAlign: "right" }}>First invoice</Th>
+                <Th style={{ textAlign: "right" }}>Shared</Th>
+              </tr>
+            </thead>
+            <tbody>
+              {ordered.map((l) => (
+                <tr key={l.code} style={{ borderTop: "1px solid var(--color-border)" }}>
+                  <Td>
+                    <div style={{ fontWeight: 600, color: "var(--color-text)" }}>{l.label ?? l.campaign ?? l.code}</div>
+                    <div style={{ fontSize: 11.5, fontFamily: "var(--font-space-mono), monospace", color: "var(--color-text-muted)" }}>
+                      {l.shortUrl}
+                    </div>
+                  </Td>
+                  <Td style={{ color: "var(--color-text-muted)", fontSize: 12 }}>
+                    {l.utmSource === null && l.utmMedium === null && l.utmCampaign === null ? (
+                      <span title="This link has no Play Store URL, so it can never produce an install referrer.">
+                        no Play URL
+                      </span>
+                    ) : (
+                      <>
+                        {[l.utmSource, l.utmMedium, l.utmCampaign].map((v) => v ?? "(none)").join(" · ")}
+                        {l.ambiguousWith.length > 0 && (
+                          <div
+                            style={{ color: "var(--color-danger)", fontSize: 11, marginTop: 3 }}
+                            title={`The short code never reaches the install referrer, so these installs cannot be split between this link and: ${l.ambiguousWith.join(", ")}`}
+                          >
+                            shared tag with {l.ambiguousWith.length} other link
+                            {l.ambiguousWith.length > 1 ? "s" : ""} — the install count is the tag&apos;s
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </Td>
+                  <Td style={{ textAlign: "right", fontWeight: 700 }}>{l.clicks.toLocaleString()}</Td>
+                  <Count value={l.installs} accent />
+                  <Count value={l.madeInvoice} />
+                  <Count value={l.sharedInvoice} />
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  );
+}
+
+/**
+ * Installs whose referrer matches no link of ours.
+ *
+ * On production this is the overwhelming majority — Facebook-for-Android sets `apps.facebook.com` /
+ * `fb4a` on installs that came through the FB app whether or not we ever built a link, and Play sets
+ * `google-play` / `organic` on a plain store visit. Showing them keeps two facts apart that a
+ * campaign report must never merge: a tagged link that produced nothing, and traffic that was never
+ * tagged at all.
+ */
+function UntaggedInstalls({ rows, days }: { rows: UtmTagRow[]; days: number }) {
+  return (
+    <section style={cardStyle}>
+      <SectionTitle>Installs carrying no tag of ours</SectionTitle>
+      <p style={{ color: "var(--color-text-muted)", fontSize: 12.5, margin: "-6px 0 14px", lineHeight: 1.6 }}>
+        Referrers Play delivered in the last {days} days that match none of the links above, exactly.
+        These are <b>not</b> attributed to any campaign: <code style={{ fontFamily: "var(--font-space-mono), monospace" }}>apps.facebook.com</code>{" "}
+        is Facebook-for-Android naming itself, not our <code style={{ fontFamily: "var(--font-space-mono), monospace" }}>facebook</code> tag.
+      </p>
+      {rows.length === 0 ? (
+        <Muted>None — every install in this window matched a link.</Muted>
+      ) : (
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+            <thead>
+              <tr style={{ textAlign: "left", color: "var(--color-text-muted)" }}>
+                <Th>Source</Th>
+                <Th>Medium</Th>
+                <Th>Campaign</Th>
+                <Th style={{ textAlign: "right" }}>Installs</Th>
+                <Th style={{ textAlign: "right" }}>First invoice</Th>
+                <Th style={{ textAlign: "right" }}>Shared</Th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={`${r.utmSource}|${r.utmMedium}|${r.utmCampaign}`} style={{ borderTop: "1px solid var(--color-border)" }}>
+                  <Td style={{ fontFamily: "var(--font-space-mono), monospace", fontSize: 12 }}>{r.utmSource ?? "(none)"}</Td>
+                  <Td style={{ color: "var(--color-text-muted)", fontSize: 12 }}>{r.utmMedium ?? "(none)"}</Td>
+                  <Td style={{ color: "var(--color-text-muted)", fontSize: 12 }}>{r.utmCampaign ?? "(none)"}</Td>
+                  <Count value={r.installs} accent />
+                  <Count value={r.madeInvoice} />
+                  <Count value={r.sharedInvoice} />
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -595,45 +732,97 @@ function CopyInline({ value }: { value: string }) {
   );
 }
 
-/** Read a UTM query param from a tagged URL; "(none)" if absent/unparseable. */
-function utmParam(url: string, key: string): string {
-  try {
-    return new URL(url).searchParams.get(key) || "(none)";
-  } catch {
-    return "(none)";
-  }
-}
-
-/** A titled horizontal-bar breakdown (clicks by source / medium / campaign). */
-function Breakdown({ title, data }: { title: string; data: [string, number][] }) {
-  const max = Math.max(1, ...data.map(([, c]) => c));
+/**
+ * One dimension of the report — clicks, installs, first invoices and shares per value.
+ *
+ * The bar is scaled by **installs**, not by clicks, because installs are what the tab is now for. A
+ * row of empty bars is the correct picture of a set of links nobody installed from, and it says that
+ * faster than the digits do.
+ *
+ * The two counts do not share a denominator and the `links` column is here to explain why: clicks
+ * are summed over links, installs over distinct tags. Seven links carry one tag, so seven click
+ * totals collapse onto one install total, and without the link count that reads as arithmetic going
+ * wrong. The server does both sums — do not re-derive either one here.
+ */
+function Breakdown({ title, rows }: { title: string; rows: UtmBreakdownRow[] }) {
+  const max = Math.max(1, ...rows.map((r) => r.installs));
   return (
     <section style={{ ...cardStyle, marginBottom: 16 }}>
       <SectionTitle>{title}</SectionTitle>
-      {data.length === 0 ? (
-        <Muted>No data yet.</Muted>
+      {rows.length === 0 ? (
+        <Muted>No links tagged with this yet.</Muted>
       ) : (
-        data.map(([name, clicks]) => (
-          <div key={name} style={{ marginBottom: 12 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 4 }}>
-              <span style={{ color: "var(--color-text)", fontWeight: 600 }}>{name}</span>
-              <span style={{ color: "var(--color-text-muted)" }}>{clicks}</span>
-            </div>
-            <div style={{ height: 8, background: "var(--md-sys-color-surface-container-low)", borderRadius: 999 }}>
-              <div
-                style={{
-                  height: "100%",
-                  width: `${(clicks / max) * 100}%`,
-                  background: "var(--color-primary)",
-                  borderRadius: 999,
-                  transition: "width .3s ease",
-                }}
-              />
-            </div>
-          </div>
-        ))
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+            <thead>
+              <tr style={{ textAlign: "left", color: "var(--color-text-muted)" }}>
+                <Th style={{ width: "42%" }}>Value</Th>
+                <Th style={{ textAlign: "right" }}>Links</Th>
+                <Th style={{ textAlign: "right" }}>Clicks</Th>
+                <Th style={{ textAlign: "right" }}>Installs</Th>
+                <Th style={{ textAlign: "right" }}>First invoice</Th>
+                <Th style={{ textAlign: "right" }}>Shared</Th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.value} style={{ borderTop: "1px solid var(--color-border)" }}>
+                  <Td>
+                    <div style={{ color: "var(--color-text)", fontWeight: 600, marginBottom: 5 }}>{r.value}</div>
+                    <div style={{ height: 8, background: "var(--md-sys-color-surface-container-low)", borderRadius: 999 }}>
+                      <div
+                        style={{
+                          height: "100%",
+                          width: `${(r.installs / max) * 100}%`,
+                          background: "var(--color-primary)",
+                          borderRadius: 999,
+                          transition: "width .3s ease",
+                        }}
+                      />
+                    </div>
+                  </Td>
+                  <Td style={{ textAlign: "right", color: "var(--color-text-muted)" }}>{r.links.toLocaleString()}</Td>
+                  <Td style={{ textAlign: "right", fontWeight: 700 }}>{r.clicks.toLocaleString()}</Td>
+                  <Count value={r.installs} accent />
+                  <Count value={r.madeInvoice} />
+                  <Count value={r.sharedInvoice} />
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </section>
+  );
+}
+
+/**
+ * A count cell. **`0` is printed as `0`.**
+ *
+ * The whole reason this tab was rebuilt is that it had nothing to say about installs and said it in
+ * prose instead. Rendering a zero as a dash would put that back: a reader cannot tell "no installs
+ * came from this link" from "we never looked". Only `null` prints as not-applicable, and it means
+ * one specific thing — the link has no Play URL, so no install could ever have carried its tag
+ * (AGENTS-EVENTS 1.7: an absent value is unknown, never a value).
+ */
+function Count({ value, accent }: { value: number | null; accent?: boolean }) {
+  if (value === null) {
+    return (
+      <Td style={{ textAlign: "right", color: "var(--color-text-muted)", fontSize: 12 }}>
+        <span title="This link has no Play Store URL, so an install could never carry its tag.">n/a</span>
+      </Td>
+    );
+  }
+  return (
+    <Td
+      style={{
+        textAlign: "right",
+        fontWeight: value > 0 ? 700 : 500,
+        color: value > 0 ? (accent ? "var(--color-primary)" : "var(--color-text)") : "var(--color-text-muted)",
+      }}
+    >
+      {value.toLocaleString()}
+    </Td>
   );
 }
 
@@ -659,9 +848,11 @@ function ErrorNote({ message }: { message: string }) {
     <div>
       <p style={{ color: "var(--color-danger)", fontSize: 14, margin: 0, fontWeight: 600 }}>{message}</p>
       <p style={{ color: "var(--color-text-muted)", fontSize: 12.5, margin: "6px 0 0" }}>
-        If the short-link backend isn&apos;t deployed yet, this is expected — deploy the
-        <code style={{ fontFamily: "var(--font-space-mono), monospace" }}> feature/short-links </code>
-        branch to activate it.
+        Both tabs read the backend: the registry from
+        <code style={{ fontFamily: "var(--font-space-mono), monospace" }}> /v1/webpanel/links </code>
+        and the install figures from
+        <code style={{ fontFamily: "var(--font-space-mono), monospace" }}> /v1/webpanel/analytics/utm-attribution </code>
+        (admin only). A 404 here means the running build predates that endpoint.
       </p>
     </div>
   );

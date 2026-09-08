@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "check:contrast": "node tools/contrast-check.mjs"
+    "check:contrast": "node tools/contrast-check.mjs",
+    "check:csv": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tools/csv-check.mjs"
   },
   "dependencies": {
     "@sparticuz/chromium": "^148.0.0",

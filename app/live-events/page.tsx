@@ -11,6 +11,7 @@ import { clearAccessToken, isLoggedIn } from "@/lib/auth";
 import type { ActiveUser, AppVersion, EventDetail, EventSummaryPage, EventSummaryRow, LiveEvent } from "@/lib/types";
 import { EventTime, dateTimeWithMillis, timeWithMillis } from "@/lib/eventTime";
 import { copyText, downloadText, fileStamp } from "@/lib/clipboard";
+import { buildEventDetailCsv } from "@/lib/csv";
 import { DateRangePicker, defaultRange, formatDay, toRangeIso, type DayRange } from "@/components/DateRangePicker";
 
 const EVENT_POLL_MS = 1200;
@@ -830,10 +831,19 @@ export default function LiveEventsPage() {
   const [detail, setDetail] = useState<EventDetail | null>(null);
   const [detailError, setDetailError] = useState<string | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  /**
+   * Feedback for the breakdown's Copy CSV button.
+   *
+   * Its own state, not the stream's `copyState`: the two buttons are on screen together, and
+   * sharing one would light up whichever the eye happened to be on. Reset when the dialog changes
+   * event, so a new breakdown never opens already saying "Copied ✓" about the last one.
+   */
+  const [detailCsvState, setDetailCsvState] = useState<"idle" | "copied" | "failed">("idle");
 
   useEffect(() => {
     if (!detailFor) return;
     let cancelled = false;
+    setDetailCsvState("idle");
     (async () => {
       setDetailLoading(true);
       setDetailError(null);
@@ -1850,9 +1860,37 @@ export default function LiveEventsPage() {
                     {sumVersionNames.length > 0 ? ` · ${sumVersionNames.join(", ")}` : " · all versions"}
                   </p>
                 </div>
-                <button className="ev-modal-close" onClick={() => setDetailFor(null)} title="Close (Esc)">
-                  ✕
-                </button>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  {/* This breakdown is usually the answer to a question somebody asked elsewhere, and
+                      the way it gets there is a paste. Reading numbers back off a screenshot is how
+                      a 52.9% becomes a 52.8% in the retelling. */}
+                  <button
+                    className="btn btn-outline"
+                    disabled={!detail || detail.params.length === 0}
+                    title="The table below as CSV, with the event, its totals and the filter as header lines"
+                    onClick={async () => {
+                      if (!detail) return;
+                      const r = await copyText(
+                        buildEventDetailCsv(detail, {
+                          build: sumBuild,
+                          versions: sumVersionNames,
+                          range: `${formatDay(sumRange.from)} to ${formatDay(sumRange.to)}`,
+                        }),
+                      );
+                      setDetailCsvState(r);
+                      setTimeout(() => setDetailCsvState("idle"), 2000);
+                    }}
+                  >
+                    {detailCsvState === "copied"
+                      ? "Copied ✓"
+                      : detailCsvState === "failed"
+                        ? "Copy failed"
+                        : "Copy CSV"}
+                  </button>
+                  <button className="ev-modal-close" onClick={() => setDetailFor(null)} title="Close (Esc)">
+                    ✕
+                  </button>
+                </div>
               </div>
 
               <div className="ev-modal-body">
