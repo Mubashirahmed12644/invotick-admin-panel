@@ -65,7 +65,13 @@ const FACET_VALUE_LABELS: Record<string, string> = {
   before_ready: "tayyar hone se pehle hi gaya",
   no_referrer: "referrer nahi aaya",
   organic: "organic (Play, bina campaign)",
-  facebook: "Facebook campaign",
+  // Do alag cheezein, aur inka farq ginti me bohat bara hai: 932 installs Facebook ke apne
+  // referrer se aaye aur 8 rows hamare apne tag se (2026-09-08). Pehle dono "Facebook campaign"
+  // likhe jaate thay, jis se bucket hamare campaign ka lagta tha jab ke wo tha hi nahi.
+  facebook_app: "Facebook app se aaya (tag hamara nahi)",
+  facebook_tagged: "Hamara Facebook link",
+  // Purani rows ka naam, taake wo ghayab na hon — nayi rows me ye nahi banta.
+  facebook: "Facebook (purani rows — dono milay hue)",
   google_play: "Google Play campaign",
   offline: "offline",
   unknown: "pata nahi",
