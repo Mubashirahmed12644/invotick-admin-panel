@@ -22,7 +22,7 @@ const USERS_POLL_MS = 5000;
 const CONFIG_POLL_MS = 60000;
 
 /** Column keys in the order they are rendered — how a key becomes a cell position. */
-const COLUMN_ORDER_LIVE_EVENTS = ["idx", "event", "track", "tested"];
+const COLUMN_ORDER_LIVE_EVENTS = ["idx", "event", "platform", "track", "tested"];
 
 /** What each column is called — in the header and in the Columns menu. One source, so they agree. */
 const COLUMN_LABELS_LIVE_EVENTS: Record<string, string> = {
@@ -533,6 +533,7 @@ export default function LiveEventsPage() {
   const { widths: colW, startResize, reset: resetWidths, autoFit, tableRef, order: colOrder, hidden: colHidden, visibleOrder, toggleColumn, moveColumnTo } = useColumnWidths("live-events", {
     idx: 44,
     event: 420,
+    platform: 92,
     track: 96,
     tested: 104,
   }, COLUMN_ORDER_LIVE_EVENTS);
@@ -1476,6 +1477,23 @@ export default function LiveEventsPage() {
                             without holding the other window's state in your head. Nothing is
                             filtered out for being off; a row nobody has catalogued yet is exactly
                             the row worth noticing, and this page is where it first appears. */
+                        platform: (
+<td key="platform" className="live-cell-center">
+                          {/* Named, or said to be unknown — never quietly blank. A row whose
+                              session never arrived cannot be assumed to be the app just because
+                              the app is where most rows come from. */}
+                          {e.platform ? (
+                            <span className="live-track" data-on={e.platform === "Web"} data-loaded={true}
+                              title={`Sent from ${e.platform}`}>
+                              {e.platform}
+                            </span>
+                          ) : (
+                            <span className="muted" title="This event has no session row, so the surface it came from is not known.">
+                              unknown
+                            </span>
+                          )}
+                        </td>
+                        ),
                         track: (
 <td key="track" className="live-cell-center">
                           {/* "on" / "off", not "track on" / "track off" — the column is already

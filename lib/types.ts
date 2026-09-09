@@ -212,6 +212,16 @@ export interface AppVersion {
 export interface LiveEvent {
   id: string | null;
   eventName: string;
+  /**
+   * Which surface sent it: "Android" | "iOS" | "Web", or null when the event's session row is
+   * missing. Null means **unknown**, not app.
+   *
+   * Every row in this feed came from the Android app until 2026-09-09, when the share-link page
+   * started reporting its own journey. Before that a feed with no platform column hid nothing;
+   * now `shared_invoice_approved` can arrive from a browser or from the app and the two are
+   * otherwise identical on screen.
+   */
+  platform: string | null;
   screenName: string | null;
   previousScreen: string | null;
   sessionId: string | null;
