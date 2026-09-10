@@ -20,8 +20,7 @@ import {
   type UtmAttributionReport,
   type UtmBreakdownRow,
   type UtmLinkRow,
-  type UtmTagRow,
-} from "@/lib/utm/attribution";
+  type UtmTagRow, UtmShareLoop } from "@/lib/utm/attribution";
 import { getErrorMessage } from "@/lib/api";
 
 type Tab = "builder" | "links" | "reporting";
@@ -478,7 +477,10 @@ function Reporting() {
     load();
   }, [load]);
 
-  const untaggedInstalls = report ? report.totals.installsAllSources - report.totals.installs : 0;
+  // Neither ours-by-link nor ours-by-share: the share loop is ours too, so it is not "more".
+  const untaggedInstalls = report
+    ? report.totals.installsAllSources - report.totals.installs - (report.shareLoop?.installs ?? 0)
+    : 0;
 
   return (
     <div>
@@ -542,6 +544,7 @@ function Reporting() {
           <Breakdown title="By campaign" rows={report.byCampaign} />
 
           <LinkResults links={report.links} />
+          <ShareLoopInstalls loop={report.shareLoop} days={days} />
           <UntaggedInstalls rows={report.untagged} days={days} />
         </>
       )}
@@ -960,4 +963,55 @@ function copyBtnStyle(copied: boolean): React.CSSProperties {
     cursor: "pointer",
     transition: "all .15s ease",
   };
+}
+
+/**
+ * Installs that came through a shared invoice — the client loop, the product's own growth surface.
+ *
+ * These sat in "Installs carrying no tag of ours" until 2026-09-10, beside Facebook's own referrer,
+ * under a heading that said the opposite of the truth. Each one carries the exact token of the
+ * invoice whose link brought it, so this is attribution to a document, not to a campaign.
+ */
+function ShareLoopInstalls({ loop, days }: { loop: UtmShareLoop | undefined; days: number }) {
+  if (!loop) return null;
+  return (
+    <section style={cardStyle}>
+      <SectionTitle>From shared invoices — the client loop</SectionTitle>
+      <p style={{ color: "var(--color-text-muted)", fontSize: 12.5, margin: "-6px 0 14px", lineHeight: 1.6 }}>
+        People who received an invoice from one of our users, opened its link and installed Invotick, in
+        the last {days} days: <b>{loop.installs.toLocaleString()}</b> installs, <b>{loop.madeInvoice.toLocaleString()}</b>{" "}
+        went on to make an invoice of their own, <b>{loop.sharedInvoice.toLocaleString()}</b> sent one.
+      </p>
+      {loop.byInvoice.length === 0 ? (
+        <Muted>No installs came through a shared invoice in this window.</Muted>
+      ) : (
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+            <thead>
+              <tr style={{ textAlign: "left", color: "var(--color-text-muted)" }}>
+                <Th>Sent by</Th>
+                <Th>Invoice</Th>
+                <Th style={{ textAlign: "right" }}>Installs</Th>
+                <Th style={{ textAlign: "right" }}>First invoice</Th>
+                <Th style={{ textAlign: "right" }}>Shared</Th>
+              </tr>
+            </thead>
+            <tbody>
+              {loop.byInvoice.map((r, i) => (
+                <tr key={`${r.invoiceNumber ?? "none"}|${i}`} style={{ borderTop: "1px solid var(--color-border)" }}>
+                  <Td>
+                    {r.businessName ?? <span style={{ color: "var(--color-text-muted)" }}>(link no longer on file)</span>}
+                  </Td>
+                  <Td style={{ fontFamily: "var(--font-space-mono), monospace", fontSize: 12 }}>{r.invoiceNumber ?? "—"}</Td>
+                  <Count value={r.installs} accent />
+                  <Count value={r.madeInvoice} />
+                  <Count value={r.sharedInvoice} />
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  );
 }

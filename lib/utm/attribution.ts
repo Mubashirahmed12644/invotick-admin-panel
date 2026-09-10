@@ -39,6 +39,13 @@ export type UtmAttributionReport = {
   byCampaign: UtmBreakdownRow[];
   /** Installs matching no link of ours — Facebook's own referrer, Play organic, `(not set)`. */
   untagged: UtmTagRow[];
+  /**
+   * Installs that came through a shared invoice's link — the client loop, ours by construction.
+   * Kept out of `untagged`, whose heading says "no tag of ours": these carry our own
+   * `utm_source=shared_invoice` and the exact token of the invoice that brought them.
+   * Optional so a panel deployed before the backend still renders.
+   */
+  shareLoop?: UtmShareLoop;
   /** The tag aggregation hit its row cap; the tail was dropped rather than shown. */
   truncated: boolean;
 };
@@ -88,6 +95,23 @@ export type UtmTagRow = {
   utmSource: string | null;
   utmMedium: string | null;
   utmCampaign: string | null;
+  installs: number;
+  madeInvoice: number;
+  sharedInvoice: number;
+};
+
+export type UtmShareLoop = {
+  installs: number;
+  madeInvoice: number;
+  sharedInvoice: number;
+  /** Per invoice that brought them, from the token each install carried (`iv_doc`). */
+  byInvoice: UtmShareLoopRow[];
+};
+
+export type UtmShareLoopRow = {
+  /** Null when the link has since been deleted — there is no name to show, and the page says so. */
+  businessName: string | null;
+  invoiceNumber: string | null;
   installs: number;
   madeInvoice: number;
   sharedInvoice: number;
