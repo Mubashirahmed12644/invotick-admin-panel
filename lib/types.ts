@@ -946,9 +946,18 @@ export interface SyncHealthSignature {
   recordCount?: number;
   worstRecordId?: string | null;
   worstRecordOccurrences?: number;
+  /** Every build reporting this defect, by name; `"unknown"` for rows that sent no version. */
+  appVersions?: string[];
+  /** The build numbers behind `appVersions`. Empty for builds too old to send one (before 1.4.2). */
+  appVersionCodes?: number[];
 }
 
-/** Who is actually stuck on one defect. */
+/**
+ * Who is actually stuck on one defect: one row per defect, user and device.
+ *
+ * A row is stored once and every repeat overwrites it, so the evidence fields describe the row's
+ * LATEST attempt — not all `occurrenceCount` of them.
+ */
 export interface SyncHealthOccurrence {
   userId: string | null;
   userEmail?: string | null;
@@ -963,6 +972,49 @@ export interface SyncHealthOccurrence {
   firstSeenAt: string;
   lastSeenAt: string;
   resolved: boolean;
+  // Decision 0050. Optional because the backend adds them in a deploy of its own, and rows from
+  // builds up to 1.4.4 never carry them. Absent means unknown: shown as "—", never as 0.
+  appVersionCode?: number | null;
+  /** The `X-Request-Id` of the latest attempt — the id the server's log lines carry. */
+  requestId?: string | null;
+  httpStatus?: number | null;
+  /** Simple class name only. */
+  exception?: string | null;
+  localVersion?: number | null;
+  serverVersion?: number | null;
+  /** The signature fixes both of these, so the page falls back to the defect's own values. */
+  errorType?: string | null;
+  entityType?: string | null;
+  /** BACKEND, APP or RECONCILE — which side recorded this row. */
+  source?: string | null;
+}
+
+/** One build that has reported a sync defect — an option of the version filter. */
+export interface SyncHealthVersion {
+  /** `"unknown"` for rows that reported no version. */
+  appVersion: string;
+  /** Null for builds older than 1.4.2, which do not send the code. */
+  appVersionCode: number | null;
+  defects: number;
+  occurrences: number;
+  devices: number;
+  lastSeenAt: string;
+}
+
+/** One line of the server's own log, as `/sync-health/trace/{requestId}` returns it. */
+export interface SyncHealthTraceLine {
+  /** The contract names the field without fixing its form, so ISO text and epoch numbers are both read. */
+  ts: string | number;
+  level?: string | null;
+  message: string;
+}
+
+/** What the server logged under one request id (decision 0050). */
+export interface SyncHealthTrace {
+  requestId: string;
+  lines: SyncHealthTraceLine[];
+  /** True when the server cut the answer at its cap. */
+  truncated: boolean;
 }
 
 /**

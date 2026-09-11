@@ -25,6 +25,9 @@ import type {
   SyncHealthOccurrence,
   BillingHealthSummary,
   SyncHealthSignature,
+  SyncHealthTrace,
+  SyncHealthTraceLine,
+  SyncHealthVersion,
   WebpanelTestingDeviceResponse,
   WebpanelUserStatsAndAnalyticsByUserIdResponse,
   WebpanelUserWithStatsAndAnalyticsResponse,
@@ -127,6 +130,14 @@ async function parseResponseBody<T>(response: Response): Promise<ApiResponse<T> 
 
 interface RequestOptions extends RequestInit {
   requiresAuth?: boolean;
+  /**
+   * Statuses that are this endpoint's answer rather than a fault, so they are not filed as one.
+   *
+   * The failure log exists to be believed. A designed "nothing here" filed beside real outages
+   * teaches whoever reads it to skim past it. Opt-in per call, because a 404 is a fault anywhere
+   * that did not say otherwise.
+   */
+  expectedStatuses?: number[];
 }
 
 async function requestWithAuth(path: string, options: RequestOptions = {}): Promise<Response> {
@@ -153,11 +164,13 @@ async function requestWithAuth(path: string, options: RequestOptions = {}): Prom
   const method = (options.method ?? "GET").toUpperCase();
   try {
     const response = await fetchWithOneRetry(buildUrl(path), { ...options, headers }, method);
-    if (response.ok) {
+    // A status the caller declared as this endpoint's answer is the server answering, not failing.
+    const answered = response.ok || (options.expectedStatuses?.includes(response.status) ?? false);
+    if (answered) {
       // Something answered, so whatever was still waiting to be called a failure was a blip.
       noteApiSuccess();
     }
-    if (!response.ok) {
+    if (!answered) {
       recordApiFailure({
         at: new Date().toISOString(),
         hidden: typeof document !== "undefined" && document.visibilityState !== "visible",
@@ -518,13 +531,38 @@ export const api = {
     );
   },
 
-  getSyncHealthSignatures(options?: { unresolvedOnly?: boolean; days?: number }) {
+  /**
+   * @param appVersionCode one build. Preferred wherever there is one, because two builds can share a
+   *        name — the internal 91 and the released 92 are both "1.4.1".
+   * @param appVersion every build of one name, or `"unknown"` for the rows that reported none.
+   *
+   * Send one of the two: given both, the backend keeps only the rows that match both.
+   */
+  getSyncHealthSignatures(options?: {
+    unresolvedOnly?: boolean;
+    days?: number;
+    appVersion?: string;
+    appVersionCode?: number;
+  }) {
+    const params = new URLSearchParams();
+    if (options?.unresolvedOnly !== undefined) params.set("unresolvedOnly", String(options.unresolvedOnly));
+    if (options?.days !== undefined) params.set("days", String(options.days));
+    if (options?.appVersion) params.set("appVersion", options.appVersion);
+    if (options?.appVersionCode != null) params.set("appVersionCode", String(options.appVersionCode));
+    const query = params.toString();
+    return apiRequest<SyncHealthSignature[]>(
+      `/v1/webpanel/sync-health/signatures${query ? `?${query}` : ""}`,
+    );
+  },
+
+  /** The builds that have reported a sync defect in the window, most recently heard from first. */
+  getSyncHealthVersions(options?: { unresolvedOnly?: boolean; days?: number }) {
     const params = new URLSearchParams();
     if (options?.unresolvedOnly !== undefined) params.set("unresolvedOnly", String(options.unresolvedOnly));
     if (options?.days !== undefined) params.set("days", String(options.days));
     const query = params.toString();
-    return apiRequest<SyncHealthSignature[]>(
-      `/v1/webpanel/sync-health/signatures${query ? `?${query}` : ""}`,
+    return apiRequest<SyncHealthVersion[]>(
+      `/v1/webpanel/sync-health/app-versions${query ? `?${query}` : ""}`,
     );
   },
 
@@ -532,6 +570,38 @@ export const api = {
     return apiRequest<SyncHealthOccurrence[]>(
       `/v1/webpanel/sync-health/occurrences?signature=${encodeURIComponent(signature)}`,
     );
+  },
+
+  /**
+   * The server's own log lines for one request id, read from Loki by the backend (decision 0050).
+   *
+   * A 404 is this endpoint's "nothing logged under that id" — an answer, so it stays out of the
+   * failure log; a 503 is the log store not answering, and is recorded like any other outage.
+   *
+   * The contract gives the bare object, while every other webpanel endpoint wraps its answer in
+   * `{ success, data }`. Both are read, so the panel does not depend on which one the backend ships.
+   */
+  async getSyncHealthTrace(requestId: string): Promise<SyncHealthTrace> {
+    const path = `/v1/webpanel/sync-health/trace/${encodeURIComponent(requestId)}`;
+    const body = await apiRequestRaw<unknown>(path, { expectedStatuses: [404] });
+    const isObject = (value: unknown): value is Record<string, unknown> =>
+      typeof value === "object" && value !== null;
+
+    if (isObject(body) && body.success === false) {
+      throw new ApiError(typeof body.message === "string" ? body.message : "Request failed.", {
+        status: 200,
+        url: path,
+      });
+    }
+    const trace = isObject(body) && !Array.isArray(body.lines) && isObject(body.data) ? body.data : body;
+    if (!isObject(trace) || !Array.isArray(trace.lines)) {
+      throw new ApiError("Invalid server response.", { status: 200, url: path });
+    }
+    return {
+      requestId: typeof trace.requestId === "string" ? trace.requestId : requestId,
+      lines: trace.lines as SyncHealthTraceLine[],
+      truncated: trace.truncated === true,
+    };
   },
 
   resolveSyncHealthSignature(signature: string, resolved: boolean) {
