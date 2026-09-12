@@ -122,6 +122,11 @@ const REASON_LABELS: Record<string, string> = {
   discard_dialog_closed: "Discard dialog dikha, band kiya, phir gaya",
   saved_as_draft: "Draft mein rakha",
   preview_only: "Sirf preview dekha, save nahi",
+  // Sirf jagah: aakhri baar app background mein gayi to kaunsi screen khuli thi (decisions 0063, 0066).
+  left_on_item_form: "Item form khula tha jab gaya — save, discard, back record nahi hua",
+  // "Tap record nahi hua" — "tap nahi kiya" nahi: ad/premium dialog ke taps denylist mein hain, is liye
+  // us dialog ko chhoone wala device bhi yahan aa sakta hai.
+  left_on_invoice_screen: "Invoice screen khuli thi jab gaya — koi tap record nahi hua (ad/premium dialog ke taps record nahi hote)",
   unknown: "Maloom nahi — is qadam par kuch record nahi hua",
   no_signals: "Is device ke events nahi mile",
   completed: "Invoice ban gayi",
