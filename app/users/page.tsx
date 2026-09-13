@@ -10,6 +10,7 @@ import Navbar from "@/components/Navbar";
 import SearchBar from "@/components/SearchBar";
 import Sidebar from "@/components/Sidebar";
 import UserCard from "@/components/UserCard";
+import { SupportLookup } from "@/features/support-view/SupportLookup";
 import { api, getErrorMessage, isUnauthorizedError } from "@/lib/api";
 import { clearAccessToken, isLoggedIn } from "@/lib/auth";
 import { formatCurrency } from "@/lib/format";
@@ -858,11 +859,15 @@ export default function UsersPage() {
       <div className="app-main">
         <Navbar title="Users" />
         <section className="content-wrap">
+        {/* Emails and phone numbers in this list are masked (the owner, 2026-09-14), so a person is
+            found here, on the server, where the lookup is recorded. */}
+        <SupportLookup />
+
         <SearchBar
           value={queryInput}
           onChange={setQueryInput}
-          label="Search Users"
-          placeholder="Search by email, role, or user id"
+          label="Filter this list"
+          placeholder="Filter by role, user id, country or app version (emails are masked: use Find a user above)"
         />
 
         <section className="filters-panel">

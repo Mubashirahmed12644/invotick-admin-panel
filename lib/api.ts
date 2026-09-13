@@ -38,6 +38,14 @@ import type {
   FunnelDimensions,
   FunnelQueryRequest,
   FunnelQueryResponse,
+  SupportDevices,
+  SupportLookupResult,
+  SupportPremium,
+  SupportReveal,
+  SupportRevealField,
+  SupportSummary,
+  SupportSyncFailures,
+  SupportViewLogPage,
 } from "@/lib/types";
 import type {
   IpStatsResponse,
@@ -844,6 +852,73 @@ export const api = {
     return apiRequest<DefaultListTask>("/v2/admin/analytics/event-config", {
       method: "PUT",
       body: JSON.stringify(body),
+    });
+  },
+
+  // ── Support view (decision 0075) ──────────────────────────────────────────
+  // Read-only. Every call below is recorded on the server (who looked at which account, and when), and
+  // each admin is held to a limit, so a 429 here means "slow down", not "broken".
+
+  /**
+   * At most ten masked accounts for an Invotick ID, a user or device id, a guest address, an email or a
+   * phone number.
+   *
+   * A POST, though it writes nothing: the text can be an email or a phone number, and a query string is
+   * written into access logs on its way through the proxy and nginx.
+   */
+  supportLookup(q: string) {
+    return apiRequest<SupportLookupResult>("/v1/webpanel/support/lookup", {
+      method: "POST",
+      body: JSON.stringify({ q }),
+    });
+  },
+
+  getSupportSummary(userId: string) {
+    return apiRequest<SupportSummary>(`/v1/webpanel/support/users/${encodeURIComponent(userId)}/summary`);
+  },
+
+  getSupportDevices(userId: string) {
+    return apiRequest<SupportDevices>(`/v1/webpanel/support/users/${encodeURIComponent(userId)}/devices`);
+  },
+
+  /** @param days 1 to 90, 30 by default. @param size at most 50. */
+  getSupportSyncFailures(userId: string, options?: { days?: number; page?: number; size?: number }) {
+    const params = new URLSearchParams();
+    if (options?.days != null) params.set("days", String(options.days));
+    if (options?.page != null) params.set("page", String(options.page));
+    if (options?.size != null) params.set("size", String(options.size));
+    const query = params.toString();
+    return apiRequest<SupportSyncFailures>(
+      `/v1/webpanel/support/users/${encodeURIComponent(userId)}/sync-failures${query ? `?${query}` : ""}`,
+    );
+  },
+
+  getSupportPremium(userId: string) {
+    return apiRequest<SupportPremium>(`/v1/webpanel/support/users/${encodeURIComponent(userId)}/premium`);
+  },
+
+  /** Who looked at this account in the support view, newest first. Reading it is recorded too. */
+  getSupportViews(userId: string, options?: { page?: number; size?: number }) {
+    const params = new URLSearchParams();
+    if (options?.page != null) params.set("page", String(options.page));
+    if (options?.size != null) params.set("size", String(options.size));
+    const query = params.toString();
+    return apiRequest<SupportViewLogPage>(
+      `/v1/webpanel/support/users/${encodeURIComponent(userId)}/views${query ? `?${query}` : ""}`,
+    );
+  },
+
+  /**
+   * One whole value: the account's email or phone number. Every reveal is recorded by field (who, which
+   * field, when), never by value.
+   *
+   * A POST, so the one retry this client gives a GET that got no answer can never turn one click into
+   * two reveals.
+   */
+  revealSupportField(userId: string, field: SupportRevealField) {
+    return apiRequest<SupportReveal>(`/v1/webpanel/support/users/${encodeURIComponent(userId)}/reveal`, {
+      method: "POST",
+      body: JSON.stringify({ field }),
     });
   },
 };

@@ -43,8 +43,11 @@ export interface IpRecordResponse {
 
 export interface User {
     id: string;
+    /** Masked by the server (the owner, 2026-09-14). The support view's reveal shows it whole. */
     email: string;
     username: string;
+    role?: string;
+    createdAt?: string;
     [key: string]: unknown;
 }
 

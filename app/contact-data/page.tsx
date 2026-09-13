@@ -233,6 +233,13 @@ export default function ContactDataPage() {
                 )}
 
                 {!isLoadingRows && rows.length > 0 && (
+                  <p className="muted-line">
+                    Numbers and addresses are masked: a number shows its last three digits only. They belong to
+                    people who never installed the app, so there is no reveal on this page.
+                  </p>
+                )}
+
+                {!isLoadingRows && rows.length > 0 && (
                   <div style={{ overflowX: "auto" }}>
                     <table className="data-table">
                       <thead>
@@ -246,8 +253,8 @@ export default function ContactDataPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {rows.map((row) => (
-                          <tr key={row.phone}>
+                        {rows.map((row, index) => (
+                          <tr key={row.identityId ?? `${row.phone}-${index}`}>
                             <td style={{ whiteSpace: "nowrap" }}>{row.phone}</td>
                             {/* The same person is often saved under different names by different
                                 users — showing them together is the clearest picture of what we hold. */}

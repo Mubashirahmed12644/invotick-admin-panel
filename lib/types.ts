@@ -1034,6 +1034,12 @@ export interface ContactDataStats {
 
 /** One held person, as the Contact Data table shows them. */
 export interface ContactRow {
+  /**
+   * The row's key. Optional until the backend that sends it is live: the number was the key until it
+   * was masked, and two masked numbers can match.
+   */
+  identityId?: string;
+  /** Masked by the server: the last three digits only (the owner, 2026-09-14). */
   phone: string;
   names: string[];
   emails: string[];
@@ -1155,4 +1161,215 @@ export interface HealthCentreOverview {
   unknown: number;
   needsAttention: number;
   generatedAt: string;
+}
+
+// ── Support view (decision 0075) ──────────────────────────────────────────────
+// A read-only view of one account, for support. Emails and phone numbers arrive masked; the whole value
+// comes only from a reveal, and every read and every reveal is recorded (who looked, and when).
+
+/** What the lookup read the text as. */
+export type SupportQueryKind = "invotick_id" | "uuid" | "guest_address" | "email" | "phone" | "device_id";
+
+export interface SupportCandidate {
+  userId: string;
+  invotickId: string | null;
+  username: string | null;
+  role: string;
+  emailMasked: string | null;
+  emailIsGuestAddress: boolean;
+  phoneMasked: string | null;
+  createdAt: string;
+  lastLoginAt: string | null;
+  isDeleted: boolean;
+  /** INVOTICK_ID, USER_ID, DEVICE_ID, GUEST_ADDRESS, EMAIL, PHONE or BUSINESS_PHONE. */
+  matchedOn: string;
+  /** The retired guest that matched, when this is the account its data moved to. */
+  viaRetiredGuestId: string | null;
+}
+
+export interface SupportLookupResult {
+  kind: SupportQueryKind;
+  candidates: SupportCandidate[];
+  truncated: boolean;
+  matched: number | null;
+}
+
+export interface SupportAccountRef {
+  userId: string;
+  invotickId: string | null;
+  createdAt: string | null;
+}
+
+export interface SupportSummary {
+  userId: string;
+  invotickId: string | null;
+  username: string | null;
+  role: string;
+  accountKind: "GUEST" | "REGISTERED" | "ADMIN";
+  emailMasked: string | null;
+  emailIsGuestAddress: boolean;
+  phoneMasked: string | null;
+  hasPhone: boolean;
+  hasPendingEmailChange: boolean;
+  isEmailVerified: boolean;
+  isActive: boolean;
+  isDeleted: boolean;
+  deletedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  lastLoginAt: string | null;
+  retiredTo: SupportAccountRef | null;
+  previousGuests: SupportAccountRef[];
+  previousGuestCount: number;
+  premiumNow: boolean;
+}
+
+export interface SupportDevice {
+  deviceId: string;
+  /** The all-zero id every iPhone sends: it names no one phone. */
+  isSharedIosId: boolean;
+  accountUserIds: string[];
+  linked: boolean;
+  deviceName: string | null;
+  linkedPlatform: string | null;
+  linkedAppVersion: string | null;
+  firstSeenAt: string | null;
+  lastSeenAt: string | null;
+  revokedAt: string | null;
+  /** Other accounts this device id has signed into; null for the shared iPhone id. */
+  otherAccounts: number | null;
+  sessions: number;
+  lastSessionAt: string | null;
+  appVersion: string | null;
+  appVersionCode: number | null;
+  platform: string | null;
+  deviceModel: string | null;
+  manufacturer: string | null;
+  osVersion: string | null;
+}
+
+export interface SupportDevices {
+  devices: SupportDevice[];
+  sessionWindowDays: number;
+  sessionsWithoutDevice: number;
+  truncated: boolean;
+}
+
+export interface SupportSyncFailure {
+  userId: string | null;
+  fromPreviousGuest: boolean;
+  signature: string;
+  source: string;
+  deviceId: string | null;
+  appVersion: string | null;
+  appVersionCode: number | null;
+  platform: string | null;
+  entityType: string;
+  operation: string | null;
+  recordId: string | null;
+  field: string | null;
+  errorType: string;
+  reason: string | null;
+  occurrenceCount: number;
+  firstSeenAt: string;
+  lastSeenAt: string;
+  resolved: boolean;
+  requestId: string | null;
+  httpStatus: number | null;
+  exception: string | null;
+  localVersion: number | null;
+  serverVersion: number | null;
+  appStage: string | null;
+}
+
+export interface SupportSyncFailures {
+  items: SupportSyncFailure[];
+  page: number;
+  size: number;
+  total: number;
+  days: number;
+}
+
+export interface SupportEntitlement {
+  heldByUserId: string;
+  status: string;
+  plan: string;
+  currentlyActive: boolean;
+  expiresAt: string | null;
+  grantedAt: string;
+  updatedAt: string;
+  revokedAt: string | null;
+  revokedReason: string | null;
+  provider: string | null;
+  productId: string | null;
+  /** The store's order id, as Play Console shows it. */
+  orderId: string | null;
+  purchaseFirstSeenAt: string | null;
+  purchaseLastVerifiedAt: string | null;
+  accountBindingCount: number | null;
+}
+
+export interface SupportBinding {
+  orderId: string | null;
+  fromUserId: string | null;
+  toUserId: string;
+  reason: string;
+  deviceId: string | null;
+  createdAt: string;
+}
+
+export interface SupportRestoreAnswer {
+  orderId: string | null;
+  askedByUserId: string;
+  ownerUserId: string | null;
+  outcome: string;
+  deviceId: string;
+  firstSeenAt: string;
+  lastSeenAt: string;
+  times: number;
+}
+
+export interface SupportAppPremiumReport {
+  premiumEnabled: boolean;
+  reportedAt: string;
+  appVersion: string | null;
+  platform: string | null;
+}
+
+export interface SupportPremium {
+  premiumNow: boolean;
+  entitlements: SupportEntitlement[];
+  bindings: SupportBinding[];
+  restoreAnswers: SupportRestoreAnswer[];
+  appReport: SupportAppPremiumReport | null;
+}
+
+export type SupportRevealField = "email" | "phone";
+
+export interface SupportReveal {
+  field: SupportRevealField;
+  /** Null when the account holds no such value. */
+  value: string | null;
+}
+
+/** One read of the account in the support view, or one reveal: who, what, how it ended, when. */
+export interface SupportViewLogEntry {
+  viewedAt: string;
+  viewedUserId: string;
+  adminUserId: string | null;
+  adminName: string | null;
+  section: string;
+  action: "view" | "reveal";
+  outcome: string;
+  /** For a reveal, the field it named. Never its value. */
+  field: string | null;
+  reason: string | null;
+  requestId: string | null;
+}
+
+export interface SupportViewLogPage {
+  items: SupportViewLogEntry[];
+  page: number;
+  size: number;
+  total: number;
 }

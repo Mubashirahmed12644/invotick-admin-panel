@@ -1,15 +1,17 @@
 "use client";
 
 import Image from "next/image";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import EmptyState from "@/components/EmptyState";
 import ErrorState from "@/components/ErrorState";
 import InvoiceTable from "@/components/InvoiceTable";
 import LoadingState from "@/components/LoadingState";
 import Navbar from "@/components/Navbar";
 import Sidebar from "@/components/Sidebar";
+import { SupportViewTab } from "@/features/support-view/SupportViewTab";
+import supportStyles from "@/features/support-view/support-view.module.css";
 import { SelectedEventDetails } from "@/features/user-based-screen-flow/components/SelectedEventDetails";
 import { TimelineGraphV2 } from "@/features/user-based-screen-flow/components/TimelineGraphV2";
 import type { EventPoint, UserFlowRecord } from "@/features/user-based-screen-flow/types";
@@ -205,10 +207,40 @@ function describeArcSegment(radius: number, startRatio: number, endRatio: number
   return `M ${startX} ${startY} A ${radius} ${radius} 0 ${largeArcFlag} 1 ${endX} ${endY}`;
 }
 
+type UserDetailTab = "overview" | "support";
+
+/**
+ * One user, in two tabs: the overview this page has always shown, and the read-only support view
+ * (decision 0075), which links as `?tab=support`. Neither is a sidebar entry.
+ */
 export default function UserDetailPage() {
+  // useSearchParams needs a Suspense boundary above it.
+  return (
+    <Suspense fallback={null}>
+      <UserDetailContent />
+    </Suspense>
+  );
+}
+
+function UserDetailContent() {
   const router = useRouter();
   const params = useParams<{ userId: string }>();
   const userId = Array.isArray(params.userId) ? params.userId[0] : params.userId;
+  const searchParams = useSearchParams();
+  const tab: UserDetailTab = searchParams.get("tab") === "support" ? "support" : "overview";
+  const selectTab = useCallback(
+    (next: UserDetailTab) => {
+      router.replace(next === "support" ? `/users/${userId}?tab=support` : `/users/${userId}`, { scroll: false });
+    },
+    [router, userId],
+  );
+
+  // The overview's address arrives masked (the owner, 2026-09-14). A reveal shows it whole, for this user
+  // only, and the server records it.
+  const [revealedEmail, setRevealedEmail] = useState<{ userId: string; value: string | null } | null>(null);
+  const [isRevealingEmail, setIsRevealingEmail] = useState(false);
+  const [revealEmailError, setRevealEmailError] = useState("");
+  const shownEmail = revealedEmail && revealedEmail.userId === userId ? revealedEmail : null;
 
   const [profile, setProfile] = useState<UserProfileResponse | null>(null);
   const [invoices, setInvoices] = useState<WebpanelInvoiceSummaryResponse[]>([]);
@@ -308,9 +340,31 @@ export default function UserDetailPage() {
     }
   }, [handleUnauthorized, router, userId]);
 
+  // The overview loads when it is first shown, not when the support tab is opened: its analytics read is
+  // the heaviest request this page makes, and the support view needs none of it.
+  const overviewLoadedFor = useRef<string | null>(null);
   useEffect(() => {
+    if (tab !== "overview" || overviewLoadedFor.current === userId) return;
+    overviewLoadedFor.current = userId;
     void Promise.all([loadProfile(), loadInvoices(), loadTimeline()]);
-  }, [loadInvoices, loadProfile, loadTimeline]);
+  }, [loadInvoices, loadProfile, loadTimeline, tab, userId]);
+
+  const revealEmail = useCallback(async () => {
+    setIsRevealingEmail(true);
+    setRevealEmailError("");
+    try {
+      const answer = await api.revealSupportField(userId, "email");
+      setRevealedEmail({ userId, value: answer.value });
+    } catch (revealError) {
+      if (isUnauthorizedError(revealError)) {
+        handleUnauthorized();
+        return;
+      }
+      setRevealEmailError(getErrorMessage(revealError, "Could not reveal the email."));
+    } finally {
+      setIsRevealingEmail(false);
+    }
+  }, [handleUnauthorized, userId]);
 
   const derived = useMemo(() => {
     if (!profile) {
@@ -425,6 +479,29 @@ export default function UserDetailPage() {
       <div className="app-main">
         <Navbar title="User Detail" />
         <section className="content-wrap">
+          <nav className={supportStyles.tabs} aria-label="User detail">
+            <button
+              type="button"
+              className={`${supportStyles.tab} ${tab === "overview" ? supportStyles.tabActive : ""}`}
+              aria-current={tab === "overview" ? "page" : undefined}
+              onClick={() => selectTab("overview")}
+            >
+              Overview
+            </button>
+            <button
+              type="button"
+              className={`${supportStyles.tab} ${tab === "support" ? supportStyles.tabActive : ""}`}
+              aria-current={tab === "support" ? "page" : undefined}
+              onClick={() => selectTab("support")}
+            >
+              Support view
+            </button>
+          </nav>
+
+          {tab === "support" ? (
+            <SupportViewTab key={userId} userId={userId} />
+          ) : (
+          <>
           {isProfileLoading ? <LoadingState message="Loading user profile..." /> : null}
           {!isProfileLoading && profileError ? (
             <ErrorState message={profileError} onRetry={loadProfile} />
@@ -438,7 +515,27 @@ export default function UserDetailPage() {
               <section className="user-insight-hero">
                 <div className="user-insight-main">
                   <p className="user-detail-label">User Profile</p>
-                  <h1>{fallbackText(profile.email, userId)}</h1>
+                  <h1>{shownEmail?.value ?? fallbackText(profile.email, userId)}</h1>
+                  {profile.email && !profile.email.endsWith("@guest.com") ? (
+                    <div className={supportStyles.revealRow}>
+                      {shownEmail ? (
+                        <button type="button" className={supportStyles.linkButton} onClick={() => setRevealedEmail(null)}>
+                          Hide email
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          className={supportStyles.linkButton}
+                          disabled={isRevealingEmail}
+                          onClick={() => void revealEmail()}
+                        >
+                          {isRevealingEmail ? "Revealing…" : "Reveal email"}
+                        </button>
+                      )}
+                      <span className={supportStyles.note}>Emails are masked. Each reveal is recorded.</span>
+                      {revealEmailError ? <span className={supportStyles.error}>{revealEmailError}</span> : null}
+                    </div>
+                  ) : null}
                   <div className="user-detail-badges">
                     <span className="user-pill">{fallbackText(profile.role, "No Role")}</span>
                     <span className={`user-pill ${profile.isActive ? "user-pill-ok" : "user-pill-bad"}`}>
@@ -743,6 +840,8 @@ export default function UserDetailPage() {
               onSelect={(invoiceId) => router.push(`/users/${userId}/invoices/${invoiceId}/v2`)}
             />
           ) : null}
+          </>
+          )}
         </section>
       </div>
     </main>

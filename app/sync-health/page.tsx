@@ -15,6 +15,7 @@ import type {
   SyncHealthTrace,
   SyncHealthVersion,
 } from "@/lib/types";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 /**
@@ -716,7 +717,15 @@ export default function SyncHealthPage() {
                                           <Fragment key={itemKey}>
                                             <tr>
                                               <td title={occurrence.userId ?? ""}>
-                                                {occurrence.userEmail ?? shortId(occurrence.userId)}
+                                                {/* The address arrives masked. The support view is one
+                                                    click away, and its reveal is recorded. */}
+                                                {occurrence.userId ? (
+                                                  <Link href={`/users/${occurrence.userId}?tab=support`}>
+                                                    {occurrence.userEmail ?? shortId(occurrence.userId)}
+                                                  </Link>
+                                                ) : (
+                                                  occurrence.userEmail ?? shortId(occurrence.userId)
+                                                )}
                                               </td>
                                               <td>{occurrence.userRole ?? "—"}</td>
                                               <td title={occurrence.deviceId ?? ""}>{shortId(occurrence.deviceId)}</td>
