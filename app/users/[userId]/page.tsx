@@ -579,7 +579,9 @@ function UserDetailContent() {
                     <small>{formatCurrency(derived.last30InvoiceTotal)}</small>
                   </div>
                   <div className="user-insight-stat">
-                    <span>Sessions</span>
+                    {/* The server reads the last 30 days of this user's analytics, not the whole history
+                        (AGENTS.md §5a), so the count and the devices are that window's. */}
+                    <span>Sessions, last 30 days</span>
                     <strong>{formatInt(derived.totalSessions)}</strong>
                     <small>{formatInt(derived.totalDevices)} devices</small>
                   </div>
