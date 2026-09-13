@@ -207,6 +207,11 @@ export interface AppVersion {
   devices: number;
   events: number;
   lastEventAt: string;
+  /**
+   * The platforms this build was seen on, read by the backend from its sessions. Empty means none
+   * carried it in the window; absent means a backend from before the field existed.
+   */
+  platforms?: string[];
 }
 
 export interface LiveEvent {
@@ -873,6 +878,8 @@ export interface FunnelVersionOption {
   code: number;
   /** Only ever shown. */
   name?: string | null;
+  /** The platforms this build was seen on, from its sessions. Empty: none in the window. Absent: an older backend. */
+  platforms?: string[];
 }
 
 export interface FunnelCountryOption {

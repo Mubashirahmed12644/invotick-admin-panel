@@ -16,6 +16,7 @@ import type {
   FunnelQueryResponse,
   FunnelStepResult,
 } from "@/lib/types";
+import { withPlatform } from "@/lib/versionPlatform";
 import styles from "@/features/funnel-analysis/styles/funnel-analysis.module.css";
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -618,7 +619,7 @@ export function FunnelDashboard() {
                 <option value="">All Versions</option>
                 {dimensions?.versions.map((v) => (
                   <option key={v.code} value={String(v.code)}>
-                    {v.name ? `${v.name} (${v.code})` : `build ${v.code}`}
+                    {withPlatform(v.name ? `${v.name} (${v.code})` : `build ${v.code}`, v.platforms)}
                   </option>
                 ))}
               </select>
@@ -661,7 +662,7 @@ export function FunnelDashboard() {
               <span className={styles.filterChip}>Mode: {result.filters.mode}</span>
               <span className={styles.filterChip}>By: {result.filters.funnelBy}</span>
               {result.filters.platform        ? <span className={styles.filterChip}>Platform: {result.filters.platform}</span> : null}
-              {result.filters.appVersionCode  ? <span className={styles.filterChip}>Version: {dimensions?.versions.find((v) => v.code === result.filters.appVersionCode)?.name ?? `build ${result.filters.appVersionCode}`}</span> : null}
+              {result.filters.appVersionCode  ? <span className={styles.filterChip}>Version: {withPlatform(dimensions?.versions.find((v) => v.code === result.filters.appVersionCode)?.name ?? `build ${result.filters.appVersionCode}`, dimensions?.versions.find((v) => v.code === result.filters.appVersionCode)?.platforms)}</span> : null}
               {result.filters.osVersion       ? <span className={styles.filterChip}>OS: {result.filters.osVersion}</span> : null}
               {result.filters.country         ? <span className={styles.filterChip}>Country: {result.filters.country}</span> : null}
               {result.filters.city            ? <span className={styles.filterChip}>City: {result.filters.city}</span> : null}

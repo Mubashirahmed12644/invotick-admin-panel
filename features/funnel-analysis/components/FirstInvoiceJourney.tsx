@@ -5,6 +5,7 @@ import { api, getErrorMessage } from "@/lib/api";
 import { downloadText, fileStamp } from "@/lib/clipboard";
 import { DateRangePicker, defaultRange, toRangeIso, type DayRange } from "@/components/DateRangePicker";
 import type { AppVersion, JourneyFacet, JourneyReport } from "@/lib/types";
+import { withPlatform } from "@/lib/versionPlatform";
 
 /**
  * Where first-time users stop on the way to a first invoice.
@@ -221,7 +222,7 @@ export function FirstInvoiceJourney() {
   const versionLabel = useMemo(() => {
     if (versionCode == null) return "all versions";
     const v = versions.find((x) => x.appVersionCode === versionCode);
-    return v ? `${v.appVersion ?? "—"} (${v.appVersionCode})` : String(versionCode);
+    return v ? withPlatform(`${v.appVersion ?? "—"} (${v.appVersionCode})`, v.platforms) : String(versionCode);
   }, [versions, versionCode]);
 
   const exportTsv = useCallback(() => {
@@ -291,7 +292,7 @@ export function FirstInvoiceJourney() {
           ) : null}
           {versions.map((v) => (
             <option key={v.appVersionCode} value={v.appVersionCode}>
-              {v.appVersion ?? "—"} ({v.appVersionCode})
+              {withPlatform(`${v.appVersion ?? "—"} (${v.appVersionCode})`, v.platforms)}
             </option>
           ))}
         </select>

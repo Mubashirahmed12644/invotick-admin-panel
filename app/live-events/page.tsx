@@ -9,6 +9,7 @@ import Sidebar from "@/components/Sidebar";
 import { api, getErrorMessage, isUnauthorizedError, ApiError } from "@/lib/api";
 import { clearAccessToken, isLoggedIn } from "@/lib/auth";
 import type { ActiveUser, AppVersion, EventDetail, EventSummaryPage, EventSummaryRow, LiveEvent } from "@/lib/types";
+import { withPlatform } from "@/lib/versionPlatform";
 import { EventTime, dateTimeWithMillis, timeWithMillis } from "@/lib/eventTime";
 import { copyText, downloadText, fileStamp } from "@/lib/clipboard";
 import { buildEventDetailCsv } from "@/lib/csv";
@@ -1055,7 +1056,7 @@ export default function LiveEventsPage() {
     const v = appVersions.find((a) => a.appVersionCode === versionFilter);
     const version = versionFilter == null
       ? "all versions"
-      : `${v?.appVersion ?? "?"} (${versionFilter})`;
+      : withPlatform(`${v?.appVersion ?? "?"} (${versionFilter})`, v?.platforms);
     return `build ${buildFilter}, ${version}, ${formatDay(range.from)} to ${formatDay(range.to)}`;
   }, [buildFilter, versionFilter, appVersions, range]);
 
@@ -1130,7 +1131,7 @@ export default function LiveEventsPage() {
                 <option value="all">All versions</option>
                 {appVersions.map((v) => (
                   <option key={v.appVersionCode} value={v.appVersionCode}>
-                    {v.appVersion ?? "—"} ({v.appVersionCode}) · {v.users}
+                    {withPlatform(`${v.appVersion ?? "—"} (${v.appVersionCode})`, v.platforms)} · {v.users}
                   </option>
                 ))}
               </select>
