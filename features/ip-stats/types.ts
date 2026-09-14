@@ -52,10 +52,14 @@ export interface User {
 }
 
 export interface SuspiciousIpFullResponse {
+    /** The shared login IP, masked by the server (the owner, 2026-09-14): `203.0.*.*`. */
     ip: string;
     userCount: number;
     users: User[];
+    /** Its record; the address in it is masked too. */
     ipDetails: IpRecordResponse | null;
+    /** The card's key, now that two masked IPs can look alike. Optional until the backend sends it. */
+    recordId?: string | null;
 }
 
 export interface ExclusionRules {

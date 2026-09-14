@@ -1351,7 +1351,8 @@ export interface SupportPremium {
   appReport: SupportAppPremiumReport | null;
 }
 
-export type SupportRevealField = "email" | "phone";
+/** `login_ip` is the account's last-login IP, masked everywhere else (the owner, 2026-09-14). */
+export type SupportRevealField = "email" | "phone" | "login_ip";
 
 export interface SupportReveal {
   field: SupportRevealField;

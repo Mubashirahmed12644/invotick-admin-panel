@@ -158,8 +158,9 @@ export function SuspiciousIpsPanel({ exclusionRules }: SuspiciousIpsPanelProps) 
             {/* Cards */}
             {!loading && !error && sortedData.length > 0 && (
                 <div className={styles.suspiciousCards}>
-                    {sortedData.map((record) => (
-                        <SuspiciousIpCard key={record.ip} record={record} />
+                    {/* Keyed by the record, not the IP: the IP arrives masked, and two can look alike. */}
+                    {sortedData.map((record, index) => (
+                        <SuspiciousIpCard key={record.recordId ?? `${record.ip}-${index}`} record={record} />
                     ))}
                 </div>
             )}

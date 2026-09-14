@@ -265,6 +265,30 @@ function UserDetailContent() {
     router.replace("/login");
   }, [router]);
 
+  // The last-login IP arrives masked too (the owner, 2026-09-14: "Haan, chhupa do"). The same recorded
+  // reveal opens it, for this user only.
+  const [revealedIp, setRevealedIp] = useState<{ userId: string; value: string | null } | null>(null);
+  const [isRevealingIp, setIsRevealingIp] = useState(false);
+  const [revealIpError, setRevealIpError] = useState("");
+  const shownIp = revealedIp && revealedIp.userId === userId ? revealedIp : null;
+
+  const revealIp = useCallback(async () => {
+    setIsRevealingIp(true);
+    setRevealIpError("");
+    try {
+      const answer = await api.revealSupportField(userId, "login_ip");
+      setRevealedIp({ userId, value: answer.value });
+    } catch (revealError) {
+      if (isUnauthorizedError(revealError)) {
+        handleUnauthorized();
+        return;
+      }
+      setRevealIpError(getErrorMessage(revealError, "Could not reveal the IP."));
+    } finally {
+      setIsRevealingIp(false);
+    }
+  }, [handleUnauthorized, userId]);
+
   const loadProfile = useCallback(async () => {
     if (!isLoggedIn()) {
       router.replace("/login");
@@ -563,7 +587,28 @@ function UserDetailContent() {
                         <span>{profile.ip?.countryCode ?? derived.geoCountry}</span>
                       </span>
                     ) : null}
-                    {profile.ip?.address ? <span className="user-pill">IP {profile.ip.address}</span> : null}
+                    {profile.ip?.address ? (
+                      <span className="user-pill">
+                        IP {shownIp ? (shownIp.value ?? "none on the account") : profile.ip.address}
+                      </span>
+                    ) : null}
+                    {profile.ip?.address ? (
+                      shownIp ? (
+                        <button type="button" className={supportStyles.linkButton} onClick={() => setRevealedIp(null)}>
+                          Hide IP
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          className={supportStyles.linkButton}
+                          disabled={isRevealingIp}
+                          onClick={() => void revealIp()}
+                        >
+                          {isRevealingIp ? "Revealing…" : "Reveal IP"}
+                        </button>
+                      )
+                    ) : null}
+                    {revealIpError ? <span className={supportStyles.error}>{revealIpError}</span> : null}
                   </div>
                 </div>
 
