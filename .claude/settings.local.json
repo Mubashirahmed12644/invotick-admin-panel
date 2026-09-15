@@ -1,7 +1,6 @@
 {
   "permissions": {
     "allow": [
-      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\AppTrick\\\\IdeaProjects\\\\invotics-webpanel\" -Force)",
       "Bash(Select-Object Name, PSIsContainer)",
       "Bash(Format-Table -AutoSize)",
       "Bash(npm install *)",
@@ -16,20 +15,12 @@
       "Bash(node -e \"const p = require\\('./package.json'\\); const deps = {...p.dependencies, ...p.devDependencies}; const qr = Object.keys\\(deps\\).filter\\(k => k.includes\\('qr'\\)\\); console.log\\(qr.length ? qr : 'none'\\); console.log\\('total deps:', Object.keys\\(deps\\).length\\);\")",
       "Bash(node -e \"console.log\\(require\\('./node_modules/qrcode.react/package.json'\\).version\\)\")",
       "Bash(node -e \"const m = require\\('./node_modules/qrcode.react'\\); console.log\\(Object.keys\\(m\\)\\)\")",
-      "Bash(mkdir \"c:\\\\Users\\\\AppTrick\\\\IdeaProjects\\\\invotics-webpanel\\\\app\\\\i\\\\[publicCode]\" 2>&1)",
-      "Bash(New-Item -ItemType Directory -Path \"c:\\\\Users\\\\AppTrick\\\\IdeaProjects\\\\invotics-webpanel\\\\app\\\\i\\\\[publicCode]\" -Force)",
-      "PowerShell(Remove-Item \"c:\\\\Users\\\\AppTrick\\\\IdeaProjects\\\\invotics-webpanel\\\\.next\" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue)",
-      "PowerShell(npx --prefix \"c:\\\\Users\\\\AppTrick\\\\IdeaProjects\\\\invotics-webpanel\" tsc --noEmit 2>&1)",
       "PowerShell(Get-Process node -ErrorAction SilentlyContinue)",
       "PowerShell(Stop-Process -Force -ErrorAction SilentlyContinue)",
       "Bash(Start-Sleep -Seconds 10)",
       "Bash(Get-Process node *)",
       "Bash(Select-Object -Property ProcessName, Id, Handles)",
-      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); deps={**d.get\\('dependencies',{}\\), **d.get\\('devDependencies',{}\\)}; [print\\(k,v\\) for k,v in deps.items\\(\\) if any\\(x in k for x in ['puppeteer','chromium','pdf','chrome']\\)]\")",
-      "Bash(grep -n \"--color-\\\\|--radius\\\\|--shadow\\\\|--font\" \"C:\\\\Users\\\\AppTrick\\\\IdeaProjects\\\\invotics-webpanel\\\\app\\\\globals.css\")"
-    ],
-    "additionalDirectories": [
-      "c:\\Users\\AppTrick\\IdeaProjects\\invotics-webpanel\\app\\i"
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); deps={**d.get\\('dependencies',{}\\), **d.get\\('devDependencies',{}\\)}; [print\\(k,v\\) for k,v in deps.items\\(\\) if any\\(x in k for x in ['puppeteer','chromium','pdf','chrome']\\)]\")"
     ]
   }
 }
