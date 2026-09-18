@@ -1,0 +1,123 @@
+/* Version comparison (decision 0114) — cells of the side-by-side ladder. */
+
+.table td,
+.table th {
+  vertical-align: top;
+}
+
+.cohortRow td {
+  background: var(--surface-2, rgba(127, 127, 127, 0.06));
+  font-size: 0.85rem;
+}
+
+.stepName {
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.goal .stepName {
+  font-weight: 700;
+}
+
+.cell {
+  min-width: 150px;
+  font-variant-numeric: tabular-nums;
+  border-left: 3px solid transparent;
+}
+
+.main {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.share {
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.count {
+  font-size: 0.8rem;
+  opacity: 0.6;
+}
+
+.sub {
+  font-size: 0.75rem;
+  opacity: 0.65;
+}
+
+.diff {
+  font-size: 0.78rem;
+  margin-top: 2px;
+}
+
+.behind {
+  border-left-color: #d92d20;
+  background: rgba(217, 45, 32, 0.07);
+}
+
+.behind .diff {
+  color: #b42318;
+  font-weight: 600;
+}
+
+.ahead {
+  border-left-color: #0e7c6b;
+  background: rgba(14, 124, 107, 0.07);
+}
+
+.ahead .diff {
+  color: #0e7c6b;
+  font-weight: 600;
+}
+
+.noise .diff,
+.few .diff {
+  opacity: 0.7;
+}
+
+.base {
+  border-left-color: rgba(127, 127, 127, 0.35);
+}
+
+.warn {
+  font-size: 0.85rem;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: rgba(247, 144, 9, 0.1);
+  border: 1px solid rgba(247, 144, 9, 0.35);
+}
+
+@media (prefers-color-scheme: dark) {
+  .behind .diff {
+    color: #f97066;
+  }
+  .ahead .diff {
+    color: #3fbfa8;
+  }
+}
+
+/* The page's two journey modes. */
+.modeBar {
+  display: flex;
+  gap: 6px;
+  padding: 14px 24px 0;
+}
+
+.modeTab {
+  padding: 7px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border, #d0d5dd);
+  background: transparent;
+  font-size: 0.85rem;
+  cursor: pointer;
+  opacity: 0.75;
+}
+
+.modeOn {
+  opacity: 1;
+  font-weight: 600;
+  border-color: #0e7c6b;
+  color: #0e7c6b;
+  background: rgba(14, 124, 107, 0.08);
+}

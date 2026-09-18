@@ -1,4 +1,5 @@
 import { getAccessToken } from "@/lib/auth";
+import type { JourneyComparison } from "@/features/funnel-analysis/types";
 import type {
   ExchangeRatesHealth,
   HealthCentreOverview,
@@ -417,6 +418,36 @@ export const api = {
   getAppVersions(from: string, to: string) {
     const params = new URLSearchParams({ from, to });
     return apiRequest<AppVersion[]>(`/v1/webpanel/analytics/app-versions?${params.toString()}`);
+  },
+
+  /**
+   * Two or three builds on the first-invoice ladder, every new user read over the same window from
+   * their own first open (backend decision 0114). A device too recent for the window is counted
+   * apart, never as a loss.
+   */
+  getJourneyComparison(opts: {
+    versions: number[];
+    baseline: number;
+    windowHours: number;
+    from: string;
+    to: string;
+    buildType?: string;
+    country?: string;
+    excludeCountry?: boolean;
+  }) {
+    const params = new URLSearchParams({
+      versions: opts.versions.join(","),
+      baseline: String(opts.baseline),
+      windowHours: String(opts.windowHours),
+      from: opts.from,
+      to: opts.to,
+    });
+    params.set("buildType", opts.buildType ?? "release");
+    if (opts.country) {
+      params.set("country", opts.country);
+      if (opts.excludeCountry) params.set("excludeCountry", "true");
+    }
+    return apiRequest<JourneyComparison>(`/v1/webpanel/analytics/journey-comparison?${params.toString()}`);
   },
 
   /**
