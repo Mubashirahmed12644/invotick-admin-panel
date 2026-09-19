@@ -15,6 +15,8 @@ import type {
   ApiTokenResponse,
   AuthResponse,
   AdminPasskey,
+  AdminDevice,
+  AdminSignInEvent,
   PasskeyOptions,
   LiveEvent,
   LoginRequest,
@@ -353,6 +355,42 @@ export const api = {
 
   removePasskey(id: string) {
     return apiRequest<null>(`/v2/auth/admin-passkeys/${encodeURIComponent(id)}`, { method: "DELETE" });
+  },
+
+  // ── Devices and sign-in history (decision 0120) ──────────────────────────────────────────────────────────────
+  // Every one of these answers the signed-in admin's own account, and the browser sends the device cookie with them
+  // because the panel's calls go through the same-origin /backend rewrite.
+
+  listAdminDevices() {
+    return apiRequest<AdminDevice[]>("/v2/auth/admin-security/devices");
+  },
+
+  adminDeviceEvents(deviceKey: string, page = 0, size = 25) {
+    return apiRequest<AdminSignInEvent[]>(
+      `/v2/auth/admin-security/devices/${encodeURIComponent(deviceKey)}/events?page=${page}&size=${size}`,
+    );
+  },
+
+  adminSecurityActivity(page = 0, size = 25) {
+    return apiRequest<AdminSignInEvent[]>(`/v2/auth/admin-security/activity?page=${page}&size=${size}`);
+  },
+
+  signOutAdminDevice(deviceKey: string) {
+    return apiRequest<{ sessionsEnded: number }>(
+      `/v2/auth/admin-security/devices/${encodeURIComponent(deviceKey)}/sign-out`,
+      { method: "POST", body: "{}" },
+    );
+  },
+
+  adminSecuritySettings() {
+    return apiRequest<{ newDeviceEmail: boolean }>("/v2/auth/admin-security/settings");
+  },
+
+  setAdminSecuritySettings(newDeviceEmail: boolean) {
+    return apiRequest<{ newDeviceEmail: boolean }>("/v2/auth/admin-security/settings", {
+      method: "PUT",
+      body: JSON.stringify({ newDeviceEmail }),
+    });
   },
 
   generateApiToken(expiryDays?: number) {

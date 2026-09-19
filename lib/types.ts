@@ -74,6 +74,36 @@ export interface AdminPasskey {
   backedUp: boolean | null;
 }
 
+/** One machine this admin signs in to the panel from (decision 0120). */
+export interface AdminDevice {
+  deviceKey: string;
+  label: string;
+  isMobile: boolean;
+  /** The machine asking. It cannot be signed out from here. */
+  current: boolean;
+  /** What the request reported. Spoofable today, so it is shown and never used to decide. */
+  reportedIp: string | null;
+  approximatePlace: string | null;
+  firstSeenAt: string;
+  lastSeenAt: string;
+  signedOutAt: string | null;
+  successes: number;
+  refusals: number;
+  activeSessions: number;
+}
+
+/** One line of the admin sign-in history (decision 0120). */
+export interface AdminSignInEvent {
+  at: string;
+  kind: string;
+  method: string | null;
+  deviceKey: string | null;
+  deviceLabel: string | null;
+  reportedIp: string | null;
+  approximatePlace: string | null;
+  isNewDevice: boolean;
+}
+
 export interface ApiTokenResponse {
   token: string;
   jti: string;

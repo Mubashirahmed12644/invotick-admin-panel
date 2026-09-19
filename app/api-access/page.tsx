@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import Sidebar from "@/components/Sidebar";
 import PasskeysCard from "@/components/PasskeysCard";
+import DevicesCard from "@/components/DevicesCard";
 import { api, getErrorMessage, isUnauthorizedError, ApiError } from "@/lib/api";
 import { clearAccessToken, isLoggedIn } from "@/lib/auth";
 import type { ApiTokenResponse } from "@/lib/types";
@@ -96,6 +97,9 @@ export default function ApiAccessPage() {
           <div className="api-access-wrap">
             {/* Passkey sign-in (decision 0117): the owner's own passkeys, on the page that already holds access. */}
             <PasskeysCard onUnauthorized={handleUnauthorized} />
+
+            {/* The machines this admin signs in from, and what happened at the sign-in (decision 0120). */}
+            <DevicesCard onUnauthorized={handleUnauthorized} />
 
             <section className="section-card">
               <div className="section-header">
