@@ -1,50 +1,55 @@
-/**
- * Version-wise comparison of the first-invoice journey (backend decision 0114,
- * `GET /v1/webpanel/analytics/journey-comparison`).
- */
+/** Verdict of one cell against the baseline group (backend decisions 0114, 0116). */
 export type ComparisonVerdict = "baseline" | "behind" | "ahead" | "within_noise" | "too_few";
 
-export interface ComparisonCell {
-  versionCode: number;
+/**
+ * Hold everything fixed, vary one thing (backend decision 0116,
+ * `GET /v1/webpanel/analytics/journey-compare`).
+ */
+export type CompareBy = "version" | "country" | "tier" | "source" | "campaign" | "platform";
+
+export interface CompareGroup {
+  /** `106`, `PK`, `T1`, `apps.facebook.com`, `meta:<campaign id>`, `Android`, `unknown`, … */
+  key: string;
+  label: string;
+  cohort: number;
+  notYetJudged: number;
+  firstOpenFrom: string | null;
+  firstOpenTo: string | null;
+  /** 0..1 of the cohort inside the stretch every shown group shares; null when none. */
+  inCommonWindow: number | null;
+}
+
+export interface CompareCell {
+  group: string;
   reached: number;
-  /** Percent of the build's cohort. */
   share: number;
-  /** 95 % Wilson interval, percent. */
   ciLow: number;
   ciHigh: number;
-  /** Percentage points against the baseline build; null on the baseline. */
   diffPoints: number | null;
   z: number | null;
   verdict: ComparisonVerdict;
 }
 
-export interface ComparisonStep {
-  /** `step_1` .. `step_8`, then `shared`. Stable; the words live in the panel. */
+export interface CompareStep {
   key: string;
   step: number;
   label: string;
-  cells: ComparisonCell[];
+  cells: CompareCell[];
 }
 
-export interface ComparisonVersion {
-  versionCode: number;
-  versionName: string | null;
-  /** First-time devices whose whole window has passed. */
-  cohort: number;
-  /** First-time devices too recent to judge yet — not in the cohort, not a loss. */
-  notYetJudged: number;
-  firstOpenFrom: string | null;
-  firstOpenTo: string | null;
-}
-
-export interface JourneyComparison {
+export interface JourneyCompare {
+  by: CompareBy;
   from: string;
   to: string;
   windowHours: number;
   buildType: string | null;
-  country: string | null;
-  excludeCountry: boolean;
-  baselineVersionCode: number;
-  versions: ComparisonVersion[];
-  steps: ComparisonStep[];
+  fixed: Record<string, string>;
+  baseline: string;
+  groups: CompareGroup[];
+  others: CompareGroup[];
+  steps: CompareStep[];
+  calendar: { commonFrom: string | null; commonTo: string | null; warning: "apart" | "partly" | null };
+  truncated: boolean;
+  metaCampaigns: "readable" | "key_missing";
+  tiers: Record<string, string[]>;
 }

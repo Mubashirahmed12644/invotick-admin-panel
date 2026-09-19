@@ -1,5 +1,5 @@
 import { getAccessToken } from "@/lib/auth";
-import type { JourneyComparison } from "@/features/funnel-analysis/types";
+import type { CompareBy, JourneyCompare } from "@/features/funnel-analysis/types";
 import type {
   ExchangeRatesHealth,
   HealthCentreOverview,
@@ -421,33 +421,44 @@ export const api = {
   },
 
   /**
-   * Two or three builds on the first-invoice ladder, every new user read over the same window from
-   * their own first open (backend decision 0114). A device too recent for the window is counted
-   * apart, never as a loss.
+   * Hold everything fixed, vary one thing (backend decision 0116): the first-invoice ladder of cohorts
+   * that differ only in `by`, every user read over the same window from their own first open.
    */
-  getJourneyComparison(opts: {
-    versions: number[];
-    baseline: number;
+  getJourneyCompare(opts: {
+    by: CompareBy;
+    values?: string[];
+    baseline?: string;
     windowHours: number;
     from: string;
     to: string;
     buildType?: string;
+    version?: number;
     country?: string;
     excludeCountry?: boolean;
+    tier?: string;
+    source?: string;
+    campaign?: string;
+    platform?: string;
   }) {
     const params = new URLSearchParams({
-      versions: opts.versions.join(","),
-      baseline: String(opts.baseline),
+      by: opts.by,
       windowHours: String(opts.windowHours),
       from: opts.from,
       to: opts.to,
     });
     params.set("buildType", opts.buildType ?? "release");
+    if (opts.values && opts.values.length > 0) params.set("values", opts.values.join(","));
+    if (opts.baseline) params.set("baseline", opts.baseline);
+    if (opts.version != null) params.set("version", String(opts.version));
     if (opts.country) {
       params.set("country", opts.country);
       if (opts.excludeCountry) params.set("excludeCountry", "true");
     }
-    return apiRequest<JourneyComparison>(`/v1/webpanel/analytics/journey-comparison?${params.toString()}`);
+    if (opts.tier) params.set("tier", opts.tier);
+    if (opts.source) params.set("source", opts.source);
+    if (opts.campaign) params.set("campaign", opts.campaign);
+    if (opts.platform) params.set("platform", opts.platform);
+    return apiRequest<JourneyCompare>(`/v1/webpanel/analytics/journey-compare?${params.toString()}`);
   },
 
   /**

@@ -2,7 +2,7 @@
 
 import { useState, useSyncExternalStore } from "react";
 import Sidebar from "@/components/Sidebar";
-import { FirstInvoiceJourney, FunnelDashboard, JourneyVersionComparison } from "@/features/funnel-analysis";
+import { FirstInvoiceJourney, FunnelDashboard, JourneyCompare } from "@/features/funnel-analysis";
 import styles from "@/features/funnel-analysis/styles/version-comparison.module.css";
 
 function subscribe() {
@@ -19,7 +19,7 @@ function getServerSnapshot() {
 
 /**
  * The first-invoice journey has two modes on this one page: one build's ladder with its stop reasons,
- * or 2–3 builds side by side on an equal window (decision 0114). A mode, not a sidebar page:
+ * or cohorts that differ in ONE dimension side by side on an equal window (decisions 0114, 0116). A mode, not a sidebar page:
  * a page costs what it shows (AGENTS.md 5a), and the comparison answers the same question.
  */
 type JourneyMode = "journey" | "compare";
@@ -50,14 +50,14 @@ export default function FunnelPageClient() {
               className={`${styles.modeTab}${mode === "compare" ? ` ${styles.modeOn}` : ""}`}
               onClick={() => setMode("compare")}
             >
-              Version ka muqabla
+              Muqabla
             </button>
           </div>
         ) : null}
         {/* The journey sits above the screen-by-screen funnel: it answers whether the
             product was reached at all, which decides whether the rest is worth reading. */}
         {isClient && mode === "journey" ? <FirstInvoiceJourney /> : null}
-        {isClient && mode === "compare" ? <JourneyVersionComparison /> : null}
+        {isClient && mode === "compare" ? <JourneyCompare /> : null}
         {isClient ? <FunnelDashboard /> : null}
       </div>
     </main>
