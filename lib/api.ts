@@ -14,6 +14,8 @@ import type {
   ApiResponse,
   ApiTokenResponse,
   AuthResponse,
+  AdminPasskey,
+  PasskeyOptions,
   LiveEvent,
   LoginRequest,
   UserMapLocation,
@@ -307,6 +309,50 @@ export const api = {
       body: JSON.stringify(payload),
       requiresAuth: false,
     });
+  },
+
+  // ── Passkeys (decision 0117) ── the two sign-in steps need no pass; the rest need the admin sign-in's.
+
+  passkeySignInOptions(email?: string) {
+    return apiRequest<PasskeyOptions>("/v2/auth/admin-passkey/sign-in/options", {
+      method: "POST",
+      body: JSON.stringify(email ? { email } : {}),
+      requiresAuth: false,
+    });
+  },
+
+  passkeySignInVerify(challengeId: string, credential: Record<string, unknown>) {
+    return apiRequest<AuthResponse>("/v2/auth/admin-passkey/sign-in/verify", {
+      method: "POST",
+      body: JSON.stringify({ challengeId, credential }),
+      requiresAuth: false,
+    });
+  },
+
+  listPasskeys() {
+    return apiRequest<AdminPasskey[]>("/v2/auth/admin-passkeys");
+  },
+
+  sendPasskeyCode() {
+    return apiRequest<null>("/v2/auth/admin-passkeys/registration/code", { method: "POST", body: "{}" });
+  },
+
+  passkeyRegistrationOptions(code: string) {
+    return apiRequest<PasskeyOptions>("/v2/auth/admin-passkeys/registration/options", {
+      method: "POST",
+      body: JSON.stringify({ code }),
+    });
+  },
+
+  passkeyRegistrationVerify(challengeId: string, credential: Record<string, unknown>, name: string) {
+    return apiRequest<AdminPasskey>("/v2/auth/admin-passkeys/registration/verify", {
+      method: "POST",
+      body: JSON.stringify({ challengeId, credential, name }),
+    });
+  },
+
+  removePasskey(id: string) {
+    return apiRequest<null>(`/v2/auth/admin-passkeys/${encodeURIComponent(id)}`, { method: "DELETE" });
   },
 
   generateApiToken(expiryDays?: number) {

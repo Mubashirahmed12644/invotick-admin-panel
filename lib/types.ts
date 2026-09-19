@@ -58,6 +58,22 @@ export interface AdminVerifyOtpRequest {
   otp: string;
 }
 
+/** A passkey step's options from the server (decision 0117): the challenge's id, and what to give the browser. */
+export interface PasskeyOptions {
+  challengeId: string;
+  options: { publicKey: Record<string, unknown> };
+}
+
+/** One of the admin's own passkeys, as the panel lists them. */
+export interface AdminPasskey {
+  id: string;
+  name: string;
+  createdAt: string;
+  lastUsedAt: string | null;
+  /** Synced to the owner's other devices (iCloud Keychain). */
+  backedUp: boolean | null;
+}
+
 export interface ApiTokenResponse {
   token: string;
   jti: string;

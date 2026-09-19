@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { api, getErrorMessage } from "@/lib/api";
 import { consumeSessionExpiredFlag, consumeSignOutReason, isLoggedIn, setAccessToken } from "@/lib/auth";
+import { getPasskey, passkeyErrorMessage, passkeysSupported } from "@/lib/passkey";
 
 type Step = "credentials" | "otp";
 
@@ -20,6 +21,8 @@ export default function LoginPage() {
   const [info, setInfo] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [resendIn, setResendIn] = useState(0);
+  // Decided after the page mounts: the server render has no browser to ask.
+  const [canUsePasskey, setCanUsePasskey] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   function startResendCooldown(seconds = 60) {
@@ -40,6 +43,10 @@ export default function LoginPage() {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
+  }, []);
+
+  useEffect(() => {
+    setCanUsePasskey(passkeysSupported());
   }, []);
 
   useEffect(() => {
@@ -101,6 +108,27 @@ export default function LoginPage() {
       router.replace("/users");
     } catch (submitError) {
       setError(getErrorMessage(submitError, "Verification failed."));
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  /**
+   * Passkey sign-in (decision 0117): the email if one is typed, otherwise the passkey itself names the account.
+   * Face ID signs the server's challenge; the server answers the same admin pass as the emailed code.
+   */
+  async function onPasskey() {
+    setError("");
+    setInfo("");
+    setIsSubmitting(true);
+    try {
+      const started = await api.passkeySignInOptions(email.trim() || undefined);
+      const credential = await getPasskey(started.options);
+      const data = await api.passkeySignInVerify(started.challengeId, credential);
+      setAccessToken(data.accessToken);
+      router.replace("/users");
+    } catch (passkeyError) {
+      setError(passkeyErrorMessage(passkeyError, "Passkey login nahi hua. Email code se login karein."));
     } finally {
       setIsSubmitting(false);
     }
@@ -207,6 +235,22 @@ export default function LoginPage() {
             <button type="submit" className="auth-submit" disabled={isSubmitting}>
               {isSubmitting ? "Signing in…" : "Login"}
             </button>
+
+            {canUsePasskey ? (
+              <>
+                <p className="auth-or">ya</p>
+                <button
+                  type="button"
+                  className="auth-submit auth-passkey"
+                  onClick={onPasskey}
+                  disabled={isSubmitting}
+                >
+                  <KeyIcon />
+                  Passkey / Face ID se login
+                </button>
+                <p className="auth-hint">Password ki zaroorat nahi. Email na likhein to bhi chalega.</p>
+              </>
+            ) : null}
           </form>
         ) : (
           <form onSubmit={onSubmitOtp} className="auth-body">
@@ -314,6 +358,15 @@ function EyeOffIcon() {
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c6.5 0 10 8 10 8a18.5 18.5 0 0 1-2.16 3.19M6.61 6.61A18.5 18.5 0 0 0 2 12s3.5 7 10 7a9.12 9.12 0 0 0 4.06-.94" />
       <path d="M14.12 14.12a3 3 0 1 1-4.24-4.24M2 2l20 20" />
+    </svg>
+  );
+}
+
+function KeyIcon() {
+  return (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+      <circle cx="7.5" cy="15.5" r="4.5" />
+      <path d="m10.7 12.3 9.8-9.8M16 7l3 3M19 4l2 2" />
     </svg>
   );
 }

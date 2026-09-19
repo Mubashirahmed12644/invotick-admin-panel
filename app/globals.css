@@ -2249,6 +2249,36 @@ th {
   cursor: wait;
 }
 
+/* Passkey sign-in (decision 0117): outlined, because the screen keeps one filled button. */
+.auth-passkey {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background: transparent;
+  color: var(--color-primary);
+  border: 1.5px solid var(--color-primary);
+}
+
+.auth-passkey:hover:not(:disabled) {
+  background: transparent;
+  opacity: 0.85;
+}
+
+.auth-or {
+  text-align: center;
+  font-size: 0.82rem;
+  color: var(--md-sys-color-on-surface-variant, #6b7280);
+  margin: 0.1rem 0 -0.2rem;
+}
+
+.auth-hint {
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--md-sys-color-on-surface-variant, #6b7280);
+  margin: 0;
+}
+
 .auth-foot {
   display: flex;
   align-items: center;

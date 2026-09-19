@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import Sidebar from "@/components/Sidebar";
+import PasskeysCard from "@/components/PasskeysCard";
 import { api, getErrorMessage, isUnauthorizedError, ApiError } from "@/lib/api";
 import { clearAccessToken, isLoggedIn } from "@/lib/auth";
 import type { ApiTokenResponse } from "@/lib/types";
@@ -93,6 +94,9 @@ export default function ApiAccessPage() {
         <Navbar title="API Access" />
         <section className="content-wrap">
           <div className="api-access-wrap">
+            {/* Passkey sign-in (decision 0117): the owner's own passkeys, on the page that already holds access. */}
+            <PasskeysCard onUnauthorized={handleUnauthorized} />
+
             <section className="section-card">
               <div className="section-header">
                 <h2>Generate API token</h2>
