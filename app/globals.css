@@ -2718,6 +2718,34 @@ th {
   white-space: nowrap;
 }
 
+/* The window a number belongs to, said next to it. Two numbers on one line with different windows
+   is what produced "5 live" above "No matching active users". */
+.le-since {
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+  font-weight: 400;
+}
+
+/* A row that has just moved. The list is sorted by recency, so an arriving phone jumps to the top;
+   a brief tint explains the movement instead of leaving it as a flicker. It fades on its own and
+   never changes the row's size, so nothing below it shifts. */
+.le-userrow[data-fresh] {
+  animation: le-row-arrived 2.4s ease-out 1;
+}
+@keyframes le-row-arrived {
+  from { background-color: color-mix(in srgb, var(--md-sys-color-success) 22%, transparent); }
+  to { background-color: transparent; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .le-userrow[data-fresh] { animation: none; }
+}
+
+/* A phone with no user id yet: listed, because it is on the app, but there is no stream to open. */
+.le-userrow:disabled {
+  cursor: default;
+  opacity: 0.72;
+}
+
 .le-filters {
   display: flex;
   gap: 0.5rem;

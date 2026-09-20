@@ -1051,13 +1051,92 @@ export default function LiveEventsPage() {
    * watched must not pull the stream out from under it, which is why this is a ref and not a
    * dependency. Switching remains a click.
    */
+  /**
+   * The list the page draws: the polled range list, with the pushed live devices merged over it.
+   *
+   * ## The bug this fixes
+   *
+   * On 2026-09-20 the header said "5 live" while the table said "No matching active users", and the
+   * owner asked the obvious question. Three separate things were wrong, and only one of them was
+   * new:
+   *
+   * 1. **The two halves ran at different speeds.** The count came from the pushed stream, which is
+   *    instant, and the list came from a query. Worse, decision 0121 had just slowed that query's
+   *    beat from 5 s to 60 s, so `lastEventAt` on every row could be a minute and five seconds old —
+   *    while "Live only" keeps a row only if `lastEventAt` is inside 60 s. With both changes in
+   *    place the filter could throw away nearly every row it was given, permanently. That is a
+   *    regression this file introduced, and this is the repair.
+   * 2. **The two numbers meant different things.** The count was devices in the last minute with no
+   *    filters; the list was users in the last thirty days after the build and version filters.
+   *    Four differences on one line, none of them written down.
+   * 3. **A device with no user id could be counted and never listed.** The count is keyed by device
+   *    and the list by user, and the list's query is `user_id IS NOT NULL`. Measured on production
+   *    the same day: 1 of 66 devices in an hour, and 0 of 10 in five minutes — small today, but it
+   *    is a phone that is on the app and cannot appear, and the cold start fires before a guest
+   *    session restores, so it is exactly the newest users this misses.
+   *
+   * ## The repair
+   *
+   * The stream already carries the devices, capped at 200 by the server and drawn from a registry
+   * that is capped at 1,000 (decision 0122). They are merged in here, so a row appears the moment
+   * the batch lands rather than at the next poll. **This adds no query.** The 30-day list keeps its
+   * one read a minute; the live half keeps costing nothing.
+   *
+   * The stream's row wins on recency, because it is by definition the newer of the two. Everything
+   * that identifies a person — email, Invotick ID, role, country — comes from the polled row when
+   * there is one, because the stream does not carry it and inventing it would be a guess.
+   *
+   * The page's build and version filters are applied to the streamed rows here, since the server
+   * applied them to the polled ones. Without that a debug phone would appear in a release-only list.
+   */
+  const mergedUsers = useMemo(() => {
+    const byId = new Map<string, ActiveUser>();
+    activeUsers.forEach((u) => byId.set(u.userId, u));
+
+    (liveNow?.devices ?? []).forEach((d) => {
+      // The filters the server already applied to the polled rows, applied to these ones.
+      if (buildFilter !== "all" && d.buildType !== buildFilter) return;
+      if (versionFilter != null && d.appVersionCode !== versionFilter) return;
+
+      // Keyed by user when there is one, by device when there is not — so a phone whose guest
+      // session has not restored yet is still a row rather than a number with nothing behind it.
+      const key = d.userId ?? `device:${d.deviceId}`;
+      const known = d.userId ? byId.get(d.userId) : undefined;
+      if (known && known.lastEventAt >= d.lastAt) return;
+
+      byId.set(key, {
+        userId: known?.userId ?? d.userId ?? `device:${d.deviceId}`,
+        email: known?.email ?? null,
+        invotickId: known?.invotickId ?? null,
+        role: known?.role ?? null,
+        country: known?.country ?? d.country,
+        countryCode: known?.countryCode ?? (d.country && d.country.length === 2 ? d.country : null),
+        lastEventAt: d.lastAt,
+        appVersion: d.appVersion ?? known?.appVersion ?? null,
+        appVersionCode: d.appVersionCode ?? known?.appVersionCode ?? null,
+        buildType: d.buildType ?? known?.buildType ?? null,
+        // The polled count is over the whole range; the stream's is over five minutes. The larger
+        // is the honest one, and it is never the stream's.
+        recentEventCount: Math.max(known?.recentEventCount ?? 0, d.events),
+      });
+    });
+
+    return [...byId.values()];
+  }, [activeUsers, liveNow, buildFilter, versionFilter]);
+
   const autoSelected = useRef(false);
   useEffect(() => {
-    if (autoSelected.current || selectedId || activeUsers.length === 0) return;
+    if (autoSelected.current || selectedId) return;
     // The list is already narrowed to whatever build was asked for, so the newest row in it is the
     // right one to open. This used to intersect a separately-fetched debug set, and did nothing at
     // all until that set arrived.
-    const candidates = [...activeUsers].sort((a, b) => (a.lastEventAt < b.lastEventAt ? 1 : -1));
+    //
+    // Only rows that name a user: the feed below is fetched by user id, so a phone whose guest
+    // session has not restored yet has nothing to open. It is still listed — it is just not the one
+    // that gets opened for you.
+    const candidates = mergedUsers
+      .filter((u) => !u.userId.startsWith("device:"))
+      .sort((a, b) => (a.lastEventAt < b.lastEventAt ? 1 : -1));
     const newest = candidates[0];
     if (!newest || liveState(newest.lastEventAt) !== "live") return;
     autoSelected.current = true;
@@ -1065,7 +1144,7 @@ export default function LiveEventsPage() {
     // selectUser is stable enough for this: it closes over setters, and adding it would re-run the
     // effect on every render — which is the one thing this must not do.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeUsers, selectedId]);
+  }, [mergedUsers, selectedId]);
 
   function selectUser(id: string) {
     setSelectedId(id);
@@ -1079,7 +1158,7 @@ export default function LiveEventsPage() {
 
   const rows = useMemo(() => {
     const q = search.trim().toLowerCase();
-    let list = activeUsers.filter((u) => {
+    let list = mergedUsers.filter((u) => {
       if (roleFilter !== "all" && (u.role ?? "").toLowerCase() !== roleFilter) return false;
       if (liveOnly && liveState(u.lastEventAt) !== "live") return false;
       // Build and version are not filtered here: the server already applied them, before the limit.
@@ -1099,7 +1178,7 @@ export default function LiveEventsPage() {
     });
     return list;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeUsers, search, roleFilter, liveOnly, sortBy]);
+  }, [mergedUsers, search, roleFilter, liveOnly, sortBy]);
 
   /** What the page is narrowed to right now, in words — for the copied report's header. */
   const filterLabel = useMemo(() => {
@@ -1110,11 +1189,23 @@ export default function LiveEventsPage() {
     return `build ${buildFilter}, ${version}, ${formatDay(range.from)} to ${formatDay(range.to)}`;
   }, [buildFilter, versionFilter, appVersions, range]);
 
-  // The server's count when the stream has one, and the old derived count only until it does — so
-  // the page is never blank, and never silently shows the narrower number as if it were the wider.
-  const derivedLiveCount = activeUsers.filter((u) => liveState(u.lastEventAt) === "live").length;
-  const liveCount = liveNow?.seeded ? liveNow.live : derivedLiveCount;
-  const selectedUser = activeUsers.find((u) => u.userId === selectedId);
+  /**
+   * The live number is counted off the rows the page is about to draw, not off a second source.
+   *
+   * That is the whole point: a header that counts one thing above a table that lists another is
+   * what produced "5 live" over "No matching active users". Counted here, the two cannot disagree —
+   * if the number says five, five rows are there to be looked at.
+   */
+  const liveCount = mergedUsers.filter((u) => liveState(u.lastEventAt) === "live").length;
+
+  /**
+   * Phones the stream reports as live that the page's own filters then hide.
+   *
+   * Said out loud rather than left as a gap between two numbers. A build filter that hides a live
+   * phone is doing its job; a reader who cannot see that it did is the bug.
+   */
+  const liveHiddenByFilter = Math.max(0, (liveNow?.seeded ? liveNow.live : 0) - liveCount);
+  const selectedUser = mergedUsers.find((u) => u.userId === selectedId);
 
   return (
     <main className={`app-shell ${navOpen ? "" : "le-nonav"}`}>
@@ -1134,14 +1225,17 @@ export default function LiveEventsPage() {
                 ☰
               </button>
               <h2>
-                Live users <span className="le-livecount">{liveCount} live</span> ·{" "}
-                {meta.truncated ? (
-                  <span title={`Showing ${activeUsers.length} of ${meta.total}. Raise the row count below to see more.`}>
-                    {activeUsers.length} of {meta.total}
-                  </span>
-                ) : (
-                  <>{meta.total || activeUsers.length} active</>
-                )}
+                Live users{" "}
+                {/* Two numbers, two windows, both labelled — because unlabelled they read as one
+                    claim that contradicts itself. */}
+                <span className="le-livecount" title="Phones that sent something in the last minute. Counted from the rows below, so it cannot disagree with them.">
+                  {liveCount} live
+                </span>
+                <span className="le-since"> (pichhle 1 minute)</span> ·{" "}
+                <span title={`Users with any event in the chosen range. ${meta.truncated ? `Showing ${activeUsers.length} of ${meta.total}; raise the row count below to see more.` : ""}`}>
+                  {meta.truncated ? `${activeUsers.length} of ${meta.total}` : meta.total || activeUsers.length}
+                </span>
+                <span className="le-since"> ({formatDay(range.from)} → {formatDay(range.to)})</span>
               </h2>
             </div>
             <p className="le-computed-at">
@@ -1152,6 +1246,9 @@ export default function LiveEventsPage() {
                 <>
                   {" "}
                   · {liveNow.recent} aur pichhle {Math.round(liveNow.windowSeconds / 60)} minute mein
+                  {liveHiddenByFilter > 0
+                    ? ` · ${liveHiddenByFilter} filter ne chhupaye`
+                    : ""}
                   {liveNow.dropped > 0 ? ` · kam se kam (${liveNow.dropped} chhoot gaye)` : ""}
                 </>
               ) : null}
@@ -1245,11 +1342,22 @@ export default function LiveEventsPage() {
                 <span>Last</span>
                 <span>Ev</span>
               </div>
-              {rows.map((u) => (
+              {rows.map((u) => {
+                // A phone that has sent a batch but has no user id yet. It is on the app, so it is
+                // listed; its feed is fetched by user id, so there is nothing to open. Saying that
+                // beats a click that quietly returns nothing.
+                const deviceOnly = u.userId.startsWith("device:");
+                // Freshly arrived, so the eye can follow a row that has just moved to the top
+                // instead of wondering what jumped.
+                const fresh = secondsAgo(u.lastEventAt) < 10;
+                return (
                 <button
                   key={u.userId}
                   className={`le-userrow ${selectedId === u.userId ? "le-userrow-active" : ""}`}
-                  onClick={() => selectUser(u.userId)}
+                  data-fresh={fresh || undefined}
+                  disabled={deviceOnly}
+                  title={deviceOnly ? "This phone is sending events but has not reported a user id yet, so there is no stream to open." : undefined}
+                  onClick={() => { if (!deviceOnly) selectUser(u.userId); }}
                 >
                   <span className="le-user-id">
                     <span className={`le-dot le-${liveState(u.lastEventAt)}`} />
@@ -1263,7 +1371,11 @@ export default function LiveEventsPage() {
                       </span>
                     ) : (
                       <span className="le-uid-fallback">
-                        {u.email && !u.email.endsWith("@guest.com") ? u.email : `${u.userId.slice(0, 8)}…`}
+                        {u.email && !u.email.endsWith("@guest.com")
+                          ? u.email
+                          : deviceOnly
+                            ? `phone ${u.userId.slice(7, 15)}…`
+                            : `${u.userId.slice(0, 8)}…`}
                       </span>
                     )}
                   </span>
@@ -1297,7 +1409,8 @@ export default function LiveEventsPage() {
                   <span className="le-last">{relTime(u.lastEventAt)}</span>
                   <span className="le-count">{u.recentEventCount}</span>
                 </button>
-              ))}
+                );
+              })}
               {rows.length === 0 ? <p className="api-access-desc">No matching active users.</p> : null}
             </div>
           </div>
