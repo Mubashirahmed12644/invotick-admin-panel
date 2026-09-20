@@ -164,6 +164,15 @@ export function FirstInvoiceJourney() {
   const [report, setReport] = useState<JourneyReport | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  /**
+   * When this report was computed and how long the server took.
+   *
+   * Measured on production on 2026-09-20, the same read this page sends: 30 days 17.1 s, 7 days
+   * 5.7 s, 1 day about 1 s. A number that took seventeen seconds to make is a number worth
+   * knowing the age of, and the wait is worth showing as a cost rather than as an unexplained
+   * pause.
+   */
+  const [computed, setComputed] = useState<{ at: Date; tookMs: number } | null>(null);
   const [showUsers, setShowUsers] = useState(false);
   /** The rung whose reasons are open — on hover, or pinned by a click. */
   const [openStep, setOpenStep] = useState<number | null>(null);
@@ -206,8 +215,12 @@ export function FirstInvoiceJourney() {
       setError(null);
       try {
         const iso = toRangeIso(range);
+        const startedAt = Date.now();
         const r = await api.getFirstInvoiceJourney(iso.from, iso.to, versionCode ?? undefined, build, uiMode);
-        if (!dead) setReport(r);
+        if (!dead) {
+          setComputed({ at: new Date(), tookMs: Date.now() - startedAt });
+          setReport(r);
+        }
       } catch (err) {
         if (!dead) setError(getErrorMessage(err, "Could not load the journey."));
       } finally {
@@ -249,6 +262,12 @@ export function FirstInvoiceJourney() {
             aate hain wo is ginti mein hain hi nahi. Har shakhs ka sab se aage wala qadam dikhaya gaya
             hai. Ye adad server par gine gaye hain, is liye na koi namoona hai na kisi ka data kata.
           </p>
+          {computed && (
+            <p className="muted-line fij-computed-at">
+              Computed {computed.at.toLocaleTimeString()} · server ne {(computed.tookMs / 1000).toFixed(1)}s
+              liye{computed.tookMs >= 8000 ? " — arsa chhota karne se ye tezi se girta hai" : ""}
+            </p>
+          )}
         </div>
         {report && (
           <div className="fij-headline">

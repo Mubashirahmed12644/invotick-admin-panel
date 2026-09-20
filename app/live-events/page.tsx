@@ -16,7 +16,41 @@ import { buildEventDetailCsv } from "@/lib/csv";
 import { DateRangePicker, defaultRange, formatDay, toRangeIso, type DayRange } from "@/components/DateRangePicker";
 
 const EVENT_POLL_MS = 1200;
-const USERS_POLL_MS = 5000;
+
+/**
+ * How often the active-user list is re-asked for, by how much of the table the question touches.
+ *
+ * Measured on production on 2026-09-20 (1.72 M rows, 512 MB buffer pool, 2 cores), the same read
+ * this page sends:
+ *
+ * | range | server time | read from disk |
+ * |:--|--:|--:|
+ * | 30 days | 5.0 s | 671 MB |
+ * | 7 days | 4.7 s | – |
+ * | 1 day | 0.62 s | – |
+ * | 1 hour | 25 ms (decision 0115) | – |
+ *
+ * A 30-day question every five seconds is one MySQL core held at about 100 % and ~134 MB/s of disk
+ * read for as long as the tab is open — and the box has two cores, which is why the Funnel Analysis
+ * page in the next tab crawls while this one is up. Below a day the read is an indexed range and
+ * costs nothing, so the fast beat is kept exactly where it is affordable.
+ *
+ * A wide range is also not live data: it is a month's history, where a minute's staleness cannot be
+ * seen. Decision 0115 question 2; the page prints when the list was last computed.
+ */
+const USERS_POLL_FAST_MS = 5000;
+const USERS_POLL_WIDE_MS = 60000;
+
+/** A range is "live" when it ends today and covers at most one day. */
+function usersPollMs(range: DayRange): number {
+  const today = new Date();
+  const endsToday =
+    range.to.getFullYear() === today.getFullYear() &&
+    range.to.getMonth() === today.getMonth() &&
+    range.to.getDate() === today.getDate();
+  const spanDays = Math.round((range.to.getTime() - range.from.getTime()) / 86_400_000);
+  return endsToday && spanDays <= 0 ? USERS_POLL_FAST_MS : USERS_POLL_WIDE_MS;
+}
 // Names and the ignored set change when a person decides they do, not on a stream's schedule — but
 // they DO change while a stream is open, which is the normal way to work: Discovery in one window,
 // this in another. Re-read on a slow beat rather than once at mount.
@@ -311,12 +345,22 @@ export default function LiveEventsPage() {
    * control is wanted for.
    */
   const [range, setRange] = useState<DayRange>(defaultRange);
+  /** The beat this range is polled on; the header prints it so the reader knows what "live" means here. */
+  const pollMsForRange = useMemo(() => usersPollMs(range), [range]);
   /**
    * How many rows to ask for. The list was fixed at 200 and silently cut: 199 rows out of at least
    * 999, under a header that read like a population.
    */
   const [pageSize, setPageSize] = useState(200);
   /** What the page is a part of — total, whether it was cut, and what the build filter is hiding. */
+  /**
+   * When the shown list was computed, and how long the server took to answer.
+   *
+   * A wide range is polled on a slow beat (see usersPollMs), so the numbers on screen can be up to
+   * a minute old. Freshness that is not printed is freshness the reader has to assume, and the
+   * assumption is always "just now".
+   */
+  const [computed, setComputed] = useState<{ at: Date; tookMs: number } | null>(null);
   const [meta, setMeta] = useState<{ total: number; truncated: boolean; hiddenNoBuild: number | null }>({
     total: 0,
     truncated: false,
@@ -673,7 +717,9 @@ export default function LiveEventsPage() {
       return;
     }
     let cancelled = false;
-    // Same guard, same reason. This one polls every 5s and was stacking alongside the events poll.
+    // How wide a question this is decides the beat. See usersPollMs.
+    const pollMs = usersPollMs(range);
+    // Same guard, same reason. This one polls alongside the events poll and used to stack.
     let usersInFlight = false;
     let usersNextAt = 0;
     let usersFailures = 0;
@@ -691,6 +737,7 @@ export default function LiveEventsPage() {
         // The two config reads are deliberately still not in here: they decorate rows that do not
         // exist yet.
         const iso = toRangeIso(range);
+        const startedAt = Date.now();
         const page = await api.getActiveUsers(
           pageSize,
           buildFilter,
@@ -699,6 +746,7 @@ export default function LiveEventsPage() {
           iso.to,
         );
         if (!cancelled) {
+          setComputed({ at: new Date(), tookMs: Date.now() - startedAt });
           setActiveUsers(page.users);
           setMeta({
             total: page.total,
@@ -712,7 +760,7 @@ export default function LiveEventsPage() {
         usersNextAt = 0;
       } catch (err) {
         usersFailures += 1;
-        usersNextAt = Date.now() + Math.min(30_000, USERS_POLL_MS * 2 ** usersFailures);
+        usersNextAt = Date.now() + Math.min(30_000, pollMs * 2 ** usersFailures);
         if (!cancelled && !handleUnauthorized(err))
           setUsersError(getErrorMessage(err, "Could not load active users."));
       } finally {
@@ -720,7 +768,7 @@ export default function LiveEventsPage() {
       }
     }
     poll();
-    const t = setInterval(poll, USERS_POLL_MS);
+    const t = setInterval(poll, pollMs);
     return () => {
       cancelled = true;
       clearInterval(t);
@@ -1091,6 +1139,12 @@ export default function LiveEventsPage() {
                 )}
               </h2>
             </div>
+            {computed && (
+              <p className="le-computed-at">
+                {pollMsForRange > USERS_POLL_FAST_MS ? "Har minute" : "Har 5 second"} · computed{" "}
+                {computed.at.toLocaleTimeString()} · server {(computed.tookMs / 1000).toFixed(1)}s
+              </p>
+            )}
 
             <input
               className="input"

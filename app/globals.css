@@ -2679,6 +2679,16 @@ th {
   font-size: 0.82rem;
 }
 
+/* When the shown list was computed, and on what beat. Small, because it is a footnote to a
+   heading, not a heading — but present, because a stale number that does not say so is a wrong
+   number. */
+.le-computed-at,
+.fij-computed-at {
+  margin: 0.15rem 0 0;
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+}
+
 .le-filters {
   display: flex;
   gap: 0.5rem;
