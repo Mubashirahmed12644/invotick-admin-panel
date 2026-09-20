@@ -13,6 +13,7 @@ import { withPlatform } from "@/lib/versionPlatform";
 import { EventTime, dateTimeWithMillis, timeWithMillis } from "@/lib/eventTime";
 import { copyText, downloadText, fileStamp } from "@/lib/clipboard";
 import { buildEventDetailCsv } from "@/lib/csv";
+import { buildLabel, buildStreamReport, identityOf, SCREEN_VIEW_EVENTS } from "@/lib/streamReport";
 import { DateRangePicker, defaultRange, formatDay, toRangeIso, type DayRange } from "@/components/DateRangePicker";
 import { openLiveNowStream, type LiveNowState } from "@/lib/liveNow";
 import {
@@ -87,12 +88,13 @@ function usersPollMs(range: DayRange): number {
 const CONFIG_POLL_MS = 60000;
 
 /** Column keys in the order they are rendered — how a key becomes a cell position. */
-const COLUMN_ORDER_LIVE_EVENTS = ["idx", "event", "platform", "track", "tested"];
+const COLUMN_ORDER_LIVE_EVENTS = ["idx", "event", "build", "platform", "track", "tested"];
 
 /** What each column is called — in the header and in the Columns menu. One source, so they agree. */
 const COLUMN_LABELS_LIVE_EVENTS: Record<string, string> = {
   idx: "#",
   event: "Event / identity",
+  build: "Build",
   track: "Track",
   tested: "Tested",
 };
@@ -160,68 +162,6 @@ const COLUMN_LABELS_SUMMARY: Record<string, string> = {
 };
 
 const PRESENCE_ONLY = new Set(["app_heartbeat"]);
-
-/**
- * The whole stream as text, for pasting somewhere it can be read by someone who is not looking at
- * this screen.
- *
- * Every event, oldest first — reading order, not the newest-first order the page shows — with the
- * millisecond, the identity as the app sent it, the display name only when one differs from it, the
- * screen, and the full params. The params are the point: they carry `method`, `break_ms`,
- * `had_input` and the rest, and they are exactly what is behind the "params" toggle nobody can
- * paste.
- */
-/**
- * The names a screen view arrives under. Android sends `nav_screen_view`; `screen_view` is the iOS
- * spelling.
- *
- * This page tested `=== "screen_view"` in three places, so on Android it never matched. Every screen
- * row was therefore keyed by the literal `nav_screen_view` instead of `screen: <route>`, and two
- * things followed silently: a display name typed against a screen row in Event Discovery was looked
- * up under a key nothing here produced and never appeared, and "mark tested" filed every screen in
- * the app under one shared identity, so ticking one screen ticked all of them.
- *
- * Kept identical to the backend's `event_name IN ('nav_screen_view', 'screen_view')`. The two
- * derivations have to agree exactly — that is the whole contract — so they belong in one place each.
- */
-const SCREEN_VIEW_EVENTS = new Set(["nav_screen_view", "screen_view"]);
-
-/** Event Discovery's identity for a row — `screen: <route>` for a screen view, the name otherwise. */
-function identityOf(e: LiveEvent): string {
-  return SCREEN_VIEW_EVENTS.has(e.eventName)
-    ? `screen: ${(e.params?.screen as string | undefined) || e.screenName || "?"}`
-    : e.eventName;
-}
-
-function buildStreamReport(
-  events: LiveEvent[],
-  ctx: {
-    userId: string;
-    invotickId?: string | null;
-    names: Map<string, string>;
-    /** What the page was narrowed to when this was copied. */
-    filter?: string;
-  },
-): string {
-  const head = [
-    `# Live Events — ${ctx.invotickId ? `Invotick ID ${ctx.invotickId}, ` : ""}user ${ctx.userId}`,
-    // A report that does not say what it was filtered to gets read as everything. This one was:
-    // copied while the page showed one version, and taken as the user's whole history.
-    `# filter: ${ctx.filter ?? "all versions"}`,
-    `# ${events.length} events, oldest first, copied ${new Date().toISOString()}`,
-    "",
-  ];
-  const body = [...events].reverse().map((e, i) => {
-    const isScreen = SCREEN_VIEW_EVENTS.has(e.eventName);
-    const screen = e.screenName ?? (e.params?.screen as string | undefined) ?? "";
-    const ident = identityOf(e);
-    const shown = ctx.names.get(ident);
-    const label = shown && shown !== ident ? `${ident}  [shown as ${shown}]` : ident;
-    const params = e.params && Object.keys(e.params).length ? JSON.stringify(e.params) : "-";
-    return `${String(i + 1).padStart(3)}  ${dateTimeWithMillis(e.eventTimestamp)}  ${label}\n      screen=${screen || "-"}  params=${params}`;
-  });
-  return [...head, ...body].join("\n");
-}
 
 
 type SortKey = "recent" | "email" | "count";
@@ -631,6 +571,7 @@ export default function LiveEventsPage() {
   const { widths: colW, startResize, reset: resetWidths, autoFit, tableRef, order: colOrder, hidden: colHidden, visibleOrder, toggleColumn, moveColumnTo } = useColumnWidths("live-events", {
     idx: 44,
     event: 420,
+    build: 104,
     platform: 92,
     track: 96,
     tested: 104,
@@ -1609,6 +1550,20 @@ export default function LiveEventsPage() {
                             without holding the other window's state in your head. Nothing is
                             filtered out for being off; a row nobody has catalogued yet is exactly
                             the row worth noticing, and this page is where it first appears. */
+                        build: (
+<td key="build" className="live-cell-center">
+                          {/* Which build sent it. Never guessed: a row with no version says so. */}
+                          {e.appVersion || e.appVersionCode != null ? (
+                            <span className="live-build" title={`Sent from build ${buildLabel(e)}`}>
+                              {buildLabel(e)}
+                            </span>
+                          ) : (
+                            <span className="muted" title="This event reports no app version — a web row, or a build old enough not to send one.">
+                              —
+                            </span>
+                          )}
+                        </td>
+                        ),
                         platform: (
 <td key="platform" className="live-cell-center">
                           {/* Named, or said to be unknown — never quietly blank. A row whose
@@ -1766,6 +1721,16 @@ export default function LiveEventsPage() {
                 className="ga4-clear"
                 title="Copy exactly what is on screen, as TSV."
                 onClick={() => {
+                  // The same lesson as the stream export: a table pasted into chat with no build
+                  // on it gets read as "the app", and on 2026-09-19 that cost a day. These lines
+                  // say which build and which days produced the numbers under them.
+                  const meta = [
+                    `# Invotick Live Events — event totals`,
+                    `# build: ${sumBuild}`,
+                    `# versions: ${sumVersionNames.length ? sumVersionNames.join(", ") : "all"}`,
+                    `# range: ${formatDay(sumRange.from)} → ${formatDay(sumRange.to)}`,
+                    `# copied ${new Date().toISOString()}`,
+                  ].join("\n");
                   const head = ga4 ? "event\tours\tga4\tdiff\tusers\tdevices" : "event\tours\tusers\tdevices";
                   const body = visibleSummaryRows
                     .map((r) => {
@@ -1775,7 +1740,7 @@ export default function LiveEventsPage() {
                         : `${r.eventName}\t${r.events}\t${r.users}\t${r.devices}`;
                     })
                     .join("\n");
-                  copyText(`${head}\n${body}`);
+                  copyText(`${meta}\n${head}\n${body}`);
                 }}
               >
                 Copy

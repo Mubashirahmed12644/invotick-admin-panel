@@ -2710,6 +2710,14 @@ th {
   border-color: var(--md-sys-color-error, #b3261e);
 }
 
+/* Which build a feed row came from. Monospaced so "1.4.2 (94)" and "1.4.7 (106)" line up down the
+   column — a mixed-build feed is then visible at a glance instead of read line by line. */
+.live-build {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 0.76rem;
+  white-space: nowrap;
+}
+
 .le-filters {
   display: flex;
   gap: 0.5rem;

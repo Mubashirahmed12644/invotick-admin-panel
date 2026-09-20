@@ -317,6 +317,19 @@ export interface LiveEvent {
    * otherwise identical on screen.
    */
   platform: string | null;
+  /**
+   * Which build sent it — the name the app reports, e.g. "1.4.2", and the build number beside it.
+   *
+   * Absent until 2026-09-20, and it cost a day. A device's feed was exported and sent for
+   * diagnosis; every line said release or debug and nothing about the build, so a whole measuring
+   * pass ran before the behaviour turned out to belong to 1.4.2 (94) and to have been fixed two
+   * releases earlier.
+   *
+   * Both, because only `appVersionCode` can be compared: "1.4.10" sorts below "1.4.9" as text.
+   * Null is unknown — web rows carry no version, and neither do the oldest app rows.
+   */
+  appVersion: string | null;
+  appVersionCode: number | null;
   screenName: string | null;
   previousScreen: string | null;
   sessionId: string | null;
