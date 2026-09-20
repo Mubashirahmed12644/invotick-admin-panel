@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { stickyNumberRequired, stickyOneOf, useStickyState } from "@/lib/stickyFilters";
 import styles from "../styles/ip-stats.module.css";
 import { useSuspiciousIps } from "../hooks/useSuspiciousIps";
 import { SuspiciousIpCard } from "./SuspiciousIpCard";
@@ -19,12 +20,16 @@ function matchesExclusion(
     return rules.some((r) => r.trim() && lower.includes(r.toLowerCase()));
 }
 
+/** One key for this page's remembered filters (decision 0123). */
+const PAGE = "ip-stats";
+const dirCodec = stickyOneOf(["asc", "desc"] as const);
+
 export function SuspiciousIpsPanel({ exclusionRules }: SuspiciousIpsPanelProps) {
     const [thresholdInput, setThresholdInput] = useState("10");
-    const [appliedThreshold, setAppliedThreshold] = useState(10);
+    const [appliedThreshold, setAppliedThreshold] = useStickyState(PAGE, "minUsers", 10, stickyNumberRequired);
 
     // 🔥 NEW: sorting state
-    const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+    const [sortOrder, setSortOrder] = useStickyState<"asc" | "desc">(PAGE, "dir", "desc", dirCodec);
 
     const { data, loading, error, refetch } =
         useSuspiciousIps(appliedThreshold);

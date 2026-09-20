@@ -2689,6 +2689,27 @@ th {
   font-size: 0.78rem;
 }
 
+/* What the live-now connection is doing. Green only when the server is actually pushing; every
+   other state is visibly not that, because a stale number that looks live is the bug this whole
+   change exists to remove. */
+.le-live-pill {
+  display: inline-block;
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+}
+.le-live-pill[data-state="streaming"] {
+  color: var(--md-sys-color-success);
+  border-color: var(--md-sys-color-success);
+}
+.le-live-pill[data-state="offline"] {
+  color: var(--md-sys-color-error, #b3261e);
+  border-color: var(--md-sys-color-error, #b3261e);
+}
+
 .le-filters {
   display: flex;
   gap: 0.5rem;

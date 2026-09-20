@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { stickyOneOf, useStickyState } from "@/lib/stickyFilters";
 import EmptyState from "@/components/EmptyState";
 import ErrorState from "@/components/ErrorState";
 import LoadingState from "@/components/LoadingState";
@@ -50,13 +51,17 @@ function toUtcIso(value: string): string | null {
   return date.toISOString();
 }
 
+/** One key for this page's remembered filters (decision 0123). */
+const PAGE = "screen-flow";
+const viewCodec = stickyOneOf(["list", "graph"] as const);
+
 export function ScreenFlowDashboard() {
   const router = useRouter();
   const [initialQuery] = useState<ScreenFlowQuery>(createInitialQuery);
   const [draftQuery, setDraftQuery] = useState<ScreenFlowQuery>(initialQuery);
   const [submittedQuery, setSubmittedQuery] = useState<ScreenFlowQuery>(initialQuery);
   const [validationError, setValidationError] = useState("");
-  const [viewMode, setViewMode] = useState<"list" | "graph">("list");
+  const [viewMode, setViewMode] = useStickyState<"list" | "graph">(PAGE, "view", "list", viewCodec);
 
   const requestQuery = useMemo(
     () => ({

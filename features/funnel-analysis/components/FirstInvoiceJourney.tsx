@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, getErrorMessage } from "@/lib/api";
 import { downloadText, fileStamp } from "@/lib/clipboard";
 import { DateRangePicker, defaultRange, toRangeIso, type DayRange } from "@/components/DateRangePicker";
+import { stickyDayRange, stickyNumber, stickyOneOf, useStickyState } from "@/lib/stickyFilters";
 import type { AppVersion, JourneyFacet, JourneyReport } from "@/lib/types";
 import { withPlatform } from "@/lib/versionPlatform";
 
@@ -153,12 +154,21 @@ function Facets({ facets, total, tone }: { facets: JourneyFacet[]; total: number
   );
 }
 
+/** One key for this page's remembered filters (decision 0123). */
+const PAGE = "funnel-journey";
+const BUILDS = ["release", "debug", "all"] as const;
+const UI_MODES = ["all", "light", "dark"] as const;
+type Build = (typeof BUILDS)[number];
+type UiMode = (typeof UI_MODES)[number];
+const buildCodec = stickyOneOf(BUILDS);
+const uiModeCodec = stickyOneOf(UI_MODES);
+
 export function FirstInvoiceJourney() {
-  const [range, setRange] = useState<DayRange>(defaultRange);
-  const [build, setBuild] = useState("release");
+  const [range, setRange] = useStickyState<DayRange>(PAGE, "range", defaultRange(), stickyDayRange);
+  const [build, setBuild] = useStickyState(PAGE, "build", "release" as Build, buildCodec);
   /** Dark or light — the mode the screen was in, not the phone's setting. "all" = no filter. */
-  const [uiMode, setUiMode] = useState("all");
-  const [versionCode, setVersionCode] = useState<number | null>(null);
+  const [uiMode, setUiMode] = useStickyState(PAGE, "mode", "all" as UiMode, uiModeCodec);
+  const [versionCode, setVersionCode] = useStickyState<number | null>(PAGE, "ver", null, stickyNumber);
   const [touched, setTouched] = useState(false);
   const [versions, setVersions] = useState<AppVersion[]>([]);
   const [report, setReport] = useState<JourneyReport | null>(null);
@@ -206,7 +216,7 @@ export function FirstInvoiceJourney() {
     if (touched || versionCode != null) return;
     const newest = versions.find((v) => v.appVersionCode != null)?.appVersionCode;
     if (newest != null) setVersionCode(newest);
-  }, [versions, touched, versionCode]);
+  }, [versions, touched, versionCode, setVersionCode]);
 
   useEffect(() => {
     let dead = false;
@@ -283,12 +293,12 @@ export function FirstInvoiceJourney() {
       </div>
 
       <div className="le-filters">
-        <select className="input" value={build} onChange={(e) => setBuild(e.target.value)}>
+        <select className="input" value={build} onChange={(e) => setBuild(e.target.value as Build)}>
           <option value="release">Build: release</option>
           <option value="debug">Build: debug</option>
           <option value="all">Build: all</option>
         </select>
-        <select className="input" value={uiMode} onChange={(e) => setUiMode(e.target.value)} title="Screen ka mode — release after 1.4.2 se stamp hota hai">
+        <select className="input" value={uiMode} onChange={(e) => setUiMode(e.target.value as UiMode)} title="Screen ka mode — release after 1.4.2 se stamp hota hai">
           <option value="all">Mode: all</option>
           <option value="dark">Mode: dark</option>
           <option value="light">Mode: light</option>

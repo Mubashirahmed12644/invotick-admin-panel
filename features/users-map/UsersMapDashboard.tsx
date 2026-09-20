@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { stickyBoolean, stickyNumberRequired, stickyOneOf, useStickyState } from "@/lib/stickyFilters";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import Navbar from "@/components/Navbar";
@@ -31,6 +32,12 @@ function isValidCoord(lat: number, lng: number): boolean {
 
 export type ViewMode = { above: boolean; below: boolean };
 
+/** One key for this page's remembered filters (decision 0123). */
+const PAGE = "users-map";
+const mapStyleCodec = stickyOneOf(
+  Object.keys(MAP_STYLES) as MapStyleKey[],
+) as unknown as import("@/lib/stickyFilters").StickyCodec<MapStyleKey>;
+
 export default function UsersMapDashboard() {
   const router = useRouter();
   const [users, setUsers] = useState<UserMapLocation[]>([]);
@@ -38,10 +45,13 @@ export default function UsersMapDashboard() {
   const [error, setError] = useState("");
 
   const [pendingThreshold, setPendingThreshold] = useState(2);
-  const [clusterThreshold, setClusterThreshold] = useState(2);
+  const [clusterThreshold, setClusterThreshold] = useStickyState(PAGE, "cluster", 2, stickyNumberRequired);
   const [isApplying, setIsApplying] = useState(false);
-  const [viewMode, setViewMode] = useState<ViewMode>({ above: true, below: false });
-  const [mapStyle, setMapStyle] = useState<MapStyleKey>("voyager");
+  // Two readable parameters rather than one opaque object, because the URL is meant to be read.
+  const [showAbove, setShowAbove] = useStickyState(PAGE, "above", true, stickyBoolean);
+  const [showBelow, setShowBelow] = useStickyState(PAGE, "below", false, stickyBoolean);
+  const viewMode: ViewMode = useMemo(() => ({ above: showAbove, below: showBelow }), [showAbove, showBelow]);
+  const [mapStyle, setMapStyle] = useStickyState<MapStyleKey>(PAGE, "style", "voyager", mapStyleCodec);
 
   const handleUnauthorized = useCallback(() => {
     clearAccessToken({ sessionExpired: true });
@@ -86,8 +96,8 @@ export default function UsersMapDashboard() {
   const aboveCount = groups.filter((g) => g.users.length >= clusterThreshold).length;
   const belowCount = groups.filter((g) => g.users.length < clusterThreshold).length;
 
-  const toggleAbove = () => setViewMode((v) => ({ ...v, above: !v.above }));
-  const toggleBelow = () => setViewMode((v) => ({ ...v, below: !v.below }));
+  const toggleAbove = () => setShowAbove(!showAbove);
+  const toggleBelow = () => setShowBelow(!showBelow);
 
   const handleApply = () => {
     setIsApplying(true);

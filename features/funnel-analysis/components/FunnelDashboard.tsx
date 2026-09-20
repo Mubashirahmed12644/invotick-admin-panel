@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { stickyOneOf, stickyString, useStickyState } from "@/lib/stickyFilters";
 import EmptyState from "@/components/EmptyState";
 import ErrorState from "@/components/ErrorState";
 import LoadingState from "@/components/LoadingState";
@@ -283,24 +284,31 @@ function StepCard({ step, isBottleneck }: StepCardProps) {
 
 // ── Main dashboard ─────────────────────────────────────────────────────────
 
+/** One key for this page's remembered filters (decision 0123). */
+const PAGE = "funnel-query";
+const FUNNEL_BYS = ["SCREEN", "EVENT"] as const;
+const FUNNEL_MODES = ["ORDERED", "UNORDERED"] as const;
+const funnelByCodec = stickyOneOf(FUNNEL_BYS) as unknown as import("@/lib/stickyFilters").StickyCodec<FunnelBy>;
+const funnelModeCodec = stickyOneOf(FUNNEL_MODES) as unknown as import("@/lib/stickyFilters").StickyCodec<FunnelMode>;
+
 export function FunnelDashboard() {
   const router = useRouter();
 
   const [steps, setSteps] = useState<string[]>(["", ""]);
-  const [funnelBy, setFunnelBy] = useState<FunnelBy>("SCREEN");
-  const [mode, setMode] = useState<FunnelMode>("ORDERED");
+  const [funnelBy, setFunnelBy] = useStickyState<FunnelBy>(PAGE, "by", "SCREEN", funnelByCodec);
+  const [mode, setMode] = useStickyState<FunnelMode>(PAGE, "mode", "ORDERED", funnelModeCodec);
   const [from, setFrom] = useState(() =>
     toDateTimeLocalValue(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)),
   );
   const [to, setTo] = useState(() => toDateTimeLocalValue(new Date()));
-  const [platform, setPlatform] = useState("");
+  const [platform, setPlatform] = useStickyState(PAGE, "platform", "", stickyString);
   // The build number, held as a string because that is what a <select> value is. "" means All.
-  const [appVersionCode, setAppVersionCode] = useState("");
+  const [appVersionCode, setAppVersionCode] = useStickyState(PAGE, "ver", "", stickyString);
   const [dimensions, setDimensions] = useState<FunnelDimensions | null>(null);
-  const [osVersion, setOsVersion] = useState("");
-  const [country, setCountry] = useState("");
-  const [city, setCity] = useState("");
-  const [maxStepDurationMinutes, setMaxStepDurationMinutes] = useState("");
+  const [osVersion, setOsVersion] = useStickyState(PAGE, "os", "", stickyString);
+  const [country, setCountry] = useStickyState(PAGE, "country", "", stickyString);
+  const [city, setCity] = useStickyState(PAGE, "city", "", stickyString);
+  const [maxStepDurationMinutes, setMaxStepDurationMinutes] = useStickyState(PAGE, "maxMin", "", stickyString);
 
   const [validationError, setValidationError] = useState("");
   const [names, setNames] = useState<string[]>([]);
@@ -356,7 +364,7 @@ export function FunnelDashboard() {
     setResult(null);
     setError("");
     setValidationError("");
-  }, []);
+  }, [setFunnelBy]);
 
   // Step CRUD
   const addStep = useCallback(() => setSteps((p) => [...p, ""]), []);
@@ -444,7 +452,10 @@ export function FunnelDashboard() {
     setPlatform(""); setAppVersionCode(""); setOsVersion("");
     setCountry(""); setCity(""); setMaxStepDurationMinutes("");
     setValidationError(""); setResult(null); setError("");
-  }, []);
+  }, [
+    setFunnelBy, setMode, setPlatform, setAppVersionCode,
+    setOsVersion, setCountry, setCity, setMaxStepDurationMinutes,
+  ]);
 
   // Find the step with the highest drop-off (excluding step 1)
   const bottleneckStep = result

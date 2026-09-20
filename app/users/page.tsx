@@ -1,6 +1,7 @@
 "use client";
 
 import type { WebpanelCurrencyTotal } from "@/lib/types";
+import { stickyOneOf, useStickyState } from "@/lib/stickyFilters";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import EmptyState from "@/components/EmptyState";
@@ -223,6 +224,15 @@ function renderCoverage(cell: UserTableCoverageCell) {
   );
 }
 
+/** One key for this page's remembered filters (decision 0123). */
+const PAGE = "users";
+type StickyOf<T> = import("@/lib/stickyFilters").StickyCodec<T>;
+const activityCodec = stickyOneOf(["ALL", "ACTIVE", "INACTIVE", "NEW"] as const) as unknown as StickyOf<ActivityFilter>;
+const sortCodec = stickyOneOf([
+  "lastActivity", "createdAt", "invoices", "clients", "items", "events", "email", "name",
+] as const) as unknown as StickyOf<SortKey>;
+const dirCodec = stickyOneOf(["asc", "desc"] as const) as unknown as StickyOf<SortDirection>;
+
 export default function UsersPage() {
   const router = useRouter();
 
@@ -231,7 +241,7 @@ export default function UsersPage() {
   const [queryInput, setQueryInput] = useState("");
   const [query, setQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState("ALL");
-  const [activityFilter, setActivityFilter] = useState<ActivityFilter>("ALL");
+  const [activityFilter, setActivityFilter] = useStickyState<ActivityFilter>(PAGE, "activity", "ALL", activityCodec);
   const [createdFrom, setCreatedFrom] = useState("");
   const [createdTo, setCreatedTo] = useState("");
   const [lastActivityFrom, setLastActivityFrom] = useState("");
@@ -257,8 +267,8 @@ export default function UsersPage() {
   const [noPaymentInstructionsOnly, setNoPaymentInstructionsOnly] = useState(false);
   const [excludeTestingDevices, setExcludeTestingDevices] = useState(true);
 
-  const [sortKey, setSortKey] = useState<SortKey>("lastActivity");
-  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
+  const [sortKey, setSortKey] = useStickyState<SortKey>(PAGE, "sort", "lastActivity", sortCodec);
+  const [sortDirection, setSortDirection] = useStickyState<SortDirection>(PAGE, "dir", "desc", dirCodec);
   const [pageSize, setPageSize] = useState(200);
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -273,7 +283,7 @@ export default function UsersPage() {
 
     setSortKey(nextKey);
     setSortDirection("desc");
-  }, [sortKey]);
+  }, [sortKey, setSortKey, setSortDirection]);
 
   const handleUnauthorized = useCallback(() => {
     clearAccessToken({ sessionExpired: true });
@@ -851,7 +861,7 @@ export default function UsersPage() {
     setSortKey("lastActivity");
     setSortDirection("desc");
     setPageSize(200);
-  }, []);
+  }, [setActivityFilter, setSortKey, setSortDirection]);
 
   return (
     <main className="app-shell">

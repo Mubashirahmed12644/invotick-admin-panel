@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { stickyOneOf, useStickyState } from "@/lib/stickyFilters";
 import { useRouter } from "next/navigation";
 import EmptyState from "@/components/EmptyState";
 import ErrorState from "@/components/ErrorState";
@@ -102,6 +103,14 @@ function compactId(value: string, keepStart = 8, keepEnd = 6): string {
   return `${value.slice(0, keepStart)}...${value.slice(-keepEnd)}`;
 }
 
+/** One key for this page's remembered filters (decision 0123). */
+const PAGE = "inventory-items";
+type StickyOf<T> = import("@/lib/stickyFilters").StickyCodec<T>;
+const sortCodec = stickyOneOf([
+  "updatedAt", "createdAt", "name", "price", "quantity", "user",
+] as const) as unknown as StickyOf<SortKey>;
+const dirCodec = stickyOneOf(["asc", "desc"] as const) as unknown as StickyOf<SortDirection>;
+
 export default function InventoryItemsPage() {
   const router = useRouter();
 
@@ -119,8 +128,8 @@ export default function InventoryItemsPage() {
   const [missingUnitTypeOnly, setMissingUnitTypeOnly] = useState(false);
   const [missingCategoryOnly, setMissingCategoryOnly] = useState(false);
 
-  const [sortKey, setSortKey] = useState<SortKey>("updatedAt");
-  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
+  const [sortKey, setSortKey] = useStickyState<SortKey>(PAGE, "sort", "updatedAt", sortCodec);
+  const [sortDirection, setSortDirection] = useStickyState<SortDirection>(PAGE, "dir", "desc", dirCodec);
   const [pageSize, setPageSize] = useState(200);
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -360,7 +369,7 @@ export default function InventoryItemsPage() {
     setSortKey("updatedAt");
     setSortDirection("desc");
     setPageSize(200);
-  }, []);
+  }, [setSortKey, setSortDirection]);
 
   return (
     <main className="app-shell">

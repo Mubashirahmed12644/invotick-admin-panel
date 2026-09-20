@@ -133,6 +133,50 @@ export interface ActiveUser {
  * The array alone could not say it had been cut: asking for 200 out of 999 returned 199, and the
  * header read "199 active" as though that were the population rather than the page size.
  */
+/**
+ * Who is on the app right now (decision 0122).
+ *
+ * Built by the server from the batches as they arrive, never read back out of `analytics_events`.
+ * It is a different question from the thirty-day list beside it on the same page, and it is asked a
+ * different way: the list is a bounded query on a slow beat, this is pushed as it changes.
+ */
+export interface LiveNow {
+  /** When the server took this picture. The page prints its age rather than implying "now". */
+  at: string;
+  version: number;
+  /** Devices whose last batch arrived inside `liveSeconds`. */
+  live: number;
+  /** Devices inside `windowSeconds` but not inside `liveSeconds`. */
+  recent: number;
+  events: number;
+  /**
+   * Devices the server's memory cap let go since it started. Above zero every count here is a
+   * floor, and the page must say so.
+   */
+  dropped: number;
+  /**
+   * False until the server's one boot query has run. Until then an empty list means "not counted
+   * yet", which is not the same answer as "nobody is here".
+   */
+  seeded: boolean;
+  liveSeconds: number;
+  windowSeconds: number;
+  devices: LiveNowDevice[];
+}
+
+export interface LiveNowDevice {
+  deviceId: string;
+  userId: string | null;
+  appVersion: string | null;
+  appVersionCode: number | null;
+  buildType: string | null;
+  platform: string | null;
+  country: string | null;
+  /** Arrival time of its last batch. */
+  lastAt: string;
+  events: number;
+}
+
 export interface ActiveUsersPage {
   users: ActiveUser[];
   total: number;

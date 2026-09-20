@@ -14,6 +14,16 @@ import { EventTime, dateTimeWithMillis, timeWithMillis } from "@/lib/eventTime";
 import { copyText, downloadText, fileStamp } from "@/lib/clipboard";
 import { buildEventDetailCsv } from "@/lib/csv";
 import { DateRangePicker, defaultRange, formatDay, toRangeIso, type DayRange } from "@/components/DateRangePicker";
+import { openLiveNowStream, type LiveNowState } from "@/lib/liveNow";
+import {
+  stickyBoolean,
+  stickyDayRange,
+  stickyNumber,
+  stickyNumberRequired,
+  stickyOneOf,
+  useStickyState,
+} from "@/lib/stickyFilters";
+import type { LiveNow } from "@/lib/types";
 
 const EVENT_POLL_MS = 1200;
 
@@ -40,6 +50,26 @@ const EVENT_POLL_MS = 1200;
  */
 const USERS_POLL_FAST_MS = 5000;
 const USERS_POLL_WIDE_MS = 60000;
+
+/**
+ * What the live-now connection is doing, in the header, always.
+ *
+ * A number that has stopped updating looks exactly like a number that is not changing. The page
+ * says which of the two it is; "polling" is a working page on the fallback, not a failure.
+ */
+const LIVE_STATE_LABEL: Record<LiveNowState, string> = {
+  connecting: "jur raha hai…",
+  streaming: "live",
+  polling: "live (poll)",
+  offline: "rabta nahi",
+};
+
+const LIVE_STATE_TITLE: Record<LiveNowState, string> = {
+  connecting: "Opening the push stream.",
+  streaming: "Pushed by the server as it changes. No database read per tick.",
+  polling: "The stream could not be held; asking the same in-memory answer every 5 s instead.",
+  offline: "Neither the stream nor the fallback answered.",
+};
 
 /** A range is "live" when it ends today and covers at most one day. */
 function usersPollMs(range: DayRange): number {
@@ -199,6 +229,17 @@ type SortKey = "recent" | "email" | "count";
 /** Which build the list is narrowed to. Applied by the server, not here. */
 type BuildFilter = "debug" | "release" | "all";
 
+/** One key for this page's remembered filters (decision 0123). */
+const PAGE = "live-events";
+const BUILD_FILTERS = ["debug", "release", "all"] as const;
+const SORT_KEYS = ["recent", "email", "count"] as const;
+const SUMMARY_SORTS = ["ours", "diff", "name"] as const;
+const ROLE_FILTERS = ["all", "guest", "user", "admin"] as const;
+const buildCodec = stickyOneOf(BUILD_FILTERS);
+const sortCodec = stickyOneOf(SORT_KEYS);
+const summarySortCodec = stickyOneOf(SUMMARY_SORTS);
+const roleCodec = stickyOneOf(ROLE_FILTERS);
+
 
 /**
  * Names that exist in GA4 and can never be in ours, so their absence is not a fault.
@@ -315,14 +356,14 @@ export default function LiveEventsPage() {
   // left: active users
   const [activeUsers, setActiveUsers] = useState<ActiveUser[]>([]);
   const [search, setSearch] = useState("");
-  const [roleFilter, setRoleFilter] = useState("all");
+  const [roleFilter, setRoleFilter] = useStickyState(PAGE, "role", "all" as (typeof ROLE_FILTERS)[number], roleCodec);
   /**
    * On by default: a user who stopped sending is not what this page is for.
    *
    * The list is already capped at thirty minutes, which is long enough to fill with runs that ended.
    * The box is right there for the moment somebody wants one of them back.
    */
-  const [liveOnly, setLiveOnly] = useState(true);
+  const [liveOnly, setLiveOnly] = useStickyState(PAGE, "liveOnly", true, stickyBoolean);
   /**
    * Which build to show: "debug" for the phones doing the testing, "release" for the people using
    * the product, "all" for both. Defaults to debug — this page exists to watch a test run, and four
@@ -344,14 +385,26 @@ export default function LiveEventsPage() {
    * A rolling window could not express "1 to 14 August" either, which is most of what a date
    * control is wanted for.
    */
-  const [range, setRange] = useState<DayRange>(defaultRange);
+  const [range, setRange] = useStickyState<DayRange>(PAGE, "range", defaultRange(), stickyDayRange);
   /** The beat this range is polled on; the header prints it so the reader knows what "live" means here. */
   const pollMsForRange = useMemo(() => usersPollMs(range), [range]);
+
+  /**
+   * Who is on the app right now, pushed by the server (decision 0122).
+   *
+   * This used to be counted here, out of the thirty-day list: `activeUsers.filter(u => live)`. That
+   * made the live number as old as the heaviest read on the page — 5.0 s and 671 MB of disk on
+   * production — and as narrow as its limit, so a phone outside the first two hundred rows was on
+   * the app and not in the count. The server now keeps it as batches arrive and pushes the change,
+   * and the number below is over every live device rather than over the shown page.
+   */
+  const [liveNow, setLiveNow] = useState<LiveNow | null>(null);
+  const [liveState_, setLiveState] = useState<LiveNowState>("connecting");
   /**
    * How many rows to ask for. The list was fixed at 200 and silently cut: 199 rows out of at least
    * 999, under a header that read like a population.
    */
-  const [pageSize, setPageSize] = useState(200);
+  const [pageSize, setPageSize] = useStickyState(PAGE, "rows", 200, stickyNumberRequired);
   /** What the page is a part of — total, whether it was cut, and what the build filter is hiding. */
   /**
    * When the shown list was computed, and how long the server took to answer.
@@ -401,11 +454,11 @@ export default function LiveEventsPage() {
    * to answer. [versionTouched] exists so that default cannot overwrite a choice the user has
    * already made when the version list refreshes underneath them.
    */
-  const [sumBuild, setSumBuild] = useState<BuildFilter>("release");
+  const [sumBuild, setSumBuild] = useStickyState<BuildFilter>(PAGE, "sumBuild", "release", buildCodec);
   const [sumVersionNames, setSumVersionNames] = useState<string[]>([]);
   const [versionTouched, setVersionTouched] = useState(false);
-  const [sumRange, setSumRange] = useState<DayRange>(defaultRange);
-  const [sumSort, setSumSort] = useState<"ours" | "diff" | "name">("ours");
+  const [sumRange, setSumRange] = useStickyState<DayRange>(PAGE, "sumRange", defaultRange(), stickyDayRange);
+  const [sumSort, setSumSort] = useStickyState<"ours" | "diff" | "name">(PAGE, "sumSort", "ours", summarySortCodec);
   const [onlyDiff, setOnlyDiff] = useState(false);
 
 
@@ -489,13 +542,13 @@ export default function LiveEventsPage() {
 
 
 
-  const [buildFilter, setBuildFilter] = useState<BuildFilter>("debug");
+  const [buildFilter, setBuildFilter] = useStickyState<BuildFilter>(PAGE, "build", "release", buildCodec);
   /** null = every version. A versionCode, not a name: names repeat across builds, codes do not. */
-  const [versionFilter, setVersionFilter] = useState<number | null>(null);
+  const [versionFilter, setVersionFilter] = useStickyState<number | null>(PAGE, "ver", null, stickyNumber);
   const [appVersions, setAppVersions] = useState<AppVersion[]>([]);
   /** True once the user list has arrived — the signal the slower, decorative reads wait for. */
   const [usersLoaded, setUsersLoaded] = useState(false);
-  const [sortBy, setSortBy] = useState<SortKey>("recent");
+  const [sortBy, setSortBy] = useStickyState<SortKey>(PAGE, "sort", "recent", sortCodec);
   const [usersError, setUsersError] = useState("");
 
   // right: selected user debug stream
@@ -709,6 +762,14 @@ export default function LiveEventsPage() {
     },
     [router],
   );
+
+  // The live-now stream. It is deliberately outside every filter: "who is on the app" does not
+  // change because the reader narrowed the list below it to one build.
+  useEffect(() => {
+    if (!isLoggedIn()) return;
+    const stream = openLiveNowStream(setLiveNow, setLiveState);
+    return () => stream.close();
+  }, []);
 
   // poll active users
   useEffect(() => {
@@ -1108,7 +1169,10 @@ export default function LiveEventsPage() {
     return `build ${buildFilter}, ${version}, ${formatDay(range.from)} to ${formatDay(range.to)}`;
   }, [buildFilter, versionFilter, appVersions, range]);
 
-  const liveCount = activeUsers.filter((u) => liveState(u.lastEventAt) === "live").length;
+  // The server's count when the stream has one, and the old derived count only until it does — so
+  // the page is never blank, and never silently shows the narrower number as if it were the wider.
+  const derivedLiveCount = activeUsers.filter((u) => liveState(u.lastEventAt) === "live").length;
+  const liveCount = liveNow?.seeded ? liveNow.live : derivedLiveCount;
   const selectedUser = activeUsers.find((u) => u.userId === selectedId);
 
   return (
@@ -1139,10 +1203,23 @@ export default function LiveEventsPage() {
                 )}
               </h2>
             </div>
+            <p className="le-computed-at">
+              <span className="le-live-pill" data-state={liveState_} title={LIVE_STATE_TITLE[liveState_]}>
+                {LIVE_STATE_LABEL[liveState_]}
+              </span>
+              {liveNow ? (
+                <>
+                  {" "}
+                  · {liveNow.recent} aur pichhle {Math.round(liveNow.windowSeconds / 60)} minute mein
+                  {liveNow.dropped > 0 ? ` · kam se kam (${liveNow.dropped} chhoot gaye)` : ""}
+                </>
+              ) : null}
+            </p>
             {computed && (
               <p className="le-computed-at">
-                {pollMsForRange > USERS_POLL_FAST_MS ? "Har minute" : "Har 5 second"} · computed{" "}
-                {computed.at.toLocaleTimeString()} · server {(computed.tookMs / 1000).toFixed(1)}s
+                Neeche ki list {pollMsForRange > USERS_POLL_FAST_MS ? "har minute" : "har 5 second"} alag
+                se poochhi jati hai · computed {computed.at.toLocaleTimeString()} · server{" "}
+                {(computed.tookMs / 1000).toFixed(1)}s
               </p>
             )}
 
@@ -1153,7 +1230,7 @@ export default function LiveEventsPage() {
               onChange={(e) => setSearch(e.target.value)}
             />
             <div className="le-filters">
-              <select className="input" value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}>
+              <select className="input" value={roleFilter} onChange={(e) => setRoleFilter(e.target.value as (typeof ROLE_FILTERS)[number])}>
                 <option value="all">All roles</option>
                 <option value="guest">Guest</option>
                 <option value="user">User</option>
