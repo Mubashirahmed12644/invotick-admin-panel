@@ -659,9 +659,10 @@ export const api = {
     return apiRequest<ContactPage>(`/v1/webpanel/contact-data/contacts${query ? `?${query}` : ""}`);
   },
 
-  getBillingHealth(sharingThreshold = 2) {
+  /** @param includeTest put test purchases back into every count (decision 0156); left out by default. */
+  getBillingHealth(sharingThreshold = 2, includeTest = false) {
     return apiRequest<BillingHealthSummary>(
-      `/v1/webpanel/billing-health/summary?sharingThreshold=${sharingThreshold}`,
+      `/v1/webpanel/billing-health/summary?sharingThreshold=${sharingThreshold}&includeTest=${includeTest}`,
     );
   },
 

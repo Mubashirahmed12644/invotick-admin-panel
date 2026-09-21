@@ -21,6 +21,10 @@ import { useRouter } from "next/navigation";
  * The last one is not fraud. It is people who bought as guests: no email, no password, and a
  * purchase that disappears with the device. They can be reached before that happens, which is the
  * only reason to count them.
+ *
+ * Test purchases are left out of every count unless "Include test purchases" is ticked (decision
+ * 0156). Which purchases are tests is Google's (or Apple's) own word, kept by the server — never a
+ * list of test phones.
  */
 export default function BillingHealthPage() {
   const router = useRouter();
@@ -28,12 +32,13 @@ export default function BillingHealthPage() {
   const [summary, setSummary] = useState<BillingHealthSummary | null>(null);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [includeTest, setIncludeTest] = useState(false);
 
   const load = useCallback(async () => {
     setIsLoading(true);
     setError("");
     try {
-      setSummary(await api.getBillingHealth());
+      setSummary(await api.getBillingHealth(2, includeTest));
     } catch (err) {
       if (isUnauthorizedError(err)) {
         clearAccessToken({ sessionExpired: true });
@@ -44,7 +49,7 @@ export default function BillingHealthPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [router]);
+  }, [router, includeTest]);
 
   useEffect(() => {
     void load();
@@ -56,11 +61,31 @@ export default function BillingHealthPage() {
       <div className="app-main">
         <Navbar title="Billing Health" backHref="/health" backLabel="Health Centre" />
         <section className="content-wrap">
-          <div style={{ marginBottom: 20 }}>
+          <div style={{ marginBottom: 20, display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
             <button type="button" onClick={() => void load()} disabled={isLoading}>
               Refresh
             </button>
+            <label style={{ display: "flex", gap: 8, alignItems: "center", minHeight: 48 }}>
+              <input
+                type="checkbox"
+                checked={includeTest}
+                onChange={(e) => setIncludeTest(e.target.checked)}
+                disabled={isLoading}
+              />
+              Include test purchases
+            </label>
           </div>
+
+          {!isLoading && !error && summary && (
+            <p style={{ opacity: 0.7, marginBottom: 16, fontSize: 14 }}>
+              {summary.includesTest
+                ? "Counts include test purchases."
+                : summary.testPurchasesLive === undefined
+                  ? "This server does not label test purchases yet, so every purchase is counted."
+                  : `Counts leave out test purchases: ${fmt(summary.testPurchasesLive)} live now. ` +
+                    `${fmt(summary.purchasesNotYetLabelled)} purchase(s) not labelled by the store yet are counted as real.`}
+            </p>
+          )}
 
           {isLoading && <LoadingState />}
           {!isLoading && error && <ErrorState message={error} onRetry={() => void load()} />}
@@ -108,6 +133,7 @@ export default function BillingHealthPage() {
                         <th>Product</th>
                         <th>Accounts</th>
                         <th>First seen</th>
+                        <th>Store says</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -117,6 +143,7 @@ export default function BillingHealthPage() {
                           <td>{row.productId}</td>
                           <td><strong>{row.accountBindingCount}</strong></td>
                           <td title={row.firstSeenAt}>{row.firstSeenAt.slice(0, 10)}</td>
+                          <td>{row.testPurchase === true ? "Test" : row.testPurchase === false ? "Real" : "Not asked yet"}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -129,6 +156,11 @@ export default function BillingHealthPage() {
       </div>
     </main>
   );
+}
+
+/** -1 is how the API reports a count it could not take; absent is an older server. */
+function fmt(value: number | undefined): string {
+  return value === undefined || value < 0 ? "—" : value.toLocaleString();
 }
 
 function Stat({

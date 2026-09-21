@@ -1181,6 +1181,16 @@ export interface BillingHealthSummary {
   paidButNotEnabled: number;
   heldByGuests: number;
   widelyShared: SharedPurchase[];
+  /**
+   * Whether the counts above include test purchases (decision 0156). They are left out unless asked
+   * for — whether a purchase is a test is Google's (or Apple's) own word, never guessed. Absent on a
+   * backend without 0156.
+   */
+  includesTest?: boolean;
+  /** Live grants the store calls test purchases — what the counts leave out by default. -1 unknown. */
+  testPurchasesLive?: number;
+  /** Purchases the store has not labelled test or real yet; the counts treat them as real. -1 unknown. */
+  purchasesNotYetLabelled?: number;
 }
 
 export interface SharedPurchase {
@@ -1188,6 +1198,8 @@ export interface SharedPurchase {
   productId: string;
   accountBindingCount: number;
   firstSeenAt: string;
+  /** The store's word (0156): true a test purchase, false real, null/absent not asked yet. */
+  testPurchase?: boolean | null;
 }
 
 /**
@@ -1417,6 +1429,8 @@ export interface SupportEntitlement {
   purchaseFirstSeenAt: string | null;
   purchaseLastVerifiedAt: string | null;
   accountBindingCount: number | null;
+  /** The store's word (0156): true a test purchase, false real, null/absent not asked yet. */
+  testPurchase?: boolean | null;
 }
 
 export interface SupportBinding {
