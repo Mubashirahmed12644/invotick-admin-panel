@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
+import { useSyncExternalStore } from "react";
 import Sidebar from "@/components/Sidebar";
 import { FirstInvoiceJourney, FunnelDashboard, JourneyCompare } from "@/features/funnel-analysis";
 import styles from "@/features/funnel-analysis/styles/version-comparison.module.css";
+import { stickyOneOf, useStickyState } from "@/lib/stickyFilters";
 
 function subscribe() {
   return () => {};
@@ -24,9 +25,12 @@ function getServerSnapshot() {
  */
 type JourneyMode = "journey" | "compare";
 
+/** The open tab is part of what a reload, Back and a copied link keep (decisions 0123, 0140). */
+const tabCodec = stickyOneOf(["journey", "compare"] as const) as import("@/lib/stickyFilters").StickyCodec<JourneyMode>;
+
 export default function FunnelPageClient() {
   const isClient = useSyncExternalStore(subscribe, getClientSnapshot, getServerSnapshot);
-  const [mode, setMode] = useState<JourneyMode>("journey");
+  const [mode, setMode] = useStickyState<JourneyMode>("funnel-tab", "tab", "journey", tabCodec);
 
   return (
     <main className="app-shell">

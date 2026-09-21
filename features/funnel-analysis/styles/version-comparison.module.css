@@ -1,8 +1,85 @@
 /* Version comparison (decision 0114) — cells of the side-by-side ladder. */
 
+/*
+ * The ladder table (decision 0140). The shared `.live-table` is `table-layout: fixed` at 100% width,
+ * which splits the width equally and ignores content; with the step names on `nowrap` the longest
+ * one ("Invoice share ki (share confirm hua — G1)") ran over the first number, and on 2026-09-21 hid
+ * Tier 3's figure. Here the table sizes to its content and scrolls sideways inside its frame, the
+ * step name wraps inside its own cell, and that first column stays in place while the numbers
+ * scroll, so on a phone the name and its number are always on screen together.
+ */
+.table {
+  table-layout: auto;
+  width: 100%;
+}
+
 .table td,
 .table th {
   vertical-align: top;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--md-sys-color-outline-variant);
+}
+
+.table tr > :first-child {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  min-width: 132px;
+  max-width: 200px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  background: var(--md-sys-color-surface-container-lowest);
+  box-shadow: 1px 0 0 var(--md-sys-color-outline-variant);
+}
+
+/* The corner cell sits above both the sticky heading row and the sticky first column. */
+.table thead tr:first-child > :first-child {
+  z-index: 3;
+}
+
+.table th {
+  white-space: normal;
+  min-width: 120px;
+}
+
+.wrap {
+  max-height: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.notice {
+  font-size: 0.9rem;
+  line-height: 1.45;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: rgba(46, 144, 250, 0.08);
+  border: 1px solid rgba(46, 144, 250, 0.35);
+  margin: 0;
+}
+
+.notice p {
+  margin: 0 0 6px;
+}
+
+.notice p:last-child {
+  margin-bottom: 0;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.windowBtn {
+  padding: 5px 12px;
+  border-radius: 999px;
+  border: 1px solid #0e7c6b;
+  color: #0e7c6b;
+  background: rgba(14, 124, 107, 0.08);
+  font-size: 0.85rem;
+  cursor: pointer;
 }
 
 .cohortRow td {
@@ -12,7 +89,6 @@
 
 .stepName {
   font-weight: 500;
-  white-space: nowrap;
 }
 
 .goal .stepName {
@@ -20,7 +96,7 @@
 }
 
 .cell {
-  min-width: 150px;
+  min-width: 120px;
   font-variant-numeric: tabular-nums;
   border-left: 3px solid transparent;
 }

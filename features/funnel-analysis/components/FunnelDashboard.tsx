@@ -287,7 +287,7 @@ function StepCard({ step, isBottleneck }: StepCardProps) {
 /** One key for this page's remembered filters (decision 0123). */
 const PAGE = "funnel-query";
 const FUNNEL_BYS = ["SCREEN", "EVENT"] as const;
-const FUNNEL_MODES = ["ORDERED", "UNORDERED"] as const;
+const FUNNEL_MODES = ["STRICT", "ORDERED", "ANY_ORDER"] as const;
 const funnelByCodec = stickyOneOf(FUNNEL_BYS) as unknown as import("@/lib/stickyFilters").StickyCodec<FunnelBy>;
 const funnelModeCodec = stickyOneOf(FUNNEL_MODES) as unknown as import("@/lib/stickyFilters").StickyCodec<FunnelMode>;
 
@@ -296,14 +296,14 @@ export function FunnelDashboard() {
 
   const [steps, setSteps] = useState<string[]>(["", ""]);
   const [funnelBy, setFunnelBy] = useStickyState<FunnelBy>(PAGE, "by", "SCREEN", funnelByCodec);
-  const [mode, setMode] = useStickyState<FunnelMode>(PAGE, "mode", "ORDERED", funnelModeCodec);
+  const [mode, setMode] = useStickyState<FunnelMode>(PAGE, "fmode", "ORDERED", funnelModeCodec);
   const [from, setFrom] = useState(() =>
     toDateTimeLocalValue(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)),
   );
   const [to, setTo] = useState(() => toDateTimeLocalValue(new Date()));
   const [platform, setPlatform] = useStickyState(PAGE, "platform", "", stickyString);
   // The build number, held as a string because that is what a <select> value is. "" means All.
-  const [appVersionCode, setAppVersionCode] = useStickyState(PAGE, "ver", "", stickyString);
+  const [appVersionCode, setAppVersionCode] = useStickyState(PAGE, "fver", "", stickyString);
   const [dimensions, setDimensions] = useState<FunnelDimensions | null>(null);
   const [osVersion, setOsVersion] = useStickyState(PAGE, "os", "", stickyString);
   const [country, setCountry] = useStickyState(PAGE, "country", "", stickyString);

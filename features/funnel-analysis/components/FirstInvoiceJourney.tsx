@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, getErrorMessage } from "@/lib/api";
 import { downloadText, fileStamp } from "@/lib/clipboard";
 import { DateRangePicker, defaultRange, toRangeIso, type DayRange } from "@/components/DateRangePicker";
-import { stickyDayRange, stickyNumber, stickyOneOf, useStickyState } from "@/lib/stickyFilters";
+import { stickyDayRange, stickyOneOf, useStickyState } from "@/lib/stickyFilters";
 import type { AppVersion, JourneyFacet, JourneyReport } from "@/lib/types";
 import { withPlatform } from "@/lib/versionPlatform";
 
@@ -162,15 +162,26 @@ type Build = (typeof BUILDS)[number];
 type UiMode = (typeof UI_MODES)[number];
 const buildCodec = stickyOneOf(BUILDS);
 const uiModeCodec = stickyOneOf(UI_MODES);
+const verCodec: import("@/lib/stickyFilters").StickyCodec<string> = {
+  toParam: (v) => (v === "" ? null : v),
+  fromParam: (raw) => (raw === "all" || /^\d+$/.test(raw) ? raw : null),
+};
 
 export function FirstInvoiceJourney() {
   const [range, setRange] = useStickyState<DayRange>(PAGE, "range", defaultRange(), stickyDayRange);
   const [build, setBuild] = useStickyState(PAGE, "build", "release" as Build, buildCodec);
   /** Dark or light — the mode the screen was in, not the phone's setting. "all" = no filter. */
   const [uiMode, setUiMode] = useStickyState(PAGE, "mode", "all" as UiMode, uiModeCodec);
-  const [versionCode, setVersionCode] = useStickyState<number | null>(PAGE, "ver", null, stickyNumber);
-  const [touched, setTouched] = useState(false);
+  /**
+   * `""` = not chosen yet (the page picks the newest build), `"all"` = the reader chose All versions,
+   * or a version code. "All versions" is written into the URL as `ver=all` (decision 0140): as a
+   * missing parameter it read as "not chosen", and a reload quietly put the newest build back.
+   */
+  const [verChoice, setVerChoice] = useStickyState<string>(PAGE, "ver", "", verCodec);
+  const versionCode = /^\d+$/.test(verChoice) ? Number(verChoice) : null;
   const [versions, setVersions] = useState<AppVersion[]>([]);
+  /** The picker's list has arrived (or failed): until then an unchosen version is not asked for. */
+  const [versionsSettled, setVersionsSettled] = useState(false);
   const [report, setReport] = useState<JourneyReport | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -203,6 +214,8 @@ export function FirstInvoiceJourney() {
         if (!dead) setVersions(v);
       } catch {
         // The report is readable without the picker; an error banner here would be about a control.
+      } finally {
+        if (!dead) setVersionsSettled(true);
       }
     })();
     return () => {
@@ -213,12 +226,19 @@ export function FirstInvoiceJourney() {
   // Land on the newest build. "All versions" averages a build being rolled out with the one it
   // replaced, and a funnel read off that mixture describes neither.
   useEffect(() => {
-    if (touched || versionCode != null) return;
+    if (verChoice !== "") return;
     const newest = versions.find((v) => v.appVersionCode != null)?.appVersionCode;
-    if (newest != null) setVersionCode(newest);
-  }, [versions, touched, versionCode, setVersionCode]);
+    if (newest != null) setVerChoice(String(newest));
+  }, [versions, verChoice, setVerChoice]);
+
+  // Not chosen yet and the list not here: the newest build is about to be picked, so asking now
+  // would run the 30-day read twice, once for all versions and once for that build (0140).
+  // Also in the render where the list arrives: the pick above lands one render later.
+  const waitingForDefault =
+    verChoice === "" && (!versionsSettled || versions.some((v) => v.appVersionCode != null));
 
   useEffect(() => {
+    if (waitingForDefault) return;
     let dead = false;
     (async () => {
       setLoading(true);
@@ -240,7 +260,7 @@ export function FirstInvoiceJourney() {
     return () => {
       dead = true;
     };
-  }, [range, build, versionCode, uiMode]);
+  }, [range, build, versionCode, uiMode, waitingForDefault]);
 
   const versionLabel = useMemo(() => {
     if (versionCode == null) return "all versions";
@@ -306,10 +326,7 @@ export function FirstInvoiceJourney() {
         <select
           className="input"
           value={versionCode == null ? "all" : String(versionCode)}
-          onChange={(e) => {
-            setTouched(true);
-            setVersionCode(e.target.value === "all" ? null : Number(e.target.value));
-          }}
+          onChange={(e) => setVerChoice(e.target.value)}
         >
           <option value="all">All versions</option>
           {/* The chosen build stays in the list even when the range has no rows for it. Without

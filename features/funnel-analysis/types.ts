@@ -17,6 +17,16 @@ export interface CompareGroup {
   firstOpenTo: string | null;
   /** 0..1 of the cohort inside the stretch every shown group shares; null when none. */
   inCommonWindow: number | null;
+  /**
+   * When the first of `notYetJudged` will have had its whole window (decision 0140). Absent from a
+   * backend older than 0140, null when nobody is waiting.
+   */
+  nextReadyAt?: string | null;
+  /**
+   * Window in hours ("1", "24", "72", "168") → how many of this group's devices have already had all
+   * of it (0140). Absent from a backend older than 0140.
+   */
+  readyByWindow?: Record<string, number>;
 }
 
 export interface CompareCell {

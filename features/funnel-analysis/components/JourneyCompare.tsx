@@ -3,7 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { api, getErrorMessage } from "@/lib/api";
 import { DateRangePicker, defaultRange, toRangeIso, type DayRange } from "@/components/DateRangePicker";
+import { stickyDayRange, stickyOneOf, stickyString, useStickyState, type StickyCodec } from "@/lib/stickyFilters";
 import type { AppVersion } from "@/lib/types";
+import { withPlatform } from "@/lib/versionPlatform";
 import type { CompareBy, CompareCell, CompareGroup, ComparisonVerdict, JourneyCompare as Report } from "@/features/funnel-analysis/types";
 import styles from "@/features/funnel-analysis/styles/version-comparison.module.css";
 
@@ -86,6 +88,56 @@ function groupLabel(by: CompareBy, g: CompareGroup): string {
   return g.label;
 }
 
+/** `24 Sep, 5:18 pm` in the reader's own clock: the moment a waiting cohort becomes readable. */
+function fmtMoment(iso: string): string {
+  return new Date(iso).toLocaleString(undefined, { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
+}
+
+function windowLabel(hours: number): string {
+  if (hours === 1) return "1 ghanta";
+  if (hours === 24) return "24 ghante";
+  if (hours === 72) return "3 din";
+  if (hours === 168) return "7 din";
+  return `${hours} ghante`;
+}
+
+/** Below this a column's share is not a verdict (the backend's own `too_few` line). */
+const THIN = 50;
+
+// Every filter of this tab stays chosen through a reload, Back and a copied link (decision 0123).
+// Its URL names start with "c" because the journey tab and the screen funnel below share this URL,
+// and two components reading one name (`mode`, `ver`) overwrite each other (decision 0140).
+const PAGE = "funnel-compare";
+const BYS: readonly CompareBy[] = ["version", "country", "tier", "source", "campaign", "platform"];
+const byCodec = stickyOneOf(BYS as CompareBy[]) as StickyCodec<CompareBy>;
+const windowCodec: StickyCodec<number> = {
+  toParam: (v) => String(v),
+  fromParam: (raw) => (WINDOWS.some((w) => String(w.hours) === raw) ? Number(raw) : null),
+};
+const buildCodec = stickyOneOf(["release", "debug", "all"]);
+const countryModeCodec = stickyOneOf(["all", "only", "except"] as const) as StickyCodec<"all" | "only" | "except">;
+/** "" is "any", and is left out of the URL rather than written as an empty value. */
+function optionalOneOf(allowed: readonly string[]): StickyCodec<string> {
+  return {
+    toParam: (v) => (v === "" ? null : v),
+    fromParam: (raw) => (allowed.includes(raw) ? raw : null),
+  };
+}
+const tierCodec = optionalOneOf(["T1", "T2", "T3", "unknown"]);
+const platformCodec = optionalOneOf(["Android", "iOS"]);
+const countryCodeCodec: StickyCodec<string> = {
+  toParam: (v) => (v === "" ? null : v.toUpperCase()),
+  fromParam: (raw) => (/^[A-Za-z]{2}$/.test(raw) ? raw.toUpperCase() : null),
+};
+const versionCodec: StickyCodec<string> = {
+  toParam: (v) => (v === "" ? null : v),
+  fromParam: (raw) => (/^\d+$/.test(raw) ? raw : null),
+};
+const listCodec: StickyCodec<string[]> = {
+  toParam: (v) => (v.length === 0 ? null : v.join(",")),
+  fromParam: (raw) => raw.split(",").filter((x) => x !== "").slice(0, 6),
+};
+
 function fmtDay(iso: string | null): string {
   if (!iso) return "—";
   return new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short" });
@@ -119,21 +171,21 @@ function Cell({ c, cohort }: { c: CompareCell; cohort: number }) {
 }
 
 export function JourneyCompare() {
-  const [by, setBy] = useState<CompareBy>("version");
-  const [range, setRange] = useState<DayRange>(defaultRange);
-  const [build, setBuild] = useState("release");
-  const [windowHours, setWindowHours] = useState(24);
+  const [by, setBy] = useStickyState<CompareBy>(PAGE, "cby", "version", byCodec);
+  const [range, setRange] = useStickyState<DayRange>(PAGE, "crange", defaultRange(), stickyDayRange);
+  const [build, setBuild] = useStickyState<string>(PAGE, "cbuild", "release", buildCodec);
+  const [windowHours, setWindowHours] = useStickyState<number>(PAGE, "cwin", 24, windowCodec);
   // Fixed dimensions. "" = sab.
-  const [version, setVersion] = useState("");
-  const [countryMode, setCountryMode] = useState<"all" | "only" | "except">("all");
-  const [countryCode, setCountryCode] = useState("PK");
-  const [tier, setTier] = useState("");
-  const [source, setSource] = useState("");
-  const [campaign, setCampaign] = useState("");
-  const [platform, setPlatform] = useState("");
+  const [version, setVersion] = useStickyState<string>(PAGE, "cver", "", versionCodec);
+  const [countryMode, setCountryMode] = useStickyState<"all" | "only" | "except">(PAGE, "ccm", "all", countryModeCodec);
+  const [countryCode, setCountryCode] = useStickyState<string>(PAGE, "ccc", "PK", countryCodeCodec);
+  const [tier, setTier] = useStickyState<string>(PAGE, "ctier", "", tierCodec);
+  const [source, setSource] = useStickyState<string>(PAGE, "csrc", "", stickyString);
+  const [campaign, setCampaign] = useStickyState<string>(PAGE, "ccamp", "", stickyString);
+  const [platform, setPlatform] = useStickyState<string>(PAGE, "cplat", "", platformCodec);
   /** Chosen groups; empty = the backend's six largest. */
-  const [picked, setPicked] = useState<string[]>([]);
-  const [baseline, setBaseline] = useState("");
+  const [picked, setPicked] = useStickyState<string[]>(PAGE, "ccols", [], listCodec);
+  const [baseline, setBaseline] = useStickyState<string>(PAGE, "cbase", "", stickyString);
   const [campaigns, setCampaigns] = useState<CompareGroup[]>([]);
   const [versions, setVersions] = useState<AppVersion[]>([]);
   const [report, setReport] = useState<Report | null>(null);
@@ -157,11 +209,13 @@ export function JourneyCompare() {
   }, [range]);
 
   const codes = useMemo(() => {
-    const seen = new Map<number, string | null>();
+    const seen = new Map<number, { name: string | null; platforms: string[] | null | undefined }>();
     versions.forEach((v) => {
-      if (v.appVersionCode != null && !seen.has(v.appVersionCode)) seen.set(v.appVersionCode, v.appVersion);
+      if (v.appVersionCode != null && !seen.has(v.appVersionCode)) seen.set(v.appVersionCode, { name: v.appVersion, platforms: v.platforms });
     });
-    return [...seen.entries()].sort((a, b) => b[0] - a[0]).map(([code, name]) => ({ code, name }));
+    return [...seen.entries()]
+      .sort((a, b) => b[0] - a[0])
+      .map(([code, v]) => ({ code, name: v.name, label: withPlatform(`${v.name ?? "—"} (${code})`, v.platforms) }));
   }, [versions]);
 
   // A dimension cannot vary and be held fixed at once: switching "by" clears its own filter and the picks.
@@ -219,6 +273,11 @@ export function JourneyCompare() {
   }, [by, picked, baseline, windowHours, range, build, version, countryMode, countryCode, tier, source, campaign, platform]);
 
   const shown = report && report.by === by ? report : null;
+  /** A column's name; a version also says its platform, because 1.4.7 is 106 on Android and 21 on iOS. */
+  const colLabel = (g: CompareGroup) => {
+    if (by === "version") return codes.find((c) => String(c.code) === g.key)?.label ?? g.label;
+    return groupLabel(by, g);
+  };
   const cohortOf = (key: string) => shown?.groups.find((g) => g.key === key)?.cohort ?? 0;
   const allGroups = shown ? [...shown.groups, ...shown.others] : [];
   const current = picked.length > 0 ? picked : shown?.groups.map((g) => g.key) ?? [];
@@ -274,9 +333,12 @@ export function JourneyCompare() {
         {by !== "version" && (
           <select className="input" value={version} onChange={(e) => setVersion(e.target.value)}>
             <option value="">Version: sab</option>
+            {version !== "" && !codes.some((c) => String(c.code) === version) && (
+              <option value={version}>Version: ({version}) — is range mein nahi</option>
+            )}
             {codes.map((c) => (
               <option key={c.code} value={c.code}>
-                Version: {c.name ?? "—"} ({c.code})
+                Version: {c.label}
               </option>
             ))}
           </select>
@@ -313,6 +375,7 @@ export function JourneyCompare() {
         {by !== "source" && (
           <select className="input" value={source} onChange={(e) => setSource(e.target.value)}>
             <option value="">Source: sab</option>
+            {source !== "" && !SOURCE_FIXED.includes(source) && <option value={source}>Source: {SOURCE_LABEL[source] ?? source}</option>}
             {SOURCE_FIXED.map((s) => (
               <option key={s} value={s}>
                 Source: {SOURCE_LABEL[s] ?? s}
@@ -320,9 +383,10 @@ export function JourneyCompare() {
             ))}
           </select>
         )}
-        {by !== "campaign" && campaigns.length > 0 && (
+        {by !== "campaign" && (campaigns.length > 0 || campaign !== "") && (
           <select className="input" value={campaign} onChange={(e) => setCampaign(e.target.value)}>
             <option value="">Campaign: sab</option>
+            {campaign !== "" && !campaigns.some((c) => c.key === campaign) && <option value={campaign}>Campaign: {campaign}</option>}
             {campaigns.map((c) => (
               <option key={c.key} value={c.key}>
                 Campaign: {c.label}
@@ -345,13 +409,13 @@ export function JourneyCompare() {
           {allGroups.map((g) => (
             <label key={g.key} className="muted-line" style={{ display: "inline-flex", gap: 4, alignItems: "center" }}>
               <input type="checkbox" checked={current.includes(g.key)} onChange={() => toggle(g.key)} />
-              {groupLabel(by, g)} <span className={styles.count}>({g.cohort})</span>
+              {colLabel(g)} <span className={styles.count}>({g.cohort})</span>
             </label>
           ))}
           <select className="input" value={baseline || shown.baseline} onChange={(e) => setBaseline(e.target.value)} title="Baqi sab is se milaye jayenge">
             {shown.groups.map((g) => (
               <option key={g.key} value={g.key}>
-                Buniyad: {groupLabel(by, g)}
+                Buniyad: {colLabel(g)}
               </option>
             ))}
           </select>
@@ -363,9 +427,13 @@ export function JourneyCompare() {
       ) : loading && !shown ? (
         <p className="muted-line">Load ho raha hai… (30 din ka muqabla 10 second tak le sakta hai)</p>
       ) : !shown ? null : shown.groups.length === 0 ? (
-        <p className="muted-line">In filters mein koi naya user nahi mila.</p>
+        <p className={styles.notice}>
+          In filters aur in tareekhon mein <strong>koi naya user nahi mila</strong> — na tayyar, na intezaar mein.
+          Tareekhein barhayein ya koi &ldquo;fixed&rdquo; filter hatayein.
+        </p>
       ) : (
         <>
+          <WhyThin report={shown} windowHours={windowHours} label={colLabel} onWindow={setWindowHours} />
           {by === "campaign" && shown.metaCampaigns === "key_missing" && (
             <p className={styles.warn}>
               Facebook/Instagram ke ads ki campaign abhi <strong>band (locked)</strong> hai: Meta har install ke
@@ -374,14 +442,15 @@ export function JourneyCompare() {
               alag ho jayenge — purane installs samet.
             </p>
           )}
-          <div className="live-table-wrap">
+          {shown.groups.some((g) => g.cohort > 0) && (
+          <div className={`live-table-wrap ${styles.wrap}`}>
             <table className={`live-table ${styles.table}`}>
               <thead>
                 <tr>
                   <th className="live-th">Qadam</th>
                   {shown.groups.map((g) => (
                     <th key={g.key} className="live-th">
-                      {groupLabel(by, g)}
+                      {colLabel(g)}
                       {g.key === shown.baseline ? " · buniyad" : ""}
                     </th>
                   ))}
@@ -394,10 +463,16 @@ export function JourneyCompare() {
                   {shown.groups.map((g) => (
                     <td key={g.key}>
                       <strong>{g.cohort}</strong>
-                      {g.cohort > 0 && g.cohort < 50 && <div className={styles.sub}>kam log — faisla nahi</div>}
-                      <div className={styles.sub}>
-                        pehli opening {fmtDay(g.firstOpenFrom)} – {fmtDay(g.firstOpenTo)}
-                      </div>
+                      {g.cohort > 0 && g.cohort < THIN && <div className={styles.sub}>kam log — faisla nahi</div>}
+                      {g.cohort > 0 ? (
+                        <div className={styles.sub}>
+                          pehli opening {fmtDay(g.firstOpenFrom)} – {fmtDay(g.firstOpenTo)}
+                        </div>
+                      ) : (
+                        <div className={styles.sub}>
+                          abhi koi tayyar nahi{g.nextReadyAt ? ` — pehla ${fmtMoment(g.nextReadyAt)}` : ""}
+                        </div>
+                      )}
                       {g.inCommonWindow != null && shown.groups.length > 1 && (
                         <div className={styles.sub}>{Math.round(g.inCommonWindow * 100)}% sab ke saanjhe dinon mein</div>
                       )}
@@ -418,6 +493,7 @@ export function JourneyCompare() {
               </tbody>
             </table>
           </div>
+          )}
 
           {shown.calendar.warning && (
             <p className={styles.warn}>
@@ -449,5 +525,103 @@ export function JourneyCompare() {
         </>
       )}
     </section>
+  );
+}
+
+/**
+ * Says in words why a table is empty or a column is thin (decision 0140).
+ *
+ * On 2026-09-21 the owner picked 1.4.7 and "7 din" and got a table of zeros and dashes. The numbers
+ * were right: 1.4.7's first user had opened the app four days earlier, so nobody could have had seven
+ * days yet. The table could not say that. This does, with the date the first one will be ready and the
+ * shorter windows that already have people in them, as buttons.
+ */
+function WhyThin({
+  report,
+  windowHours,
+  label,
+  onWindow,
+}: {
+  report: Report;
+  windowHours: number;
+  label: (g: CompareGroup) => string;
+  onWindow: (hours: number) => void;
+}) {
+  const groups = report.groups;
+  const waiting = groups.reduce((n, g) => n + g.notYetJudged, 0);
+  const judged = groups.reduce((n, g) => n + g.cohort, 0);
+  const next = groups
+    .map((g) => g.nextReadyAt)
+    .filter((x): x is string => !!x)
+    .sort()[0];
+  const hasReady = groups.some((g) => g.readyByWindow != null);
+  /** Shorter windows, with how many of the shown columns' users each already holds. */
+  const shorter = WINDOWS.filter((w) => w.hours < windowHours)
+    .map((w) => ({
+      hours: w.hours,
+      total: groups.reduce((n, g) => n + (g.readyByWindow?.[String(w.hours)] ?? 0), 0),
+    }))
+    .filter((w) => w.total > 0)
+    .reverse();
+
+  if (judged === 0) {
+    return (
+      <div className={styles.notice} role="status">
+        <p>
+          <strong>
+            Is waqt ({windowLabel(windowHours)}) ke liye abhi koi user tayyar nahi — is liye table khali hai.
+          </strong>{" "}
+          Ye data ki ghalti nahi. In filters ke <strong>{waiting}</strong> naye users mein se kisi ko bhi apni pehli
+          opening ke baad abhi {windowLabel(windowHours)} poore nahi hue, aur jis ka waqt poora nahi hua use
+          &ldquo;invoice nahi banai&rdquo; mein gina nahi jata.
+        </p>
+        {next && (
+          <p>
+            Pehla user <strong>{fmtMoment(next)}</strong> ko tayyar hoga.
+          </p>
+        )}
+        {hasReady && shorter.length > 0 ? (
+          <p className={styles.actions}>
+            Abhi dekhna ho to chhota waqt chunein:
+            {shorter.map((w) => (
+              <button key={w.hours} type="button" className={styles.windowBtn} onClick={() => onWindow(w.hours)}>
+                {windowLabel(w.hours)} — {w.total} log
+              </button>
+            ))}
+          </p>
+        ) : (
+          !hasReady && <p>Chhota waqt (jaise 24 ghante ya 1 ghanta) chun kar dekhein.</p>
+        )}
+      </div>
+    );
+  }
+
+  const thin = groups.filter((g) => g.cohort < THIN);
+  if (thin.length === 0) return null;
+  // The longest shorter window in which every thin column already has enough people to be a verdict.
+  const enough = hasReady
+    ? WINDOWS.filter((w) => w.hours < windowHours)
+        .reverse()
+        .find((w) => thin.every((g) => (g.readyByWindow?.[String(w.hours)] ?? 0) >= THIN))
+    : undefined;
+  return (
+    <div className={styles.notice} role="status">
+      <p>
+        <strong>{thin.map(label).join(", ")}</strong>: {THIN} se kam log jin ka {windowLabel(windowHours)} poora hua
+        {" "}({thin.map((g) => g.cohort).join(", ")}). In ka % faisla nahi deta — thore log ho to ek do ka farq bhi
+        bara lagta hai.
+        {thin.some((g) => g.notYetJudged > 0) && (
+          <> Abhi {thin.reduce((n, g) => n + g.notYetJudged, 0)} aur intezaar mein hain.</>
+        )}
+      </p>
+      {enough && (
+        <p className={styles.actions}>
+          <button type="button" className={styles.windowBtn} onClick={() => onWindow(enough.hours)}>
+            {windowLabel(enough.hours)} chunein
+          </button>{" "}
+          — us mein har column mein {THIN}+ log hain.
+        </p>
+      )}
+    </div>
   );
 }
