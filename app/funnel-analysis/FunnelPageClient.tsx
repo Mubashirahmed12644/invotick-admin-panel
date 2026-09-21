@@ -25,7 +25,7 @@ function getServerSnapshot() {
  */
 type JourneyMode = "journey" | "compare";
 
-/** The open tab is part of what a reload, Back and a copied link keep (decisions 0123, 0140). */
+/** The open tab is part of what a reload, Back and a copied link keep (decisions 0123, 0141). */
 const tabCodec = stickyOneOf(["journey", "compare"] as const) as import("@/lib/stickyFilters").StickyCodec<JourneyMode>;
 
 export default function FunnelPageClient() {

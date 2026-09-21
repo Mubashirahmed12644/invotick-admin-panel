@@ -106,7 +106,7 @@ const THIN = 50;
 
 // Every filter of this tab stays chosen through a reload, Back and a copied link (decision 0123).
 // Its URL names start with "c" because the journey tab and the screen funnel below share this URL,
-// and two components reading one name (`mode`, `ver`) overwrite each other (decision 0140).
+// and two components reading one name (`mode`, `ver`) overwrite each other (decision 0141).
 const PAGE = "funnel-compare";
 const BYS: readonly CompareBy[] = ["version", "country", "tier", "source", "campaign", "platform"];
 const byCodec = stickyOneOf(BYS as CompareBy[]) as StickyCodec<CompareBy>;
@@ -529,7 +529,7 @@ export function JourneyCompare() {
 }
 
 /**
- * Says in words why a table is empty or a column is thin (decision 0140).
+ * Says in words why a table is empty or a column is thin (decision 0141).
  *
  * On 2026-09-21 the owner picked 1.4.7 and "7 din" and got a table of zeros and dashes. The numbers
  * were right: 1.4.7's first user had opened the app four days earlier, so nobody could have had seven

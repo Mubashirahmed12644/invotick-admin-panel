@@ -174,7 +174,7 @@ export function FirstInvoiceJourney() {
   const [uiMode, setUiMode] = useStickyState(PAGE, "mode", "all" as UiMode, uiModeCodec);
   /**
    * `""` = not chosen yet (the page picks the newest build), `"all"` = the reader chose All versions,
-   * or a version code. "All versions" is written into the URL as `ver=all` (decision 0140): as a
+   * or a version code. "All versions" is written into the URL as `ver=all` (decision 0141): as a
    * missing parameter it read as "not chosen", and a reload quietly put the newest build back.
    */
   const [verChoice, setVerChoice] = useStickyState<string>(PAGE, "ver", "", verCodec);
@@ -232,7 +232,7 @@ export function FirstInvoiceJourney() {
   }, [versions, verChoice, setVerChoice]);
 
   // Not chosen yet and the list not here: the newest build is about to be picked, so asking now
-  // would run the 30-day read twice, once for all versions and once for that build (0140).
+  // would run the 30-day read twice, once for all versions and once for that build (0141).
   // Also in the render where the list arrives: the pick above lands one render later.
   const waitingForDefault =
     verChoice === "" && (!versionsSettled || versions.some((v) => v.appVersionCode != null));

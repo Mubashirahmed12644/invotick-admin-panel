@@ -1,7 +1,7 @@
 /* Version comparison (decision 0114) — cells of the side-by-side ladder. */
 
 /*
- * The ladder table (decision 0140). The shared `.live-table` is `table-layout: fixed` at 100% width,
+ * The ladder table (decision 0141). The shared `.live-table` is `table-layout: fixed` at 100% width,
  * which splits the width equally and ignores content; with the step names on `nowrap` the longest
  * one ("Invoice share ki (share confirm hua — G1)") ran over the first number, and on 2026-09-21 hid
  * Tier 3's figure. Here the table sizes to its content and scrolls sideways inside its frame, the
