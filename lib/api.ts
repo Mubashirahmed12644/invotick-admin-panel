@@ -29,6 +29,7 @@ import type {
   ContactPage,
   SyncHealthOccurrence,
   BillingHealthSummary,
+  MoveCountReset,
   SyncHealthSignature,
   SyncHealthTrace,
   SyncHealthTraceLine,
@@ -663,6 +664,17 @@ export const api = {
     return apiRequest<BillingHealthSummary>(
       `/v1/webpanel/billing-health/summary?sharingThreshold=${sharingThreshold}`,
     );
+  },
+
+  /**
+   * Starts a purchase's move count again (decision 0143): it may then move to another account three more times
+   * in twelve months. Writes who and why to the binding log; touches no store, grant or account.
+   */
+  resetPurchaseMoves(provider: string, providerPurchaseId: string, why: string) {
+    return apiRequest<MoveCountReset>("/v2/admin/billing/purchases/moves/reset", {
+      method: "POST",
+      body: JSON.stringify({ provider, providerPurchaseId, why }),
+    });
   },
 
   /**

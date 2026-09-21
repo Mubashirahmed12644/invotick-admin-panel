@@ -1181,6 +1181,12 @@ export interface BillingHealthSummary {
   paidButNotEnabled: number;
   heldByGuests: number;
   widelyShared: SharedPurchase[];
+  /** Accounts refused a 4th move in twelve months, last 30 days (decision 0143). -1 when unknown; absent on an older backend. */
+  movesRefused?: number;
+  /** The purchases behind movesRefused — where support resets a count. */
+  refusedAMove?: SharedPurchase[];
+  /** Moves allowed in twelve months. */
+  moveLimit?: number;
 }
 
 export interface SharedPurchase {
@@ -1188,6 +1194,17 @@ export interface SharedPurchase {
   productId: string;
   accountBindingCount: number;
   firstSeenAt: string;
+  /** GOOGLE_PLAY or APPLE_APP_STORE — what a reset names. */
+  provider?: string;
+  /** Moves between accounts in the last twelve months, after any reset (decision 0143). -1 when unknown. */
+  movesInWindow?: number;
+}
+
+/** The answer to a support reset of a purchase's move count (decision 0143). */
+export interface MoveCountReset {
+  providerPurchaseId: string;
+  movesBefore: number;
+  movesNow: number;
 }
 
 /**
