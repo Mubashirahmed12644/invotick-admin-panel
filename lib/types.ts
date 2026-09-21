@@ -278,6 +278,10 @@ export interface JourneyReport {
   createdInvoice: number;
   steps: JourneyStep[];
   users: JourneyUser[];
+  /** Where the rows came from (0142): the per-device journey table, or the old read of the events. */
+  readFrom?: "table" | "events";
+  /** Why the events were read: asked, switched_off, not_filled, filling, behind, older_than_retention. */
+  readFromReason?: string | null;
 }
 
 export interface EventSummaryPage {
@@ -1483,4 +1487,21 @@ export interface SupportViewLogPage {
   page: number;
   size: number;
   total: number;
+}
+
+/**
+ * Where a journey page's rows came from, in the owner's words (decision 0142). Both sources give the
+ * same answer; the table is the fast one, and the page says when it had to read the events instead.
+ */
+export function readFromLine(readFrom?: string, reason?: string | null): string {
+  if (readFrom === "table") return "journey table se";
+  const why: Record<string, string> = {
+    asked: "aap ne purana tareeqa chuna",
+    switched_off: "table band hai",
+    not_filled: "table abhi bhari nahi",
+    filling: "table abhi bhar rahi hai",
+    behind: "table peeche reh gayi — Health Centre dekhein",
+    older_than_retention: "itna purana arsa table mein nahi",
+  };
+  return `events se (purana tareeqa${reason ? ` — ${why[reason] ?? reason}` : ""})`;
 }

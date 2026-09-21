@@ -5,6 +5,7 @@ import { api, getErrorMessage } from "@/lib/api";
 import { DateRangePicker, defaultRange, toRangeIso, type DayRange } from "@/components/DateRangePicker";
 import { stickyDayRange, stickyOneOf, stickyString, useStickyState, type StickyCodec } from "@/lib/stickyFilters";
 import type { AppVersion } from "@/lib/types";
+import { readFromLine } from "@/lib/types";
 import { withPlatform } from "@/lib/versionPlatform";
 import type { CompareBy, CompareCell, CompareGroup, ComparisonVerdict, JourneyCompare as Report } from "@/features/funnel-analysis/types";
 import styles from "@/features/funnel-analysis/styles/version-comparison.module.css";
@@ -191,6 +192,9 @@ export function JourneyCompare() {
   const [report, setReport] = useState<Report | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  /** The old read of the event table, to compare with the journey table (decision 0142). */
+  const [oldRead, setOldRead] = useState(false);
+  const [tookMs, setTookMs] = useState<number | null>(null);
 
   useEffect(() => {
     let dead = false;
@@ -242,6 +246,7 @@ export function JourneyCompare() {
       try {
         const iso = toRangeIso(range);
         const code = countryCode.trim().toUpperCase();
+        const startedAt = Date.now();
         const r = await api.getJourneyCompare({
           by,
           values: picked.length > 0 ? picked : undefined,
@@ -257,8 +262,10 @@ export function JourneyCompare() {
           source: by !== "source" ? source || undefined : undefined,
           campaign: by !== "campaign" ? campaign || undefined : undefined,
           platform: by !== "platform" ? platform || undefined : undefined,
+          readFrom: oldRead ? "events" : undefined,
         });
         if (dead) return;
+        setTookMs(Date.now() - startedAt);
         setReport(r);
         if (r.by === "campaign") setCampaigns([...r.groups, ...r.others]);
       } catch (err) {
@@ -270,7 +277,7 @@ export function JourneyCompare() {
     return () => {
       dead = true;
     };
-  }, [by, picked, baseline, windowHours, range, build, version, countryMode, countryCode, tier, source, campaign, platform]);
+  }, [by, picked, baseline, windowHours, range, build, version, countryMode, countryCode, tier, source, campaign, platform, oldRead]);
 
   const shown = report && report.by === by ? report : null;
   /** A column's name; a version also says its platform, because 1.4.7 is 106 on Android and 21 on iOS. */
@@ -302,6 +309,16 @@ export function JourneyCompare() {
             <strong>apni pehli opening se barabar waqt</strong> tak dekha gaya hai; jis ka waqt abhi poora nahi
             hua wo &ldquo;abhi waqt poora nahi&rdquo; mein alag gina hai.
           </p>
+          {report && tookMs != null && (
+            <p className="muted-line fij-computed-at">
+              Server ne {(tookMs / 1000).toFixed(1)}s liye
+              {report.readFrom ? ` · ${readFromLine(report.readFrom, report.readFromReason)}` : ""}
+            </p>
+          )}
+          <label className="muted-line" style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
+            <input type="checkbox" checked={oldRead} onChange={(e) => setOldRead(e.target.checked)} />
+            Purane tareeqe se ginein (muqabla karne ke liye — dheema hai, jawab wahi aana chahiye)
+          </label>
         </div>
       </div>
 

@@ -480,7 +480,15 @@ export const api = {
    * Grouped on the server. The same answer built from the per-user feed took 218 requests, hit a
    * 500-event cap on four of them, and had to be corrected three times.
    */
-  getFirstInvoiceJourney(from?: string, to?: string, appVersionCode?: number, buildType?: string, uiMode?: string) {
+  getFirstInvoiceJourney(
+    from?: string,
+    to?: string,
+    appVersionCode?: number,
+    buildType?: string,
+    uiMode?: string,
+    /** "events" asks for the old read of the event table, to compare with the journey table (0142). */
+    readFrom?: "events",
+  ) {
     const params = new URLSearchParams();
     if (from) params.set("from", from);
     if (to) params.set("to", to);
@@ -489,6 +497,7 @@ export const api = {
     // The mode the screen was actually in (dark/light) — stamped on every event from the release
     // after 1.4.2; older builds carry nothing, so filtering them returns an empty journey, honestly.
     if (uiMode && uiMode !== "all") params.set("uiMode", uiMode);
+    if (readFrom) params.set("readFrom", readFrom);
     return apiRequest<JourneyReport>(`/v1/webpanel/analytics/first-invoice-journey?${params.toString()}`);
   },
 
@@ -523,6 +532,8 @@ export const api = {
     source?: string;
     campaign?: string;
     platform?: string;
+    /** "events" asks for the old read of the event table, to compare with the journey table (0142). */
+    readFrom?: "events";
   }) {
     const params = new URLSearchParams({
       by: opts.by,
@@ -542,6 +553,7 @@ export const api = {
     if (opts.source) params.set("source", opts.source);
     if (opts.campaign) params.set("campaign", opts.campaign);
     if (opts.platform) params.set("platform", opts.platform);
+    if (opts.readFrom) params.set("readFrom", opts.readFrom);
     return apiRequest<JourneyCompare>(`/v1/webpanel/analytics/journey-compare?${params.toString()}`);
   },
 

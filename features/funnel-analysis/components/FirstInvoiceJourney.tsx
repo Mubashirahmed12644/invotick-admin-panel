@@ -6,6 +6,7 @@ import { downloadText, fileStamp } from "@/lib/clipboard";
 import { DateRangePicker, defaultRange, toRangeIso, type DayRange } from "@/components/DateRangePicker";
 import { stickyDayRange, stickyOneOf, useStickyState } from "@/lib/stickyFilters";
 import type { AppVersion, JourneyFacet, JourneyReport } from "@/lib/types";
+import { readFromLine } from "@/lib/types";
 import { withPlatform } from "@/lib/versionPlatform";
 
 /**
@@ -194,6 +195,11 @@ export function FirstInvoiceJourney() {
    * pause.
    */
   const [computed, setComputed] = useState<{ at: Date; tookMs: number } | null>(null);
+  /**
+   * Ask for the old read of the event table instead of the journey table, to compare the two
+   * (decision 0142). Kept for one release of the panel; both give the same answer.
+   */
+  const [oldRead, setOldRead] = useState(false);
   const [showUsers, setShowUsers] = useState(false);
   /** The rung whose reasons are open — on hover, or pinned by a click. */
   const [openStep, setOpenStep] = useState<number | null>(null);
@@ -246,7 +252,7 @@ export function FirstInvoiceJourney() {
       try {
         const iso = toRangeIso(range);
         const startedAt = Date.now();
-        const r = await api.getFirstInvoiceJourney(iso.from, iso.to, versionCode ?? undefined, build, uiMode);
+        const r = await api.getFirstInvoiceJourney(iso.from, iso.to, versionCode ?? undefined, build, uiMode, oldRead ? "events" : undefined);
         if (!dead) {
           setComputed({ at: new Date(), tookMs: Date.now() - startedAt });
           setReport(r);
@@ -260,7 +266,7 @@ export function FirstInvoiceJourney() {
     return () => {
       dead = true;
     };
-  }, [range, build, versionCode, uiMode, waitingForDefault]);
+  }, [range, build, versionCode, uiMode, waitingForDefault, oldRead]);
 
   const versionLabel = useMemo(() => {
     if (versionCode == null) return "all versions";
@@ -296,8 +302,13 @@ export function FirstInvoiceJourney() {
             <p className="muted-line fij-computed-at">
               Computed {computed.at.toLocaleTimeString()} · server ne {(computed.tookMs / 1000).toFixed(1)}s
               liye{computed.tookMs >= 8000 ? " — arsa chhota karne se ye tezi se girta hai" : ""}
+              {report?.readFrom ? ` · ${readFromLine(report.readFrom, report.readFromReason)}` : ""}
             </p>
           )}
+          <label className="muted-line" style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
+            <input type="checkbox" checked={oldRead} onChange={(e) => setOldRead(e.target.checked)} />
+            Purane tareeqe se ginein (muqabla karne ke liye — dheema hai, jawab wahi aana chahiye)
+          </label>
         </div>
         {report && (
           <div className="fij-headline">

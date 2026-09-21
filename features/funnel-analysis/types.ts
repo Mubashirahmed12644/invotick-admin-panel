@@ -62,4 +62,7 @@ export interface JourneyCompare {
   truncated: boolean;
   metaCampaigns: "readable" | "key_missing";
   tiers: Record<string, string[]>;
+  /** Where the device rows came from (0142): the per-device journey table, or the old read of the events. */
+  readFrom?: "table" | "events";
+  readFromReason?: string | null;
 }
