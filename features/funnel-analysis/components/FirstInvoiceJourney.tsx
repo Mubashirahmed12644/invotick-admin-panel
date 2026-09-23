@@ -6,6 +6,7 @@ import { downloadText, fileStamp } from "@/lib/clipboard";
 import { DateRangePicker, defaultRange, toRangeIso, type DayRange } from "@/components/DateRangePicker";
 import { stickyDayRange, stickyOneOf, useStickyState } from "@/lib/stickyFilters";
 import type { AppVersion, JourneyFacet, JourneyReport } from "@/lib/types";
+import { isPublishedVersion } from "@/lib/publishedVersions";
 import { withPlatform } from "@/lib/versionPlatform";
 
 /**
@@ -211,7 +212,10 @@ export function FirstInvoiceJourney() {
       try {
         const iso = toRangeIso(range);
         const v = await api.getAppVersions(iso.from, iso.to);
-        if (!dead) setVersions(v);
+        // Only store-published builds belong in the picker. An internal build (1.4.9, codes
+        // 108-112) is our own testing, and a funnel read off it describes us, not the product.
+        // The list is maintained in lib/publishedVersions.ts — one line per release.
+        if (!dead) setVersions(v.filter((x) => isPublishedVersion(x.appVersionCode)));
       } catch {
         // The report is readable without the picker; an error banner here would be about a control.
       } finally {
@@ -223,12 +227,14 @@ export function FirstInvoiceJourney() {
     };
   }, [range]);
 
-  // Land on the newest build. "All versions" averages a build being rolled out with the one it
-  // replaced, and a funnel read off that mixture describes neither.
+  // Land on the newest PUBLISHED build. "All versions" averages a build being rolled out with the
+  // one it replaced, and a funnel read off that mixture describes neither. `versions` already holds
+  // published builds only, and the highest code is read here rather than the first row, so the
+  // landing does not depend on the order the backend happened to send.
   useEffect(() => {
     if (verChoice !== "") return;
-    const newest = versions.find((v) => v.appVersionCode != null)?.appVersionCode;
-    if (newest != null) setVerChoice(String(newest));
+    const codes = versions.map((v) => v.appVersionCode).filter((c): c is number => c != null);
+    if (codes.length > 0) setVerChoice(String(Math.max(...codes)));
   }, [versions, verChoice, setVerChoice]);
 
   // Not chosen yet and the list not here: the newest build is about to be picked, so asking now

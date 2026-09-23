@@ -8,6 +8,7 @@ import LoadingState from "@/components/LoadingState";
 import Navbar from "@/components/Navbar";
 import { clearAccessToken, isLoggedIn } from "@/lib/auth";
 import { api, getErrorMessage, isUnauthorizedError } from "@/lib/api";
+import { isPublishedVersion } from "@/lib/publishedVersions";
 import { useRouter } from "next/navigation";
 import type {
   FunnelDimensions,
@@ -348,7 +349,13 @@ export function FunnelDashboard() {
           from: new Date(from).toISOString(),
           to: new Date(to).toISOString(),
         });
-        if (!cancelled) setDimensions(d);
+        // Only store-published builds belong in the version picker; internal/test builds are our
+        // own traffic. The list is maintained in lib/publishedVersions.ts — one line per release.
+        if (!cancelled) {
+          setDimensions(
+            d ? { ...d, versions: d.versions.filter((v) => isPublishedVersion(v.code)) } : d,
+          );
+        }
       } catch {
         // A missing filter list must not take the page down — the funnel still runs unfiltered.
         if (!cancelled) setDimensions(null);
@@ -628,6 +635,15 @@ export function FunnelDashboard() {
               <select className="input" value={appVersionCode}
                 onChange={(e) => setAppVersionCode(e.target.value)}>
                 <option value="">All Versions</option>
+                {/* A build kept from an earlier link or reload stays visible even when it is not in
+                    the list — an internal build, or one with no rows in this window. Without this
+                    the control would read "All Versions" while the query underneath still filtered
+                    to that build: a label saying one thing and the numbers meaning another. */}
+                {appVersionCode !== "" && !dimensions?.versions.some((v) => String(v.code) === appVersionCode) ? (
+                  <option value={appVersionCode}>
+                    build {appVersionCode} — store par nahi nikli
+                  </option>
+                ) : null}
                 {dimensions?.versions.map((v) => (
                   <option key={v.code} value={String(v.code)}>
                     {withPlatform(v.name ? `${v.name} (${v.code})` : `build ${v.code}`, v.platforms)}

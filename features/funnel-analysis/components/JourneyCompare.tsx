@@ -5,6 +5,7 @@ import { api, getErrorMessage } from "@/lib/api";
 import { DateRangePicker, defaultRange, toRangeIso, type DayRange } from "@/components/DateRangePicker";
 import { stickyDayRange, stickyOneOf, stickyString, useStickyState, type StickyCodec } from "@/lib/stickyFilters";
 import type { AppVersion } from "@/lib/types";
+import { isPublishedVersion } from "@/lib/publishedVersions";
 import { withPlatform } from "@/lib/versionPlatform";
 import type { CompareBy, CompareCell, CompareGroup, ComparisonVerdict, JourneyCompare as Report } from "@/features/funnel-analysis/types";
 import styles from "@/features/funnel-analysis/styles/version-comparison.module.css";
@@ -190,17 +191,26 @@ export function JourneyCompare() {
   const [versions, setVersions] = useState<AppVersion[]>([]);
   const [report, setReport] = useState<Report | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  /** True from the first render: the version list is fetched before the report, and a blank pause
+   *  with no word on it reads as an empty comparison rather than as a wait. */
+  const [loading, setLoading] = useState(true);
+  /** The version list has arrived (or failed). Until then "Muqabla: Version" does not ask. */
+  const [versionsSettled, setVersionsSettled] = useState(false);
 
   useEffect(() => {
     let dead = false;
+    setVersionsSettled(false);
     (async () => {
       try {
         const iso = toRangeIso(range);
         const v = await api.getAppVersions(iso.from, iso.to);
-        if (!dead) setVersions(v);
+        // Only store-published builds belong in a picker here — an internal build (1.4.9, codes
+        // 108-112) is our own testing. The list is maintained in lib/publishedVersions.ts.
+        if (!dead) setVersions(v.filter((x) => isPublishedVersion(x.appVersionCode)));
       } catch {
         // The picker is empty; the error that matters is the report's own.
+      } finally {
+        if (!dead) setVersionsSettled(true);
       }
     })();
     return () => {
@@ -217,6 +227,21 @@ export function JourneyCompare() {
       .sort((a, b) => b[0] - a[0])
       .map(([code, v]) => ({ code, name: v.name, label: withPlatform(`${v.name ?? "—"} (${code})`, v.platforms) }));
   }, [versions]);
+
+  /**
+   * "Muqabla: Version" compares PUBLISHED builds only.
+   *
+   * The columns are named in the request rather than filtered out of the reply, because the reply's
+   * per-cell "+x pts" is measured against a baseline the backend chose from what it compared. Drop a
+   * column afterwards and the ones left could be reading themselves against a build that is no longer
+   * on the screen. `codes` is already published-only and newest-first, so this is the newest six.
+   */
+  const versionValues = useMemo(() => {
+    const chosen = picked.filter((k) => isPublishedVersion(Number(k)));
+    return (chosen.length > 0 ? chosen : codes.slice(0, 6).map((c) => String(c.code))).join(",");
+  }, [picked, codes]);
+  /** This window holds no published build at all, so there is nothing honest to compare. */
+  const noPublishedVersions = by === "version" && versionsSettled && versionValues === "";
 
   // A dimension cannot vary and be held fixed at once: switching "by" clears its own filter and the picks.
   const changeBy = (next: CompareBy) => {
@@ -235,6 +260,15 @@ export function JourneyCompare() {
   };
 
   useEffect(() => {
+    // The published list decides which columns "Muqabla: Version" asks for, so it must be here
+    // first. Asking before it arrives runs the 10-second read twice (the trap of decision 0141).
+    if (by === "version" && !versionsSettled) return;
+    if (noPublishedVersions) {
+      setReport(null);
+      setLoading(false);
+      setError(null);
+      return;
+    }
     let dead = false;
     (async () => {
       setLoading(true);
@@ -244,8 +278,9 @@ export function JourneyCompare() {
         const code = countryCode.trim().toUpperCase();
         const r = await api.getJourneyCompare({
           by,
-          values: picked.length > 0 ? picked : undefined,
-          baseline: baseline || undefined,
+          values: by === "version" ? versionValues.split(",") : picked.length > 0 ? picked : undefined,
+          // A baseline the comparison no longer holds would be read against nothing.
+          baseline: (by === "version" ? (isPublishedVersion(Number(baseline)) ? baseline : "") : baseline) || undefined,
           windowHours,
           from: iso.from,
           to: iso.to,
@@ -270,7 +305,7 @@ export function JourneyCompare() {
     return () => {
       dead = true;
     };
-  }, [by, picked, baseline, windowHours, range, build, version, countryMode, countryCode, tier, source, campaign, platform]);
+  }, [by, picked, baseline, windowHours, range, build, version, countryMode, countryCode, tier, source, campaign, platform, versionValues, versionsSettled, noPublishedVersions]);
 
   const shown = report && report.by === by ? report : null;
   /** A column's name; a version also says its platform, because 1.4.7 is 106 on Android and 21 on iOS. */
@@ -279,7 +314,10 @@ export function JourneyCompare() {
     return groupLabel(by, g);
   };
   const cohortOf = (key: string) => shown?.groups.find((g) => g.key === key)?.cohort ?? 0;
-  const allGroups = shown ? [...shown.groups, ...shown.others] : [];
+  /** What may be ticked into the comparison. On "Version" an internal build is never on offer. */
+  const allGroups = shown
+    ? [...shown.groups, ...shown.others].filter((g) => by !== "version" || isPublishedVersion(Number(g.key)))
+    : [];
   const current = picked.length > 0 ? picked : shown?.groups.map((g) => g.key) ?? [];
 
   const toggle = (key: string) => {
@@ -424,6 +462,12 @@ export function JourneyCompare() {
 
       {error ? (
         <p className="error-text">{error}</p>
+      ) : noPublishedVersions ? (
+        <p className={styles.notice}>
+          In tareekhon mein <strong>koi store par nikli hui version nahi chali</strong>. Muqabla sirf un
+          builds ka hota hai jo asal mein Play/App Store par gayi hain — andar ke (internal) test builds
+          hamara apna chalana hai, users ka nahi. Tareekhein barhayein.
+        </p>
       ) : loading && !shown ? (
         <p className="muted-line">Load ho raha hai… (30 din ka muqabla 10 second tak le sakta hai)</p>
       ) : !shown ? null : shown.groups.length === 0 ? (
