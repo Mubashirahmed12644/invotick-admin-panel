@@ -5,6 +5,7 @@ import { api, getErrorMessage } from "@/lib/api";
 import { downloadText, fileStamp } from "@/lib/clipboard";
 import { DateRangePicker, defaultRange, toRangeIso, type DayRange } from "@/components/DateRangePicker";
 import type { AppVersion, JourneyFacet, JourneyReport } from "@/lib/types";
+import { isPublishedVersion } from "@/lib/publishedVersions";
 
 /**
  * Where first-time users stop on the way to a first invoice.
@@ -180,7 +181,9 @@ export function FirstInvoiceJourney() {
       try {
         const iso = toRangeIso(range);
         const v = await api.getAppVersions(iso.from, iso.to);
-        if (!dead) setVersions(v);
+        // Only store-published builds belong in the picker; internal/test builds are noise here.
+        // The list is maintained in lib/publishedVersions.ts (owner-gated, one line per release).
+        if (!dead) setVersions(v.filter((x) => isPublishedVersion(x.appVersionCode)));
       } catch {
         // The report is readable without the picker; an error banner here would be about a control.
       }

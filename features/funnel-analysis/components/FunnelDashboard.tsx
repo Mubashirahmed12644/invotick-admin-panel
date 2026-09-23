@@ -7,6 +7,7 @@ import LoadingState from "@/components/LoadingState";
 import Navbar from "@/components/Navbar";
 import { clearAccessToken, isLoggedIn } from "@/lib/auth";
 import { api, getErrorMessage, isUnauthorizedError } from "@/lib/api";
+import { isPublishedVersion } from "@/lib/publishedVersions";
 import { useRouter } from "next/navigation";
 import type {
   FunnelDimensions,
@@ -339,7 +340,13 @@ export function FunnelDashboard() {
           from: new Date(from).toISOString(),
           to: new Date(to).toISOString(),
         });
-        if (!cancelled) setDimensions(d);
+        // Keep only store-published builds in the version picker; internal/test builds are noise.
+        // The list is maintained in lib/publishedVersions.ts (owner-gated, one line per release).
+        if (!cancelled) {
+          setDimensions(
+            d ? { ...d, versions: d.versions.filter((v) => isPublishedVersion(v.code)) } : d,
+          );
+        }
       } catch {
         // A missing filter list must not take the page down — the funnel still runs unfiltered.
         if (!cancelled) setDimensions(null);
