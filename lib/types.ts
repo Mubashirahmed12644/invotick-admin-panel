@@ -1498,3 +1498,48 @@ export interface SupportViewLogPage {
   size: number;
   total: number;
 }
+
+/** One `(subject, action, kind)` on the "Errors users saw" drill-down. Counts are phones, not events. */
+export interface ErrorsUsersSawGroup {
+  subject: string;
+  action: string;
+  kind: string;
+  devices: number;
+  events: number;
+  baselineDailyDevices: number;
+  topExceptionClass: string | null;
+  topExceptionClassDevices: number;
+  topHttpStatus: string | null;
+  busiestPhoneEvents: number;
+  builds: string[];
+  flag: "red" | "amber" | null;
+  flagReason: string | null;
+}
+
+export interface ErrorsUsersSawNewClass {
+  platform: string;
+  build: number;
+  exceptionClass: string;
+  where: string;
+  devices: number;
+}
+
+/** GET /v1/webpanel/errors-users-saw — the same analysis the Health Centre card is judged from. */
+export interface ErrorsUsersSaw {
+  status: HealthStatus;
+  summary: string;
+  detail: string | null;
+  groups: ErrorsUsersSawGroup[];
+  newClasses: ErrorsUsersSawNewClass[];
+  activeDevices: number;
+  activeOnFirstBuild: number;
+  devicesWithErrors: number;
+  devicesWithNetworkErrors: number;
+  baselineDays: number;
+  oursSetAsidePhones: number;
+  oursSetAsideEvents: number;
+  byBuildType: Record<string, number>;
+  rowsRead: number;
+  capped: boolean;
+  thresholds: Record<string, string>;
+}

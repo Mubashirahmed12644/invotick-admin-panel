@@ -3,6 +3,7 @@ import type { CompareBy, JourneyCompare } from "@/features/funnel-analysis/types
 import type {
   ExchangeRatesHealth,
   HealthCentreOverview,
+  ErrorsUsersSaw,
   AdminLoginResponse,
   AdminVerifyOtpRequest,
   ActiveUser,
@@ -631,6 +632,11 @@ export const api = {
    */
   getHealthCentre(force = false) {
     return apiRequest<HealthCentreOverview>(`/v1/webpanel/health-centre?force=${force}`);
+  },
+
+  /** The drill-down behind the "Errors users saw" card: every group, with why it is flagged. */
+  getErrorsUsersSaw() {
+    return apiRequest<ErrorsUsersSaw>("/v1/webpanel/errors-users-saw");
   },
 
   /** The rates service's status, already judged into an `issues` list — see ExchangeRatesAdminService. */
