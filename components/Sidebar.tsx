@@ -20,7 +20,7 @@ const navItems: NavItem[] = [
     // ordinary day when something starts going wrong — Sync Health had every symptom of the atomic
     // push bug on it while a user was writing in to report the invoices it had eaten.
     isActive: (pathname: string) =>
-      ["/health", "/exchange-rates", "/sync-health", "/billing-health"].some((p) =>
+      ["/health", "/exchange-rates", "/sync-health", "/billing-health", "/errors-users-saw"].some((p) =>
         pathname.startsWith(p),
       ),
     // The count is the whole point. Four faults were found by accident in one day, all of them
