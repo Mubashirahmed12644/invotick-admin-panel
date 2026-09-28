@@ -37,6 +37,8 @@ import type {
   WebpanelTestingDeviceResponse,
   WebpanelUserStatsAndAnalyticsByUserIdResponse,
   WebpanelUserWithStatsAndAnalyticsResponse,
+  WebpanelUserListItem,
+  EventLabel,
   WebpanelUserWithStatsResponse,
   WebpanelUserStatsResponse,
   AppFlowTimelineResponse,
@@ -585,6 +587,20 @@ export const api = {
     );
   },
 
+  /**
+   * Every user with the compact analytics the Users list draws.
+   *
+   * The same list as above with each user's analytics reduced, on the server, to the sets the
+   * filters use. Measured 2026-09-28 for 20,251 users: 207 MB of JSON (13.9 MB compressed, 8.8–19.2 s
+   * through the proxy) against 72 MB (6 MB compressed) — and the full shape made the backend rebuild
+   * it from every analytics row every 20 minutes.
+   */
+  getUsersList() {
+    return apiRequest<WebpanelUserListItem[]>(
+      "/v1/webpanel/getAllUsersWithStatAndAnalytics?analytics=compact",
+    );
+  },
+
   getUserStatsAndAnalytics(userId: string) {
     return apiRequest<WebpanelUserStatsAndAnalyticsByUserIdResponse>(
       `/v1/webpanel/statsAndAnalyticsByUserId?userId=${encodeURIComponent(userId)}`,
@@ -930,6 +946,17 @@ export const api = {
       `/v2/admin/analytics/event-config/${encodeURIComponent(eventName)}/rename-applied${q}`,
       { method: "POST" },
     );
+  },
+
+  /**
+   * What each configured event is called, whether it is hidden, on the default list, or ticked
+   * tested — read from the config alone.
+   *
+   * Live Events used to read these off Event Discovery, twice a minute: each call aggregated seven
+   * days of events (4–5 s apiece on production, 2026-09-28) for four fields a person typed.
+   */
+  getEventLabels() {
+    return apiRequest<EventLabel[]>("/v2/admin/analytics/event-labels");
   },
 
   getEventDiscovery(debugOnly = true, showIgnored = false, userId?: string, appVersionCode?: number) {

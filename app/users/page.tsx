@@ -17,7 +17,7 @@ import { clearAccessToken, isLoggedIn } from "@/lib/auth";
 import { formatCurrency } from "@/lib/format";
 import type {
   WebpanelTestingDeviceResponse,
-  WebpanelUserWithStatsAndAnalyticsResponse,
+  WebpanelUserListItem,
 } from "@/lib/types";
 
 type SortKey =
@@ -236,7 +236,7 @@ const dirCodec = stickyOneOf(["asc", "desc"] as const) as unknown as StickyOf<So
 export default function UsersPage() {
   const router = useRouter();
 
-  const [users, setUsers] = useState<WebpanelUserWithStatsAndAnalyticsResponse[]>([]);
+  const [users, setUsers] = useState<WebpanelUserListItem[]>([]);
   const [testingDevices, setTestingDevices] = useState<WebpanelTestingDeviceResponse[]>([]);
   const [queryInput, setQueryInput] = useState("");
   const [query, setQuery] = useState("");
@@ -301,7 +301,9 @@ export default function UsersPage() {
 
     try {
       const [usersResponse, testingDevicesResponse] = await Promise.all([
-        api.getAllUsersWithStatAndAnalytics(),
+        // The compact shape: the six filter sets arrive already reduced (decision 0034). The full
+        // one sent a per-event breakdown for every user only for this page to throw it away.
+        api.getUsersList(),
         api.getTestingDevices(),
       ]);
       setUsers(usersResponse ?? []);
@@ -338,27 +340,14 @@ export default function UsersPage() {
       const statusCounts = allCounts.invoicesByStatus ?? {};
       const analytics = user.analytics;
       const ipCountry = user.ip?.countryCode?.trim() || user.ip?.country?.trim() || null;
-      const countries = uniqueSorted([
-        ...(analytics?.locations.map((location) => location.country) ?? []),
-        ipCountry,
-      ]);
-      const cities = uniqueSorted(analytics?.locations.map((location) => location.city) ?? []);
-      const platforms = uniqueSorted([
-        ...(analytics?.locations.flatMap((location) => location.platforms) ?? []),
-        ...(analytics?.devices.flatMap((device) => device.platforms) ?? []),
-        ...(analytics?.appVersions.flatMap((version) => version.platforms) ?? []),
-      ]);
-      const appVersions = uniqueSorted([
-        ...(analytics?.appVersions.map((version) => version.appVersion) ?? []),
-        ...(analytics?.locations.flatMap((location) => location.appVersions) ?? []),
-        ...(analytics?.devices.flatMap((device) => device.appVersions) ?? []),
-      ]);
-      const eventNames = uniqueSorted(analytics?.events.map((event) => event.eventName) ?? []);
-      const deviceIds = uniqueSorted([
-        ...(analytics?.devices.map((device) => device.deviceId) ?? []),
-        ...(analytics?.locations.flatMap((location) => location.deviceIds) ?? []),
-        ...(analytics?.appVersions.flatMap((version) => version.deviceIds) ?? []),
-      ]);
+      // Checked against the full shape for all 20,251 users on production (2026-09-28): the same
+      // six sets for every user but the handful whose activity arrived between the two reads.
+      const countries = uniqueSorted([...(analytics?.countries ?? []), ipCountry]);
+      const cities = uniqueSorted(analytics?.cities ?? []);
+      const platforms = uniqueSorted(analytics?.platforms ?? []);
+      const appVersions = uniqueSorted(analytics?.appVersions ?? []);
+      const eventNames = uniqueSorted(analytics?.eventNames ?? []);
+      const deviceIds = uniqueSorted(analytics?.deviceIds ?? []);
 
       const lastActivityAt =
         allTime.activity.overallLastActivityAt ??

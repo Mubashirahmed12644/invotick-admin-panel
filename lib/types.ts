@@ -547,6 +547,35 @@ export interface WebpanelUserWithStatsAndAnalyticsResponse extends WebpanelUserW
   ip: WebpanelUserIpSummary | null;
 }
 
+/**
+ * The users list's per-user analytics: `?analytics=compact` on the unpaged list.
+ *
+ * Exactly what the list draws — totals, first/last seen and the six sets behind its filter
+ * dropdowns — computed in SQL. The full summary above is 207 MB for 20,251 users (2026-09-28), 134 MB
+ * of it a per-event breakdown the list only ever reduced to a set of names.
+ */
+export interface WebpanelUserAnalyticsCompact {
+  totalSessions: number;
+  totalEvents: number;
+  totalUserProperties: number;
+  totalDistinctDevices: number;
+  totalDistinctLocations: number;
+  totalDistinctAppVersions: number;
+  firstSeenAt: LocalDateTime | null;
+  lastSeenAt: LocalDateTime | null;
+  countries: string[];
+  cities: string[];
+  platforms: string[];
+  appVersions: string[];
+  eventNames: string[];
+  deviceIds: string[];
+}
+
+export interface WebpanelUserListItem extends WebpanelUserWithStatsResponse {
+  analytics: WebpanelUserAnalyticsCompact | null;
+  ip: WebpanelUserIpSummary | null;
+}
+
 export type WebpanelUserStatsAndAnalyticsByUserIdResponse =
   WebpanelUserWithStatsAndAnalyticsResponse;
 
@@ -1542,4 +1571,13 @@ export interface ErrorsUsersSaw {
   rowsRead: number;
   capped: boolean;
   thresholds: Record<string, string>;
+}
+
+/** One configured event's labels — `GET /v2/admin/analytics/event-labels`. */
+export interface EventLabel {
+  eventName: string;
+  displayName: string | null;
+  tracked: boolean;
+  ignored: boolean;
+  testedAt: string | null;
 }

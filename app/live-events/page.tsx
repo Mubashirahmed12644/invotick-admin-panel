@@ -614,24 +614,23 @@ export default function LiveEventsPage() {
     if (!usersLoaded) return;
     let cancelled = false;
     // Guarded like the rest. Sixty seconds is slow enough that overlap is unlikely — but "unlikely"
-    // is what the 1.2s poll was assumed to be too, and each of these reads is two unscoped queries.
+    // is what the 1.2s poll was assumed to be too.
     let configInFlight = false;
     const load = async () => {
       if (configInFlight) return;
       configInFlight = true;
       try {
-        const [ignored, named] = await Promise.all([
-          api.getEventDiscovery(false, true),
-          api.getEventDiscovery(false, false),
-        ]);
+        // The config alone: one small read. These came from Event Discovery — two calls, each
+        // aggregating seven days of events to keep four typed fields (4–5 s apiece, 2026-09-28).
+        const labels = await api.getEventLabels();
         if (cancelled) return;
-        ignoredRef.current = new Set(ignored.map((i) => i.eventName));
+        ignoredRef.current = new Set(labels.filter((i) => i.ignored).map((i) => i.eventName));
         const tested = new Set<string>();
-        for (const i of [...named, ...ignored]) if (i.testedAt) tested.add(i.eventName);
+        for (const i of labels) if (i.testedAt) tested.add(i.eventName);
         testedRef.current = tested;
         const names = new Map<string, string>();
         const tracked = new Set<string>();
-        for (const i of [...named, ...ignored]) {
+        for (const i of labels) {
           if (i.displayName) names.set(i.eventName, i.displayName);
           if (i.tracked) tracked.add(i.eventName);
         }
@@ -725,8 +724,13 @@ export default function LiveEventsPage() {
     let usersInFlight = false;
     let usersNextAt = 0;
     let usersFailures = 0;
+    let usersAnsweredAt = 0;
     async function poll() {
       if (usersInFlight || Date.now() < usersNextAt) return;
+      // A hidden tab is not being read. Over 30 days this is a read of the whole range, and a tab
+      // left open behind another one asked it every minute for as long as it stayed open. The live
+      // count above does not depend on it (it is pushed), and coming back asks at once, below.
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
       usersInFlight = true;
       try {
         // One request. The build filter used to need a second one — a separate list of debug
@@ -760,6 +764,7 @@ export default function LiveEventsPage() {
         }
         usersFailures = 0;
         usersNextAt = 0;
+        usersAnsweredAt = Date.now();
       } catch (err) {
         usersFailures += 1;
         usersNextAt = Date.now() + Math.min(30_000, pollMs * 2 ** usersFailures);
@@ -771,9 +776,17 @@ export default function LiveEventsPage() {
     }
     poll();
     const t = setInterval(poll, pollMs);
+    // Back in front: ask now, unless the answer on screen is younger than one beat anyway.
+    const onVisible = () => {
+      if (document.visibilityState !== "visible") return;
+      if (Date.now() - usersAnsweredAt < pollMs) return;
+      void poll();
+    };
+    document.addEventListener("visibilitychange", onVisible);
     return () => {
       cancelled = true;
       clearInterval(t);
+      document.removeEventListener("visibilitychange", onVisible);
     };
     // The filters belong here: changing one changes what the server is being asked for, so the
     // poll has to restart rather than keep fetching the previous question until the next tick.
@@ -785,8 +798,19 @@ export default function LiveEventsPage() {
    * behind it makes the missing option read as "no such version", and with the two ranges now
    * independent that gap could open up again.
    */
-  const [sumVersions, setSumVersions] = useState<AppVersion[]>([]);
+  const [ownSumVersions, setSumVersions] = useState<AppVersion[]>([]);
+  /**
+   * Whether the table's range is the list's. It is by default, and then the list's own read of the
+   * versions answers both: the same 30-day question asked twice at page load was two reads of every
+   * row in the range (6–15 s each on production, 2026-09-28) arriving together on a two-core box.
+   */
+  const sumRangeIsListRange = (() => {
+    const a = toRangeIso(sumRange);
+    const b = toRangeIso(range);
+    return a.from === b.from && a.to === b.to;
+  })();
   useEffect(() => {
+    if (sumRangeIsListRange) return;
     let cancelled = false;
     (async () => {
       try {
@@ -800,7 +824,8 @@ export default function LiveEventsPage() {
     return () => {
       cancelled = true;
     };
-  }, [sumRange]);
+  }, [sumRange, sumRangeIsListRange]);
+  const sumVersions = sumRangeIsListRange ? appVersions : ownSumVersions;
 
   /** name -> the build numbers reporting under it, newest first. */
   const versionGroups = useMemo(() => {
