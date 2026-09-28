@@ -231,9 +231,7 @@ export default function ScreenMapPage() {
     const out: Record<string, ElementStat | null> = {};
     const els = data?.elements ?? [];
     for (const def of CREATE_ELEMENTS) {
-      let st = els.find((e) => def.ids.includes(e.key)) ?? null;
-      if (!st && def.k === "paymethod") st = els.find((e) => /payment_?method/i.test(e.key) && !e.key.includes("#")) ?? null;
-      out[def.k] = st;
+      out[def.k] = els.find((e) => def.ids.includes(e.key)) ?? null;
     }
     return out;
   }, [data]);

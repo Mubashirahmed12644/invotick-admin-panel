@@ -41,7 +41,7 @@ export const CREATE_ELEMENTS: ElementDef[] = [
   { k: "shipping", n: 11, label: "Shipping", ids: ["create_inv_shipping_click"], ev: "create_inv_shipping_click", ch: "auto", cov: "ok", st: ["empty", "full"], cv: "88.2%" },
   { k: "addpay", n: 12, label: "Add Payment", ids: ["create_inv_add_payment_click"], ev: "create_inv_add_payment_click", ch: "auto", cov: "ok", st: ["empty", "full"], cv: "99.9%" },
   { k: "terms", n: 13, label: "Terms and Conditions", ids: ["create_inv_terms_click"], ev: "create_inv_terms_click", ch: "auto", cov: "ok", st: ["empty", "full"], cv: "92.4%" },
-  { k: "paymethod", n: 14, label: "Payment Method", ids: ["tap:create_inv_scr:card"], ev: "tap:create_inv_scr:card (apna id aane tak)", ch: "auto", cov: "part", st: ["empty", "full"], cv: "80.9%", note: "Is card ka apna naam abhi release mein nahi — \"card\" har us card ka naam hai jise id nahi di gayi (AGENTS-EVENTS §1.4). Naya id aate hi yahan wahi gina jayega; purani history \"card\" ke naam se rahegi." },
+  { k: "paymethod", n: 14, label: "Payment Method", ids: ["paymethod"], ev: "create_inv_payment_method_click (0183 se) + purana tap:create_inv_scr:card", ch: "auto", cov: "part", st: ["empty", "full"], cv: "80.9%", note: "Naye release se is card ka apna id hai (create_inv_payment_method_click, decision 0183); us se pehle ye \"card\" ke naam se aata tha, jo har be-naam card ka naam hai (AGENTS-EVENTS §1.4). Dono naam yahan aik hi card gine jate hain." },
   { k: "preview", n: 15, label: "Preview", ids: ["create_inv_preview_click"], ev: "create_inv_preview_click", ch: "auto", cov: "ok", st: ["empty", "full"] },
   { k: "save", n: 16, label: "Save", ids: ["create_inv_saved_click"], ev: "create_inv_saved_click (coded)", ch: "coded", cov: "part", st: ["full"], note: "Save ka apna auto tap panel mein band hai, is liye ye number coded event se hai. Save sirf tab dikhta hai jab business, client aur item teeno hon." },
   { k: "expand", n: 17, label: "Upar wala hissa kholna (⌄)", ids: ["tap:create_inv_scr:AdaptiveHeaderZone.expand_1"], ev: "tap:create_inv_scr:AdaptiveHeaderZone.expand_1", ch: "auto", cov: "ok", st: ["full"] },
@@ -129,11 +129,12 @@ export const GRID_COLS = 6;
 export const GRID_ROWS = 12;
 
 /**
- * A `cell` value as a (row, column), whichever way the app writes it: `r3c2`, `3,2`, `3x2`, or one index 0..71
- * counted row by row. Null when it cannot be placed; such cells are still listed.
+ * A `cell` value as a (row, column). The app writes `c<col>r<row>` (decision 0183); `r3c2`, `3,2` and one index
+ * 0..71 counted row by row are read too. Null when it cannot be placed; such cells are still listed.
  */
 export function parseCell(cell: string): { r: number; c: number } | null {
-  const rc = /^r(\d+)c(\d+)$/i.exec(cell) || /^(\d+)[,x:_-](\d+)$/i.exec(cell);
+  const cr = /^c(\d+)r(\d+)$/i.exec(cell);
+  const rc = cr ? [cr[0], cr[2], cr[1]] : /^r(\d+)c(\d+)$/i.exec(cell) || /^(\d+)[,x:_-](\d+)$/i.exec(cell);
   if (rc) {
     const r = Number(rc[1]);
     const c = Number(rc[2]);
