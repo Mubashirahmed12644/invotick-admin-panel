@@ -536,9 +536,11 @@ p {
 .users-table-head,
 .users-table-summary,
 .users-table-row {
-  min-width: 1300px;
+  min-width: 1440px;
   display: grid;
-  grid-template-columns: 1.7fr 0.9fr 0.9fr 0.72fr 0.72fr 0.68fr 0.72fr 0.72fr 1.02fr 1.02fr 0.92fr 0.9fr;
+  /* Email, role, country, invoices, 30d, past due, payments, expenses, invoice totals, revenue,
+     last activity, created, app version. */
+  grid-template-columns: 1.7fr 0.9fr 0.9fr 0.72fr 0.72fr 0.68fr 0.72fr 0.72fr 1.02fr 1.02fr 1.02fr 0.92fr 0.9fr;
   gap: 0.55rem;
   align-items: center;
 }
@@ -2917,9 +2919,11 @@ th {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 14px;
+  min-width: 14px;
   height: 14px;
-  border-radius: 50%;
+  padding: 0 3px;
+  margin-left: 4px;
+  border-radius: 999px;
   background: var(--md-sys-color-surface-container-low);
   color: var(--md-sys-color-warning);
   font-size: 10px;
@@ -3753,3 +3757,117 @@ button {
 .fij-facets.passed { border-left-color: rgba(14,124,107,.35); }
 .fij-facets.passed .fij-facet-bar { background: rgba(14,124,107,.14); }
 
+
+/* Users list: revenue (decision 0182), the empty date boxes, and the honest notes (audit 2026-09-28). */
+.users-revenue-cell {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  line-height: 1.15;
+}
+
+.users-revenue-split {
+  font-size: 0.68rem;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.users-revenue-banner {
+  margin: 0;
+  padding: 0.55rem 0.8rem;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.users-toolbar-error {
+  color: var(--md-sys-color-error, #b3261e);
+}
+
+.users-table-head-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.range-card-disabled {
+  opacity: 0.75;
+}
+
+.date-filter {
+  position: relative;
+  display: block;
+}
+
+.date-filter .input {
+  width: 100%;
+}
+
+/* Safari fills an empty date box with today's date in grey, which reads as a filter that is set. */
+.date-filter-empty input::-webkit-datetime-edit {
+  color: transparent;
+}
+
+.date-filter-empty:focus-within input::-webkit-datetime-edit {
+  color: inherit;
+}
+
+.date-filter-placeholder {
+  position: absolute;
+  left: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  pointer-events: none;
+}
+
+.date-filter-empty:focus-within .date-filter-placeholder {
+  display: none;
+}
+
+.date-filter-clear {
+  position: absolute;
+  right: 2.1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  border: 0;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0.1rem 0.3rem;
+}
+
+.user-revenue-table {
+  width: 100%;
+  max-width: 640px;
+  border-collapse: collapse;
+  font-size: 0.86rem;
+}
+
+.user-revenue-table th,
+.user-revenue-table td {
+  padding: 0.3rem 0.5rem;
+  border-bottom: 1px solid var(--color-border);
+  text-align: right;
+}
+
+.user-revenue-table th:first-child,
+.user-revenue-table td:first-child {
+  text-align: left;
+}
+
+.user-revenue-strong td {
+  font-weight: 700;
+}
+
+.user-revenue-sub {
+  margin-top: 0.75rem;
+}
+
+.user-revenue-list {
+  margin: 0.3rem 0 0;
+  padding-left: 1.1rem;
+  font-size: 0.84rem;
+}

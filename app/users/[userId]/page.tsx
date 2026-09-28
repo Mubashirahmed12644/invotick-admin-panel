@@ -11,6 +11,7 @@ import LoadingState from "@/components/LoadingState";
 import Navbar from "@/components/Navbar";
 import Sidebar from "@/components/Sidebar";
 import { SupportViewTab } from "@/features/support-view/SupportViewTab";
+import { UserRevenuePanel } from "@/features/user-revenue/UserRevenuePanel";
 import supportStyles from "@/features/support-view/support-view.module.css";
 import { SelectedEventDetails } from "@/features/user-based-screen-flow/components/SelectedEventDetails";
 import { TimelineGraphV2 } from "@/features/user-based-screen-flow/components/TimelineGraphV2";
@@ -643,6 +644,8 @@ function UserDetailContent() {
                   </Link>
                 </div>
               </section>
+
+              <UserRevenuePanel userId={userId} />
 
               <section className="section-card">
                 <div className="section-header">

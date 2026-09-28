@@ -38,6 +38,10 @@ import type {
   WebpanelUserStatsAndAnalyticsByUserIdResponse,
   WebpanelUserWithStatsAndAnalyticsResponse,
   WebpanelUserListItem,
+  WebpanelUserListResult,
+  RevenueDetail,
+  RevenueLifetime,
+  RevenueSummary,
   EventLabel,
   WebpanelUserWithStatsResponse,
   WebpanelUserStatsResponse,
@@ -595,10 +599,40 @@ export const api = {
    * through the proxy) against 72 MB (6 MB compressed) — and the full shape made the backend rebuild
    * it from every analytics row every 20 minutes.
    */
-  getUsersList() {
-    return apiRequest<WebpanelUserListItem[]>(
-      "/v1/webpanel/getAllUsersWithStatAndAnalytics?analytics=compact",
-    );
+  async getUsersList(): Promise<WebpanelUserListResult> {
+    // Read by hand rather than through apiRequest: the answer's header says when the backend built the
+    // list (it keeps one for up to 20 minutes), and the page shows "as of" that moment.
+    const path = "/v1/webpanel/getAllUsersWithStatAndAnalytics?analytics=compact";
+    const response = await requestWithAuth(path);
+    const body = await parseResponseBody<WebpanelUserListItem[]>(response);
+    if (!response.ok || !body || !body.success) {
+      throw new ApiError(body?.message || `Request failed with status ${response.status}`, {
+        status: response.status,
+        data: body?.data,
+        url: path,
+      });
+    }
+    return { users: body.data ?? [], asOf: response.headers.get("X-Data-As-Of") };
+  },
+
+  /** Lifetime revenue of up to 200 accounts (decision 0182); an account with no row earned nothing. */
+  getRevenueLookup(ids: string[]) {
+    const params = new URLSearchParams();
+    ids.slice(0, 200).forEach((id) => params.append("ids", id));
+    return apiRequest<Record<string, RevenueLifetime>>(`/v1/webpanel/revenue/lookup?${params.toString()}`);
+  },
+
+  /** Accounts by lifetime revenue, highest first, paged in SQL (size ≤ 200). */
+  getRevenueRanked(page: number, size: number) {
+    return apiRequest<RevenueLifetime[]>(`/v1/webpanel/revenue/users?page=${page}&size=${size}`);
+  },
+
+  getRevenueDetail(userId: string) {
+    return apiRequest<RevenueDetail>(`/v1/webpanel/revenue/users/${encodeURIComponent(userId)}`);
+  },
+
+  getRevenueSummary() {
+    return apiRequest<RevenueSummary>("/v1/webpanel/revenue/summary");
   },
 
   getUserStatsAndAnalytics(userId: string) {

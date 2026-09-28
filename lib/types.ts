@@ -366,6 +366,11 @@ export interface WebpanelUserCountsStats {
   stamps: number;
   itemCategories: number;
   unitTypes: number;
+  /**
+   * Invoices sent, viewed, partly paid or marked overdue whose due date is before today (UTC). Only the
+   * all-time section of the users list carries it; absent or null means not worked out, not zero.
+   */
+  invoicesPastDue?: number | null;
 }
 
 export interface WebpanelCurrencyTotal {
@@ -432,6 +437,9 @@ export interface WebpanelUserWithStatsResponse {
   isActive: boolean;
   createdAt: LocalDateTime | null;
   stats: WebpanelUserStatsSummary;
+  /** A retired row: a guest that joined an account (its data moved there), or an erased account. */
+  isDeleted?: boolean;
+  closedAt?: string | null;
 }
 
 export interface WebpanelUserAnalyticsLocation {
@@ -574,6 +582,95 @@ export interface WebpanelUserAnalyticsCompact {
 export interface WebpanelUserListItem extends WebpanelUserWithStatsResponse {
   analytics: WebpanelUserAnalyticsCompact | null;
   ip: WebpanelUserIpSummary | null;
+  /**
+   * One of ours: a test account, or an account seen on one of our phones (the owner-confirmed list the
+   * Health Centre uses, or `testing_devices`). Worked out by the backend.
+   */
+  ours?: boolean;
+}
+
+/** The users list and the moment the backend built it (it keeps the list for up to 20 minutes). */
+export interface WebpanelUserListResult {
+  users: WebpanelUserListItem[];
+  asOf: string | null;
+}
+
+/** Money a user has earned us, decision 0182. Every amount is USD micros (÷ 1,000,000). */
+export interface RevenueMoney {
+  appOpenMicros: number;
+  interstitialMicros: number;
+  bannerMicros: number;
+  otherMicros: number;
+  adMicros: number;
+  adImpressions: number;
+  premiumMicros: number;
+  totalMicros: number;
+}
+
+export interface RevenueLifetime {
+  userId: string;
+  money: RevenueMoney;
+  /** The part earned under guests that later joined this account. */
+  fromGuestsMicros: number;
+  firstDay: string | null;
+  lastDay: string | null;
+}
+
+export interface RevenueState {
+  /** Ads are counted up to this arrival time (UTC, no zone suffix). */
+  adsThrough: string | null;
+  chargesThrough: string | null;
+  chargesWaiting: number;
+  chargesGivenUp: number;
+}
+
+export interface RevenueSummary {
+  accounts: number;
+  money: RevenueMoney;
+  unattributed: RevenueMoney;
+  state: RevenueState;
+}
+
+export interface RevenueEarner {
+  earnedAsUserId: string;
+  kind: string;
+  lifetime: RevenueMoney;
+  last30Days: RevenueMoney;
+  firstDay: string | null;
+  lastDay: string | null;
+}
+
+export interface RevenueCharge {
+  orderId: string;
+  source: string;
+  productId: string | null;
+  chargedAt: string | null;
+  currency: string | null;
+  grossMicros: number | null;
+  taxMicros: number | null;
+  feeMicros: number | null;
+  netMicros: number | null;
+  netSource: string | null;
+  feeRate: number | null;
+  usdNetMicros: number | null;
+  usdRate: number | null;
+  rateDate: string | null;
+  refundedAt: string | null;
+  testPurchase: boolean | null;
+  counted: boolean;
+  storeState: string | null;
+  waitingForStore: boolean;
+}
+
+export interface RevenueDetail {
+  userId: string;
+  lifetime: RevenueMoney;
+  last30Days: RevenueMoney;
+  fromGuestsMicros: number;
+  earners: RevenueEarner[];
+  days: Array<{ day: string; money: RevenueMoney }>;
+  charges: RevenueCharge[];
+  asOf: RevenueState;
 }
 
 export type WebpanelUserStatsAndAnalyticsByUserIdResponse =
