@@ -68,6 +68,14 @@ const navItems: NavItem[] = [
     isActive: (pathname: string) => pathname.startsWith("/users-map"),
   },
   {
+    // A page of its own, not a Health Centre card: the owner's decision of 2026-09-29 (decision in
+    // Webinvotick docs/decisions, "Screen Map"). It is where he goes to look at a screen, on purpose,
+    // not a check that fails silently.
+    label: "Screen Map",
+    href: "/screen-map",
+    isActive: (pathname: string) => pathname.startsWith("/screen-map"),
+  },
+  {
     label: "Funnel Analysis",
     href: "/funnel-analysis",
     isActive: (pathname: string) => pathname.startsWith("/funnel-analysis"),
