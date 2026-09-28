@@ -30,6 +30,9 @@ import { fmt, fixed2, pc, secs, share, usd } from "../format";
 import { loadBounds, loadImage, loadShots, sameElement, type Bounds, type Shot } from "../manifest";
 import type { Dimensions, ElementStat, Exit, Filters, Holdout, Mode, ScreenMapStatus, ScreenSummary, ScreenView } from "../types";
 import CreatePhone, { badgeText, heatFor, type Metric } from "./CreatePhone";
+import { NAV } from "../navmap.data";
+import { defaultState, measures, nodeForData, pathTo, type NavPoint } from "../navmap";
+import { KIND_NAME, NavCard, NavFrame, NavPhone, PointChoice, nodeName, pointText } from "./NavViewer";
 
 // ── the URL hash: path, mode and filters, so Back, reload and a copied link all land here ──
 
@@ -40,12 +43,12 @@ interface Route {
 }
 
 const DEFAULT_FILTERS: Filters = { days: 14, platform: "Android", versions: "", country: "", source: "", user: "" };
-const DEFAULT_ROUTE: Route = { stack: ["dashboard", CREATE], mode: "tour", f: DEFAULT_FILTERS };
+const DEFAULT_ROUTE: Route = { stack: ["splash_scr", "dashboard", CREATE], mode: "tour", f: DEFAULT_FILTERS };
 const STORE_KEY = "screenmap.hash";
 
 function readHash(hash: string): Route {
   const q = new URLSearchParams(hash.replace(/^#/, ""));
-  const stack = (q.get("p") ?? "").split(">").map((s) => s.trim()).filter((s) => /^[A-Za-z0-9_]{1,100}$/.test(s));
+  const stack = (q.get("p") ?? "").split(">").map((s) => s.trim()).filter((s) => /^[A-Za-z0-9_:.~-]{1,120}$/.test(s));
   const days = Number(q.get("d"));
   const src = q.get("src");
   const u = q.get("u");
@@ -92,10 +95,32 @@ function recalled(): string | null {
   }
 }
 
+const NAV_EVENT = "screenmap:navigate";
+
 function subscribeHash(onChange: () => void): () => void {
   window.addEventListener("hashchange", onChange);
-  return () => window.removeEventListener("hashchange", onChange);
+  window.addEventListener("popstate", onChange);
+  window.addEventListener(NAV_EVENT, onChange);
+  return () => {
+    window.removeEventListener("hashchange", onChange);
+    window.removeEventListener("popstate", onChange);
+    window.removeEventListener(NAV_EVENT, onChange);
+  };
 }
+
+/** This page's place in the browser's history: its index, and the furthest index a Forward can reach. */
+function histIndex(): number {
+  const st = window.history.state as { smIdx?: number } | null;
+  return typeof st?.smIdx === "number" ? st.smIdx : 0;
+}
+let histMax = 0;
+
+/** A stack entry is `<node>` or `<node>~<picture state>`. */
+function splitEntry(e: string): { node: string; state: string | null } {
+  const i = e.indexOf("~");
+  return i < 0 ? { node: e, state: null } : { node: e.slice(0, i), state: e.slice(i + 1) || null };
+}
+const entry = (node: string, state?: string | null) => (state ? `${node}~${state}` : node);
 
 /** The hash, or on an empty URL the one this page was last on. Never null in the browser. */
 function currentHash(): string {
@@ -132,13 +157,18 @@ export default function ScreenMapPage() {
 
   const tip = tipState && tipState.hash === hash ? tipState : null;
   const setTip = useCallback((t: { text: string; x: number; y: number } | null) => setTipState(t ? { ...t, hash } : null), [hash]);
-  const screen = route.stack[route.stack.length - 1];
-  const isCreate = screen === CREATE;
+  const top = splitEntry(route.stack[route.stack.length - 1]);
+  const node = top.node;
+  const navScreen = NAV.screens[node] ?? null;
+  // The name the data is kept under; null for a screen that reports no screen_view of its own.
+  const screen = navScreen ? navScreen.dataScreen : node.startsWith("off:") ? null : node;
+  const picState = navScreen?.pictured ? (top.state && navScreen.states.includes(top.state) ? top.state : defaultState(navScreen.states)) : null;
+  const isCreate = screen === CREATE && (node === CREATE || !navScreen);
   // The tour's overlay does not exist without the tour.
   const sel = route.mode === "normal" && picked === "overlay" ? "preview" : picked;
-  const viewKey = `${writeHash(route)}|${retry}`;
+  const viewKey = `${route.mode}|${screen}|${JSON.stringify(route.f)}|${retry}`;
   const filterKey = JSON.stringify(route.f);
-  const loading = ready && view?.key !== viewKey && failure?.key !== viewKey;
+  const loading = ready && screen !== null && view?.key !== viewKey && failure?.key !== viewKey;
   const error = failure?.key === viewKey ? failure.message : null;
 
   // Canonical hash on first load (an empty URL takes the last one used), remembered for the next visit.
@@ -146,20 +176,49 @@ export default function ScreenMapPage() {
     if (hash === null) return;
     const h = writeHash(route);
     remember(h);
-    if (window.location.hash !== h) window.history.replaceState(null, "", h);
+    if (window.location.hash !== h) window.history.replaceState({ smIdx: histIndex() }, "", h);
   }, [hash, route]);
 
+  const [choice, setChoice] = useState<{ hash: string; point: NavPoint } | null>(null);
+  const [picked2, setPicked2] = useState<{ node: string; match: string } | null>(null);
   const navigate = useCallback((next: Route) => {
     const h = writeHash(next);
     remember(h);
-    if (window.location.hash !== h) window.location.hash = h;
+    if (window.location.hash !== h) {
+      const idx = histIndex() + 1;
+      histMax = idx;
+      window.history.pushState({ smIdx: idx }, "", h);
+      window.dispatchEvent(new Event(NAV_EVENT));
+    }
     setTipState(null);
+    setChoice(null);
   }, []);
 
-  const go = useCallback((to: string) => navigate({ ...route, stack: [...route.stack, to] }), [navigate, route]);
+  /** Forward: the destination goes on top of the stack. The same screen in another state replaces the top. */
+  const go = useCallback(
+    (to: string, toState?: string | null) => {
+      const cur = splitEntry(route.stack[route.stack.length - 1]);
+      const stack = cur.node === to ? [...route.stack.slice(0, -1), entry(to, toState)] : [...route.stack, entry(to, toState)];
+      navigate({ ...route, stack });
+    },
+    [navigate, route],
+  );
+  /** Back to [to]: the stack unwinds to it; a screen that is not below (a jump from the picker) is reached by its path. */
+  const backTo = useCallback(
+    (to: string, toState?: string | null) => {
+      const below = route.stack.slice(0, -1);
+      let i = below.length - 1;
+      while (i >= 0 && splitEntry(below[i]).node !== to) i--;
+      const stack = i >= 0 ? [...below.slice(0, i), entry(to, toState ?? splitEntry(below[i]).state)] : [...(pathTo(NAV, to) ?? [to]).slice(0, -1), entry(to, toState)];
+      navigate({ ...route, stack });
+    },
+    [navigate, route],
+  );
   const back = useCallback(() => {
     if (route.stack.length > 1) navigate({ ...route, stack: route.stack.slice(0, -1) });
   }, [navigate, route]);
+  const onGo = useCallback((to: string, toState?: string, isBack?: boolean) => (isBack ? backTo(to, toState) : go(to, toState)), [go, backTo]);
+  const setPicState = useCallback((st: string) => go(node, st), [go, node]);
   const setFilter = useCallback((patch: Partial<Filters>) => navigate({ ...route, f: { ...route.f, ...patch } }), [navigate, route]);
 
   const onFail = useCallback(
@@ -176,11 +235,11 @@ export default function ScreenMapPage() {
 
   // The screen itself.
   useEffect(() => {
-    if (!ready) return;
+    if (!ready || !screen) return;
     let cancelled = false;
     const f = JSON.parse(filterKey) as Filters;
     screenMapApi
-      .screen(screen, route.mode, f, screen === CREATE ? 100 : 40)
+      .screen(screen, route.mode, f, 100)
       .then((data) => !cancelled && setView({ key: viewKey, data }))
       .catch((e) => !cancelled && !onFail(e) && setFailure({ key: viewKey, message: getErrorMessage(e, "Screen Map load nahi hua.") }));
     return () => {
@@ -198,7 +257,7 @@ export default function ScreenMapPage() {
   }, [ready, route.f.days, route.f.platform, onFail]);
 
   useEffect(() => {
-    if (!ready) return;
+    if (!ready || !screen) return;
     let cancelled = false;
     screenMapApi.dimensions(screen, route.f.days).then((d) => !cancelled && setDims(d)).catch(onFail);
     return () => {
@@ -226,7 +285,7 @@ export default function ScreenMapPage() {
 
   // ── derived ──
 
-  const data = view?.data ?? null;
+  const data = screen && view?.key === viewKey ? view.data : null;
   const stats = useMemo(() => {
     const out: Record<string, ElementStat | null> = {};
     const els = data?.elements ?? [];
@@ -271,6 +330,16 @@ export default function ScreenMapPage() {
     [stats, setTip],
   );
 
+  const onPoint = (p: NavPoint) => {
+    setPicked2({ node, match: p.match });
+    if (!navGo) return;
+    if ((p.kind === "forward" || p.kind === "auto") && p.to) return go(p.to, p.toState);
+    if (p.kind === "backward" && p.to) return backTo(p.to, p.toState);
+    setChoice({ hash: hash ?? "", point: p });
+  };
+  const selectedPoint = picked2?.node === node ? picked2.match : null;
+  const openChoice = choice && choice.hash === hash ? choice.point : null;
+
   if (!ready) return null;
 
   const h = data?.headline;
@@ -283,7 +352,7 @@ export default function ScreenMapPage() {
         <Navbar title="Screen Map" />
         <section className="content-wrap">
           <div className={cx("root")}>
-            <h1>Screen Map: {sname(screen)}</h1>
+            <h1>Screen Map: {nodeName(NAV, node)}</h1>
             <div className={cx("sub")}>
               {data ? `${data.from} – ${data.to}` : "…"} · sirf release build · hamare test phone nikaal diye ·{" "}
               {status?.countedThrough ? `ginti ${status.countedThrough.replace("T", " ").slice(0, 16)} UTC tak` : "ginti abhi shuru nahi hui"}
@@ -317,48 +386,65 @@ export default function ScreenMapPage() {
 
             {error && <ErrorState message={error} onRetry={() => setRetry((n) => n + 1)} />}
             {!data && loading && <LoadingState message="Screen Map load ho raha hai…" />}
+            {data && h && <Kpis view={data} isCreate={isCreate} />}
+            <div className={cx("grid")}>
+              <PhoneColumn
+                route={route}
+                node={node}
+                screen={screen}
+                picState={picState}
+                setPicState={setPicState}
+                view={data}
+                shots={shots}
+                drawState={drawState}
+                setDrawState={(s) => {
+                  setDrawState(s);
+                  if (s === "full" && ["logo", "meta", "business", "client"].includes(sel)) setSel("save");
+                  if (s === "empty" && ["save", "itemrow", "expand", "banner"].includes(sel)) setSel("business");
+                }}
+                dark={dark}
+                setDark={setDark}
+                metric={metric}
+                setMetric={setMetric}
+                navGo={navGo}
+                setNavGo={setNavGo}
+                back={back}
+                navigate={navigate}
+                go={go}
+                onGo={onGo}
+                onPoint={onPoint}
+                selectedPoint={selectedPoint}
+                choice={openChoice}
+                closeChoice={() => setChoice(null)}
+                stats={stats}
+                overlay={overlay}
+                measured={measured}
+                sel={sel}
+                onPick={onPick}
+                onHover={onHover}
+                setTip={setTip}
+              />
+              <div>
+                {navScreen && <NavCard nav={NAV} node={node} screen={navScreen} view={data} selected={selectedPoint} onPoint={onPoint} onGo={onGo} />}
+                {data && h && (isCreate ? (
+                  <>
+                    <CreateDetail sel={sel} view={data} stats={stats} overlay={overlay} measured={measured} />
+                    <CreateTable sel={sel} setSel={setSel} stats={stats} overlay={overlay} measured={measured} />
+                  </>
+                ) : (
+                  <GenericRight view={data} screen={screen ?? node} node={node} go={(to) => go(nodeForData(NAV, to))} onPoint={onPoint} />
+                ))}
+                {!screen && (
+                  <div className={cx("card section")}>
+                    <div className={cx("small muted")}>
+                      Ye screen apna screen_view nahi bhejti, is liye is ke numbers alag se nahi gine jate. Raaste upar app ke code se hain.
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
             {data && h && (
               <>
-                <Kpis view={data} isCreate={isCreate} />
-                <div className={cx("grid")}>
-                  <PhoneColumn
-                    route={route}
-                    screen={screen}
-                    view={data}
-                    shots={shots}
-                    drawState={drawState}
-                    setDrawState={(s) => {
-                      setDrawState(s);
-                      if (s === "full" && ["logo", "meta", "business", "client"].includes(sel)) setSel("save");
-                      if (s === "empty" && ["save", "itemrow", "expand", "banner"].includes(sel)) setSel("business");
-                    }}
-                    dark={dark}
-                    setDark={setDark}
-                    metric={metric}
-                    setMetric={setMetric}
-                    navGo={navGo}
-                    setNavGo={setNavGo}
-                    back={back}
-                    navigate={navigate}
-                    go={go}
-                    stats={stats}
-                    overlay={overlay}
-                    measured={measured}
-                    sel={sel}
-                    onPick={onPick}
-                    onHover={onHover}
-                    setTip={setTip}
-                  />
-                  {isCreate ? (
-                    <div>
-                      <CreateDetail sel={sel} view={data} stats={stats} overlay={overlay} measured={measured} />
-                      <CreateTable sel={sel} setSel={setSel} stats={stats} overlay={overlay} measured={measured} />
-                    </div>
-                  ) : (
-                    <GenericRight view={data} screen={screen} go={go} />
-                  )}
-                </div>
-
                 <div className={cx("two section")}>
                   <ExitsCard view={data} isCreate={isCreate} exitView={exitView} setExitView={setExitView} mode={route.mode} />
                   <div className={cx("card")}>
@@ -374,15 +460,15 @@ export default function ScreenMapPage() {
                         ? "Aik \"visit\" = Create Invoice khuli, phir business/client/item wali sheets ke saath, jab tak user screen chhor na de. Invoice tak ka waqt sirf unka jinki invoice isi visit mein bani."
                         : "Aik visit = screen khuli, jab tak agli screen na khule ya app chhor na di jaye. Waqt app ka apna naap hai (prev_screen_ms) jahan wo maujood hai."}
                     </div>
-                    {(isCreate || MONEY_SCREENS.has(screen) || data.revenue.appOpenN + data.revenue.interstitialN + data.revenue.bannerN > 0) && (
-                      <BothSides view={data} isCreate={isCreate} screen={screen} />
+                    {(isCreate || MONEY_SCREENS.has(screen ?? "") || data.revenue.appOpenN + data.revenue.interstitialN + data.revenue.bannerN > 0) && (
+                      <BothSides view={data} isCreate={isCreate} screen={screen ?? ""} />
                     )}
                   </div>
                 </div>
 
                 <div className={cx("two section")}>
                   <DeadTaps view={data} isCreate={isCreate} mode={route.mode} overlay={overlay} />
-                  {isCreate ? <Why view={data} mode={route.mode} stats={stats} overlay={overlay} /> : <NextScreens view={data} go={go} />}
+                  {isCreate ? <Why view={data} mode={route.mode} stats={stats} overlay={overlay} /> : <NextScreens view={data} go={(to) => go(nodeForData(NAV, to))} />}
                 </div>
 
                 {isCreate && <HoldoutCard holdout={holdout} />}
@@ -429,14 +515,18 @@ function FilterCard({
   navigate: (r: Route) => void;
 }) {
   const f = route.f;
-  const screen = route.stack[route.stack.length - 1];
+  const screen = splitEntry(route.stack[route.stack.length - 1]).node;
   const versions = (dims?.versions ?? []).filter((v) => v.value && v.value !== "-1");
   const top = versions.slice(0, 3);
   const older = versions.slice(3).map((v) => v.value).join(",");
   const countries = (dims?.countries ?? []).filter((c) => c.value).slice(0, 3);
   const platforms = (dims?.platforms ?? []).filter((p) => p.value);
-  const pick = (v: string) =>
-    navigate({ ...route, stack: v === CREATE ? ["dashboard", CREATE] : kind(v) !== "screen" ? [CREATE, v] : [v] });
+  const pick = (v: string) => {
+    const path = pathTo(NAV, nodeForData(NAV, v));
+    navigate({ ...route, stack: path ?? (v === CREATE ? ["dashboard", CREATE] : kind(v) !== "screen" ? [CREATE, v] : [v]) });
+  };
+  const listed = new Set(screens.map((s) => s.screen));
+  const drawnOnly = Object.entries(NAV.screens).filter(([k, s]) => !listed.has(s.dataScreen ?? k) && !listed.has(k));
 
   return (
     <div className={cx("card section")}>
@@ -444,7 +534,12 @@ function FilterCard({
         <div className={cx("fgroup")} style={{ flex: 1, minWidth: 260 }}>
           <span className={cx("flabel")}>Screen</span>
           <select className={cx("select")} aria-label="Screen chunein" value={screen} onChange={(e) => pick(e.target.value)}>
-            {!screens.some((s) => s.screen === screen) && <option value={screen}>{sname(screen)}</option>}
+            {!screens.some((s) => s.screen === screen) && !NAV.screens[screen] && <option value={screen}>{sname(screen)}</option>}
+            {drawnOnly.map(([k]) => (
+              <option key={k} value={k}>
+                {nodeName(NAV, k)} — naqsha (data nahi)
+              </option>
+            ))}
             {screens.map((s) => (
               <option key={s.screen} value={s.screen}>
                 {sname(s.screen)} — {fmt(s.viewers)}
@@ -573,8 +668,11 @@ function Kpis({ view, isCreate }: { view: ScreenView; isCreate: boolean }) {
 
 interface PhoneProps {
   route: Route;
-  screen: string;
-  view: ScreenView;
+  node: string;
+  screen: string | null;
+  picState: string | null;
+  setPicState: (s: string) => void;
+  view: ScreenView | null;
   shots: Shot[];
   drawState: DrawState;
   setDrawState: (s: DrawState) => void;
@@ -586,7 +684,12 @@ interface PhoneProps {
   setNavGo: (b: boolean) => void;
   back: () => void;
   navigate: (r: Route) => void;
-  go: (s: string) => void;
+  go: (s: string, state?: string | null) => void;
+  onGo: (to: string, toState?: string, back?: boolean) => void;
+  onPoint: (p: NavPoint) => void;
+  selectedPoint: string | null;
+  choice: NavPoint | null;
+  closeChoice: () => void;
   stats: Record<string, ElementStat | null>;
   overlay: ElementStat | null;
   measured: (d: ElementDef) => boolean;
@@ -596,9 +699,27 @@ interface PhoneProps {
   setTip: (t: { text: string; x: number; y: number } | null) => void;
 }
 
+/** The browser's own history for this page: Back and Forward like a browser's, over every screen visited. */
+function HistoryButtons() {
+  const [, force] = useState(0);
+  useEffect(() => subscribeHash(() => force((n) => n + 1)), []);
+  const idx = typeof window === "undefined" ? 0 : histIndex();
+  return (
+    <div className={cx("navhist")}>
+      <button type="button" className={cx("chip chipSm")} disabled={idx <= 0} onClick={() => window.history.back()} title="Pichhli dekhi hui screen (browser ki tarah)">
+        ◀ Pichhli
+      </button>
+      <button type="button" className={cx("chip chipSm")} disabled={idx >= histMax} onClick={() => window.history.forward()} title="Agli dekhi hui screen (browser ki tarah)">
+        Agli ▶
+      </button>
+    </div>
+  );
+}
+
 function PhoneColumn(p: PhoneProps) {
-  const { route, screen, view, shots, drawState, dark, metric, navGo } = p;
-  const isCreate = screen === CREATE;
+  const { route, node, screen, view, shots, drawState, dark, metric, navGo, picState } = p;
+  const navScreen = NAV.screens[node] ?? null;
+  const isCreate = screen === CREATE && (node === CREATE || !navScreen);
   const box = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(1);
   useEffect(() => {
@@ -610,33 +731,46 @@ function PhoneColumn(p: PhoneProps) {
   }, []);
 
   const theme = dark ? "dark" : "light";
-  const shot =
-    shots.find((s) => s.screen === screen && s.theme === theme && (!isCreate || s.state.includes(drawState))) ??
-    shots.find((s) => s.screen === screen && s.theme === theme) ??
-    null;
-  const parent = route.stack[route.stack.length - 2];
-  const overCreate = !isCreate && kind(screen) !== "screen" && parent === CREATE;
+  const shot = navScreen?.pictured
+    ? shots.find((s) => s.screen === node && s.theme === theme && s.state === picState) ?? shots.find((s) => s.screen === node && s.theme === theme) ?? null
+    : !navScreen && screen
+      ? shots.find((s) => s.screen === screen && s.theme === theme) ?? null
+      : null;
+  const parent = route.stack.length > 1 ? splitEntry(route.stack[route.stack.length - 2]).node : null;
+  const overCreate = !isCreate && !!screen && kind(screen) !== "screen" && parent === CREATE && !navScreen;
 
   return (
     <div className={cx("card phoneBox")} ref={box}>
+      <HistoryButtons />
       <div className={cx("crumbs")}>
-        <button className={cx("backbtn")} disabled={route.stack.length < 2} aria-label="Wapas" onClick={p.back}>
+        <button className={cx("backbtn")} disabled={route.stack.length < 2} aria-label="Ek qadam upar (stack)" title="Stack mein ek qadam neeche" onClick={p.back}>
           ←
         </button>
-        {route.stack.map((k, i) =>
-          i === route.stack.length - 1 ? (
-            <span key={`${k}-${i}`} className={cx("here")}>{sname(k)}</span>
+        {route.stack.map((k, i) => {
+          const e = splitEntry(k);
+          return i === route.stack.length - 1 ? (
+            <span key={`${k}-${i}`} className={cx("here")}>{nodeName(NAV, e.node)}</span>
           ) : (
             <span key={`${k}-${i}`}>
-              <a onClick={() => p.navigate({ ...route, stack: route.stack.slice(0, i + 1) })}>{sname(k)}</a> <span className={cx("muted")}>→</span>
+              <a onClick={() => p.navigate({ ...route, stack: route.stack.slice(0, i + 1) })}>{nodeName(NAV, e.node)}</a> <span className={cx("muted")}>→</span>
             </span>
-          ),
-        )}
-        <button className={cx("chip chipSm")} aria-pressed={navGo} onClick={() => p.setNavGo(!navGo)}>
+          );
+        })}
+        <button className={cx("chip chipSm")} aria-pressed={navGo} onClick={() => p.setNavGo(!navGo)} title="Band ho to tap sirf cheez chunta hai, aage nahi le jata">
           Tap = aage jayein
         </button>
       </div>
-      {isCreate && (
+      {navScreen?.pictured && navScreen.states.length > 1 && (
+        <div className={cx("row")} style={{ justifyContent: "center" }}>
+          <span className={cx("flabel")}>Tasveer</span>
+          {navScreen.states.map((st) => (
+            <Chip key={st} on={picState === st} onClick={() => p.setPicState(st)}>
+              {st}
+            </Chip>
+          ))}
+        </div>
+      )}
+      {isCreate && !shot && (
         <div className={cx("row")} style={{ justifyContent: "center" }}>
           <Chip on={drawState === "empty"} onClick={() => p.setDrawState("empty")}>Khaali (pehli dafa)</Chip>
           <Chip on={drawState === "full"} onClick={() => p.setDrawState("full")}>Mukammal (Save dikhta hai)</Chip>
@@ -644,18 +778,21 @@ function PhoneColumn(p: PhoneProps) {
       )}
       <div className={cx("row")} style={{ justifyContent: "center" }}>
         <Chip on={dark} onClick={() => p.setDark(!dark)}>Dark tasveer</Chip>
+        <span className={cx("flabel")}>Rang</span>
+        {(["forward", "backward", "outside", "conditional"] as const).map((k) => (
+          <span key={k} className={cx("kind", `k-${k}`)}>{KIND_NAME[k]}</span>
+        ))}
       </div>
-      <div className={cx("row")} style={{ justifyContent: "center" }}>
-        <span className={cx("flabel")}>Gol nishaan par</span>
-        <Chip on={metric === "reach"} onClick={() => p.setMetric("reach")}>% ne dabaya</Chip>
-        <Chip on={metric === "per"} onClick={() => p.setMetric("per")}>Tap fi dekhne wala</Chip>
-        <Chip on={metric === "rep"} onClick={() => p.setMetric("rep")}>Dobara tap %</Chip>
-      </div>
+      {p.choice && <PointChoice nav={NAV} point={p.choice} onGo={p.onGo} onClose={p.closeChoice} />}
       <div className={cx("phoneScale")} style={{ zoom }}>
         <div className={cx("phone")}>
-          {shot ? (
-            <ShotPhone shot={shot} screen={screen} view={view} metric={metric} navGo={navGo} go={p.go} setTip={p.setTip} />
-          ) : isCreate || overCreate ? (
+          {navScreen && shot ? (
+            <NavPhone nav={NAV} node={node} screen={navScreen} shot={shot} view={view} metric={metric} selected={p.selectedPoint} onPoint={p.onPoint} setTip={p.setTip} />
+          ) : navScreen ? (
+            <NavFrame nav={NAV} node={node} screen={navScreen} view={view} onPoint={p.onPoint} dark={dark} />
+          ) : view && shot ? (
+            <ShotPhone shot={shot} screen={screen ?? node} view={view} metric={metric} navGo={navGo} go={(to) => p.go(nodeForData(NAV, to))} setTip={p.setTip} />
+          ) : view && (isCreate || overCreate) ? (
             <CreatePhone
               state={overCreate ? (screen === "ad_dialog_shown" ? "full" : drawState) : drawState}
               mode={route.mode}
@@ -669,21 +806,25 @@ function PhoneColumn(p: PhoneProps) {
               onHover={p.onHover}
               bare={overCreate}
             >
-              {overCreate && <GenericFrame screen={screen} view={view} navGo={navGo} go={p.go} setTip={p.setTip} />}
+              {overCreate && <GenericFrame screen={screen!} view={view} navGo={navGo} go={(to) => p.go(nodeForData(NAV, to))} setTip={p.setTip} />}
             </CreatePhone>
-          ) : (
+          ) : view ? (
             <div className={cx("screen", dark && "dark")}>
-              <GenericFrame screen={screen} view={view} navGo={navGo} go={p.go} setTip={p.setTip} />
+              <GenericFrame screen={screen ?? node} view={view} navGo={navGo} go={(to) => p.go(nodeForData(NAV, to))} setTip={p.setTip} />
             </div>
+          ) : (
+            <div className={cx("screen", dark && "dark")} />
           )}
         </div>
       </div>
       <div className={cx("note")} style={{ textAlign: "center", maxWidth: 360 }}>
-        {shot
-          ? "Tasveer computer par hamare demo data se bani (screenshot pipeline) — kabhi kisi user ki nahi."
-          : isCreate
-            ? "Ye tasveer app ke asli code se banayi (VC_113_VN_149, InvoiceScreen.kt). Asli reference tasveer screenshot pipeline se aayegi — hamare apne demo data ke saath, kabhi kisi user ki nahi."
-            : "Is screen ki tasveer abhi nahi aayi, is liye phone mein iske taps ki fehrist hai — har aik par tap karke aage ja sakte hain."}
+        {navScreen
+          ? shot
+            ? "Tasveer computer par hamare demo data se bani (screenshot pipeline) — kabhi kisi user ki nahi. Har dabne wali cheez par tap karein: neela = aage, jamni = wapas, peela = app se bahar, firozi = shart ke saath. Phone ka back neeche hai."
+            : navScreen.pictured
+              ? "Tasveer load ho rahi hai…"
+              : "Is screen ki tasveer pipeline mein abhi nahi; is ke raaste app ke code se buttons ki shakal mein hain."
+          : "Is screen ki tasveer abhi nahi aayi, is liye phone mein iske taps ki fehrist hai — har aik par tap karke aage ja sakte hain."}
       </div>
     </div>
   );
@@ -907,8 +1048,10 @@ function CreateTable({ sel, setSel, stats, overlay, measured }: { sel: string; s
 
 // ── any other screen: its taps and where it leads ──
 
-function GenericRight({ view, screen, go }: { view: ScreenView; screen: string; go: (s: string) => void }) {
+function GenericRight({ view, screen, node, go, onPoint }: { view: ScreenView; screen: string; node: string; go: (s: string) => void; onPoint: (p: NavPoint) => void }) {
   const h = view.headline;
+  const navScreen = NAV.screens[node] ?? null;
+  const pointOf = (key: string) => (navScreen ? navScreen.points.find((p) => measures(navScreen, p, key)) ?? null : null);
   return (
     <div>
       <div className={cx("card detail")}>
@@ -943,7 +1086,7 @@ function GenericRight({ view, screen, go }: { view: ScreenView; screen: string; 
                   <td className={cx("n hideSm")}>{fixed2(r.perViewer)}</td>
                   <td className={cx("n hideSm")}>{pc(r.repeatPct)}</td>
                   <td className={cx("small")}>
-                    {r.leadsTo ? <a style={{ color: "var(--primary)", cursor: "pointer", fontWeight: 700 }} onClick={() => go(r.leadsTo!)}>→ {sname(r.leadsTo)} {pc(r.leadsToPct)}</a> : "—"}
+                    <LeadCell r={r} point={pointOf(r.key)} go={go} onPoint={onPoint} />
                   </td>
                 </tr>
               ))}
@@ -951,12 +1094,29 @@ function GenericRight({ view, screen, go }: { view: ScreenView; screen: string; 
           </table>
         </div>
         <div className={cx("note")}>
-          &quot;Kahan le jata hai&quot; = tap ke 2 second ke andar agli screen (Save 5 s, Watch ad 120 s), kam az kam 50% dafa. {fmt(view.elementsTotal)} cheezen, sab se
+          &quot;Kahan le jata hai&quot; = app ke code ka raasta (naqsha), aur us ke saath data: tap ke 2 second ke andar agli screen (Save 5 s, Watch ad
+          120 s), kam az kam 50% dafa. Sheet band karna aur gallery/camera data mein koi screen nahi dikhate, is liye wahan sirf code ka raasta hai. {fmt(view.elementsTotal)} cheezen, sab se
           zyada dabayi gayi {view.elements.length} dikh rahi hain.
         </div>
       </div>
     </div>
   );
+}
+
+/** Where a measured tap leads: the code's destination, with the data's next screen beside it as evidence. */
+function LeadCell({ r, point, go, onPoint }: { r: ElementStat; point: NavPoint | null; go: (s: string) => void; onPoint: (p: NavPoint) => void }) {
+  const data = r.leadsTo ? `${sname(r.leadsTo)} ${pc(r.leadsToPct)}` : (r.next ?? [])[0] ? `${sname(r.next![0].screen)} ${pc(r.next![0].pct)}` : null;
+  if (point && point.kind !== "stay") {
+    return (
+      <>
+        <a className={cx("golink")} onClick={() => onPoint(point)}>{pointText(NAV, point)}</a>
+        {data && <div className={cx("muted")}>data: → {data}</div>}
+      </>
+    );
+  }
+  if (r.leadsTo) return <a className={cx("golink")} onClick={() => go(r.leadsTo!)}>→ {sname(r.leadsTo)} {pc(r.leadsToPct)}</a>;
+  if (point) return <span className={cx("muted")}>isi screen par: {point.stay}</span>;
+  return <>—</>;
 }
 
 function NextScreens({ view, go }: { view: ScreenView; go: (s: string) => void }) {

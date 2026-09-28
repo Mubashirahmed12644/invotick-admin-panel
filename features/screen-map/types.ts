@@ -95,6 +95,8 @@ export interface ElementStat {
   rageDevices: number;
   leadsTo: string | null;
   leadsToPct: number | null;
+  /** Every screen that followed a tap, most first (backend from 2026-09-29; absent before). */
+  next?: { screen: string; taps: number; pct: number | null }[];
 }
 
 export interface Cell {

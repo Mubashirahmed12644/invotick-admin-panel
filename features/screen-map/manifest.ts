@@ -200,3 +200,49 @@ export function sameElement(id: string, element: string, screen: string): boolea
   const base = element.split("#")[0];
   return base === id || base === `tap:${screen}:${id}`;
 }
+
+/** One tappable control of a picture, keyed the way the navigation map (`navmap.data.ts`) names it. */
+export interface Control {
+  key: string;
+  label: string;
+  window: number;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+/**
+ * The controls of a picture's TOP window (the sheet or dialog in front; what is underneath cannot be tapped), keyed as
+ * the navigation map keys them: the event id, else `label:<text>`, else `nolabel@l,t,r,b`.
+ */
+export function readControls(raw: unknown): { width: number; height: number; controls: Control[] } | null {
+  if (!isObj(raw) || !Array.isArray(raw.controls)) return null;
+  const width = num(raw.width) ?? num((raw.image as Json | undefined)?.width) ?? 720;
+  const height = num(raw.height) ?? num((raw.image as Json | undefined)?.height) ?? 1561;
+  const all = (raw.controls as unknown[]).filter(isObj);
+  const top = Math.max(0, ...all.map((c) => num(c.window) ?? 0));
+  const controls: Control[] = [];
+  for (const c of all) {
+    if ((num(c.window) ?? 0) !== top) continue;
+    const b = Array.isArray(c.bounds) ? (c.bounds as unknown[]).map((v) => num(v)) : [];
+    if (b.length !== 4 || b.some((v) => v === null)) continue;
+    const [l, t, r, bt] = b as number[];
+    if (r <= l || bt <= t) continue;
+    const label = str(c.label) ?? "";
+    const key = str(c.event) ?? (label.trim() ? `label:${label}` : `nolabel@${l},${t},${r},${bt}`);
+    controls.push({ key, label, window: top, x: l, y: t, w: r - l, h: bt - t });
+  }
+  return { width, height, controls };
+}
+
+/** A picture's bounds file as it is, for [readControls]. */
+export async function loadBoundsRaw(url: string | null): Promise<unknown> {
+  if (!url) return null;
+  try {
+    const r = await authedFetch(url);
+    return r.ok ? await r.json() : null;
+  } catch {
+    return null;
+  }
+}

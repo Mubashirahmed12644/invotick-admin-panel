@@ -227,3 +227,29 @@
    never push the page sideways (375 px rule). */
 .grid > *, .two > *, .kpis > *, .modes > * { min-width: 0 }
 .card { max-width: 100% }
+
+/* the clickable phone: every control of the picture's top window, coloured by what it does */
+.hs { position: absolute; border: 0; padding: 0; margin: 0; border-radius: 6px; cursor: pointer; background: rgba(var(--heat-rgb), var(--heat, 0)); outline: 1.5px solid rgba(138, 180, 248, .75); font: inherit }
+.hs:hover, .hs:focus-visible { outline-width: 2.5px; background-color: rgba(138, 180, 248, .18) }
+.hs-forward { outline-color: rgba(66, 133, 244, .85) }
+.hs-backward { outline-color: rgba(197, 138, 249, .9) }
+.hs-outside { outline: 1.5px dashed rgba(251, 188, 4, .95) }
+.hs-conditional { outline-color: rgba(120, 217, 236, .95) }
+.hs-auto { outline-color: rgba(66, 133, 244, .85) }
+.hs-stay { outline: 1px dotted rgba(154, 160, 166, .6) }
+.hs-none { outline: 1.5px solid rgba(255, 84, 73, .9) }
+.hsFull { outline: none; background: transparent }
+.hsFull:hover { outline: none; background: rgba(197, 138, 249, .06) }
+.hsSel { outline: 3px solid #ff7a00 !important }
+.hs .bdg { top: -9px; right: -6px }
+.sysbar { display: flex; gap: 6px; justify-content: center; margin-top: 8px; flex-wrap: wrap }
+.sysbtn { border: 1px solid var(--outline-var); background: var(--s); color: var(--on); border-radius: 12px; padding: 6px 10px; font: 700 12.5px inherit; font-family: inherit; cursor: pointer; max-width: 340px; text-align: left }
+.sysbtn small { display: block; font-weight: 500; font-size: 11px; color: var(--on-var) }
+.choice { border: 1px solid var(--outline-var); background: var(--s); border-radius: 12px; padding: 10px 12px; max-width: 376px; width: 100%; box-sizing: border-box }
+.golink { color: var(--primary); font-weight: 700; cursor: pointer; text-decoration: none }
+.kind { display: inline-block; font-size: 10.5px; font-weight: 800; border-radius: 999px; padding: 1px 7px; background: var(--s-highest); color: var(--on) }
+.k-forward, .k-auto { background: rgba(66, 133, 244, .18) }
+.k-backward { background: rgba(197, 138, 249, .22) }
+.k-outside { background: rgba(251, 188, 4, .25) }
+.k-conditional { background: rgba(120, 217, 236, .25) }
+.navhist { display: flex; gap: 6px; align-items: center; justify-content: center }
