@@ -34,6 +34,7 @@ import type {
   WebpanelUserStatsSection,
   WebpanelUserStatsSummary,
   WebpanelUserStatsAndAnalyticsByUserIdResponse,
+  WebpanelCurrencyTotal,
 } from "@/lib/types";
 
 const numberFormatter = new Intl.NumberFormat("en-US");
@@ -83,6 +84,19 @@ const INVOICE_STATUS_ORDER = [
 
 function formatInt(value: number | null | undefined): string {
   return numberFormatter.format(fallbackNumber(value, 0));
+}
+
+/** The currency the user bills in most (the server sends them most-invoices first), then "+n" for the rest. */
+function mainCurrency(rows: WebpanelCurrencyTotal[]): string {
+  const [main, ...others] = rows;
+  if (!main) return "-";
+  return `${formatCurrency(Number(main.amount), main.currency)}${others.length > 0 ? ` +${others.length}` : ""}`;
+}
+
+/** Every currency's own total, one per line, for a hover. */
+function currencyList(rows: WebpanelCurrencyTotal[]): string | undefined {
+  if (rows.length < 2) return undefined;
+  return rows.map((row) => `${row.currency} ${formatCurrency(Number(row.amount), row.currency)} (${row.invoices})`).join("\n");
 }
 
 function formatRelativeTimeCompact(value: string | null | undefined): string {
@@ -414,18 +428,15 @@ function UserDetailContent() {
     const topVersion = appVersions
       .map((version) => version.appVersion)
       .find((value): value is string => Boolean(value?.trim()));
-    const allInvoiceTotal = fallbackNumber(allTime.totals.invoiceTotalAmount, 0);
-    const allPaymentTotal = fallbackNumber(allTime.totals.paymentTotalAmount, 0);
-    const allExpenseTotal = fallbackNumber(allTime.totals.expenseTotalAmount, 0);
-    const last30InvoiceTotal = fallbackNumber(last30.totals.invoiceTotalAmount, 0);
-    const last30PaymentTotal = fallbackNumber(last30.totals.paymentTotalAmount, 0);
-    const last30ExpenseTotal = fallbackNumber(last30.totals.expenseTotalAmount, 0);
+    // Money stays in its own currency (the audit of 2026-09-28): the page used to print every currency's
+    // 30-day total added together behind a "$", and worked a collection rate out of two such sums.
+    const allTimeByCurrency = allTime.totals.invoiceTotalsByCurrency ?? [];
+    const last30ByCurrency = last30.totals.invoiceTotalsByCurrency ?? [];
     const totalSessions = fallbackNumber(analytics?.totalSessions, 0);
     const totalEvents = fallbackNumber(analytics?.totalEvents, 0);
     const totalDevices = fallbackNumber(analytics?.totalDistinctDevices, 0);
     const totalLocations = fallbackNumber(analytics?.totalDistinctLocations, 0);
     const totalVersions = fallbackNumber(analytics?.totalDistinctAppVersions, 0);
-    const collectionRate = allInvoiceTotal > 0 ? (allPaymentTotal / allInvoiceTotal) * 100 : 0;
     const recentBusinessActivity =
       fallbackNumber(last30.counts.invoices, 0) +
       fallbackNumber(last30.counts.payments, 0) +
@@ -464,18 +475,13 @@ function UserDetailContent() {
       primaryLocation,
       topPlatforms,
       topVersion,
-      allInvoiceTotal,
-      allPaymentTotal,
-      allExpenseTotal,
-      last30InvoiceTotal,
-      last30PaymentTotal,
-      last30ExpenseTotal,
+      allTimeByCurrency,
+      last30ByCurrency,
       totalSessions,
       totalEvents,
       totalDevices,
       totalLocations,
       totalVersions,
-      collectionRate,
       recentBusinessActivity,
       lastActivityAt,
       geoCountry,
@@ -622,7 +628,7 @@ function UserDetailContent() {
                   <div className="user-insight-stat">
                     <span>Last 30d invoices</span>
                     <strong>{formatInt(derived.stats.last30Days.counts.invoices)}</strong>
-                    <small>{formatCurrency(derived.last30InvoiceTotal)}</small>
+                    <small title={currencyList(derived.last30ByCurrency)}>{mainCurrency(derived.last30ByCurrency)}</small>
                   </div>
                   <div className="user-insight-stat">
                     {/* The server reads the last 30 days of this user's analytics, not the whole history
@@ -668,6 +674,52 @@ function UserDetailContent() {
                     <small>{formatDateTime(profile.createdAt)}</small>
                   </article>
                 </div>
+              </section>
+
+              <section className="section-card">
+                <div className="section-header">
+                  <h2>Invoices by currency</h2>
+                  <span className="results-meta">
+                    Worked out by the server within each currency; nothing is added or divided across currencies.
+                  </span>
+                </div>
+                {derived.allTimeByCurrency.length === 0 ? (
+                  <p className="results-meta">No invoices.</p>
+                ) : (
+                  <table className="user-revenue-table user-currency-table">
+                    <thead>
+                      <tr>
+                        <th>Currency</th>
+                        <th>Invoices</th>
+                        <th>Invoiced</th>
+                        <th title="Invoices that are not drafts">Billed</th>
+                        <th title="Payments applied to invoices in this currency">Paid</th>
+                        <th title="Paid ÷ billed, in this currency only">Collected</th>
+                        <th>Last 30 days</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {derived.allTimeByCurrency.map((row) => {
+                        const recent = derived.last30ByCurrency.find((entry) => entry.currency === row.currency);
+                        return (
+                          <tr key={row.currency}>
+                            <td>{row.currency}</td>
+                            <td>{formatInt(row.invoices)}</td>
+                            <td>{formatCurrency(Number(row.amount), row.currency)}</td>
+                            <td>{row.billed === null || row.billed === undefined ? "-" : formatCurrency(Number(row.billed), row.currency)}</td>
+                            <td>{row.paid === null || row.paid === undefined ? "-" : formatCurrency(Number(row.paid), row.currency)}</td>
+                            <td>{row.collectedPercent === null || row.collectedPercent === undefined ? "-" : `${Number(row.collectedPercent).toFixed(1)}%`}</td>
+                            <td>{recent ? `${formatInt(recent.invoices)} · ${formatCurrency(Number(recent.amount), recent.currency)}` : "-"}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                )}
+                <p className="results-meta">
+                  A payment row stores no currency; it is counted in the currency of the invoice it was applied to.
+                  Payments not applied to any invoice are not in this table.
+                </p>
               </section>
 
               <section className="section-card">

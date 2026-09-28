@@ -377,6 +377,12 @@ export interface WebpanelCurrencyTotal {
   currency: string;
   amount: Decimal;
   invoices: number;
+  /** The user page only: the total of this currency's invoices that are not drafts. */
+  billed?: Decimal | null;
+  /** The user page only: payments applied to invoices in this currency (the invoice names the currency). */
+  paid?: Decimal | null;
+  /** The user page only: paid ÷ billed × 100, worked out by the backend within this one currency. */
+  collectedPercent?: Decimal | null;
 }
 
 export interface WebpanelUserTotalsStats {
