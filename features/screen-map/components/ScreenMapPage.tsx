@@ -27,7 +27,7 @@ import {
   type ElementDef,
 } from "../catalog";
 import { fmt, fixed2, pc, secs, share, usd } from "../format";
-import { loadBounds, loadShots, sameElement, type Bounds, type Shot } from "../manifest";
+import { loadBounds, loadImage, loadShots, sameElement, type Bounds, type Shot } from "../manifest";
 import type { Dimensions, ElementStat, Exit, Filters, Holdout, Mode, ScreenMapStatus, ScreenSummary, ScreenView } from "../types";
 import CreatePhone, { badgeText, heatFor, type Metric } from "./CreatePhone";
 
@@ -692,6 +692,7 @@ function PhoneColumn(p: PhoneProps) {
 /** A reference picture with the measured elements boxed where the bounds file puts them. */
 function ShotPhone({ shot, screen, view, metric, navGo, go, setTip }: { shot: Shot; screen: string; view: ScreenView; metric: Metric; navGo: boolean; go: (s: string) => void; setTip: PhoneProps["setTip"] }) {
   const [bounds, setBounds] = useState<Bounds | null>(null);
+  const [src, setSrc] = useState<string | null>(null);
   useEffect(() => {
     let cancelled = false;
     loadBounds(shot.boundsUrl).then((b) => !cancelled && setBounds(b));
@@ -699,11 +700,28 @@ function ShotPhone({ shot, screen, view, metric, navGo, go, setTip }: { shot: Sh
       cancelled = true;
     };
   }, [shot.boundsUrl]);
+  // Through the panel's signed-in route (the store is private), handed to the <img> as an object URL.
+  useEffect(() => {
+    let cancelled = false;
+    let made: string | null = null;
+    loadImage(shot.imageUrl).then((u) => {
+      if (cancelled) {
+        if (u?.startsWith("blob:")) URL.revokeObjectURL(u);
+        return;
+      }
+      if (u?.startsWith("blob:")) made = u;
+      setSrc(u);
+    });
+    return () => {
+      cancelled = true;
+      if (made) URL.revokeObjectURL(made);
+    };
+  }, [shot.imageUrl]);
   const scale = bounds ? 360 / bounds.width : 1;
   return (
     <div className={cx("shot")}>
       {/* eslint-disable-next-line @next/next/no-img-element -- a remote picture of known size, not a page asset */}
-      <img src={shot.imageUrl} alt={`${sname(screen)} (${shot.state}, ${shot.theme})`} />
+      {src ? <img src={src} alt={`${sname(screen)} (${shot.state}, ${shot.theme})`} /> : null}
       {bounds?.rects.map((r, i) => {
         const st = view.elements.find((e) => e.elements.some((el) => sameElement(r.id, el, screen)));
         if (!st) return null;

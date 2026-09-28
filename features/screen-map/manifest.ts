@@ -1,10 +1,15 @@
+import { getAccessToken } from "@/lib/auth";
+
 /**
  * Reference pictures of the app's screens, made on the computer by the screenshot pipeline (never taken from a
  * user's phone), published per release as `screenmap/<versionCode>/manifest.json` with one image and one bounds
  * file per screen, state and theme.
  *
- * The page finds the manifest at `NEXT_PUBLIC_SCREENMAP_MANIFEST_URL`. Until that is set, or while a screen has no
- * picture, the page draws its placeholder frame instead — nothing waits on it.
+ * The pictures sit in a PRIVATE Vercel Blob store, so the browser never fetches them itself: it asks the panel's
+ * own route, `/api/screenmap/…`, with the admin's token, and that route reads the store (app/api/screenmap). The
+ * manifest is `/api/screenmap/latest/manifest.json` unless `NEXT_PUBLIC_SCREENMAP_MANIFEST_URL` names another.
+ * Pictures come back as blobs and are shown through object URLs, because an `<img>` cannot send a token. While a
+ * screen has no picture, the page draws its placeholder frame instead — nothing waits on it.
  *
  * The reader is deliberately forgiving about shape, because the pipeline is being built at the same time as this
  * page: a manifest may list entries as an array or nest them by screen and state, and a bounds file may give
@@ -33,7 +38,15 @@ export interface Bounds {
   rects: Rect[];
 }
 
-export const MANIFEST_URL = process.env.NEXT_PUBLIC_SCREENMAP_MANIFEST_URL ?? "";
+export const MANIFEST_URL = process.env.NEXT_PUBLIC_SCREENMAP_MANIFEST_URL || "/api/screenmap/latest/manifest.json";
+
+/** A fetch that carries the signed-in admin's token — the route answers nobody else. */
+function authedFetch(url: string, init: RequestInit = {}): Promise<Response> {
+  const headers = new Headers(init.headers);
+  const token = getAccessToken();
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+  return fetch(url, { ...init, headers });
+}
 
 type Json = Record<string, unknown>;
 
@@ -41,9 +54,12 @@ const isObj = (v: unknown): v is Json => typeof v === "object" && v !== null && 
 const str = (v: unknown): string | null => (typeof v === "string" && v ? v : null);
 const num = (v: unknown): number | null => (typeof v === "number" && Number.isFinite(v) ? v : typeof v === "string" && v !== "" && Number.isFinite(Number(v)) ? Number(v) : null);
 
+/** [path] against [base]; a same-origin result stays a path, so it goes through the panel's own route. */
 function resolve(base: string, path: string): string {
   try {
-    return new URL(path, base).toString();
+    const origin = typeof window !== "undefined" ? window.location.origin : "http://localhost";
+    const u = new URL(path, new URL(base, origin));
+    return u.origin === origin ? u.pathname + u.search : u.toString();
   } catch {
     return path;
   }
@@ -70,6 +86,25 @@ function entry(base: string, e: Json, screen?: string, state?: string, th?: stri
 /** Every picture a manifest lists, whichever shape it uses. */
 export function readManifest(base: string, raw: unknown): Shot[] {
   const out: Shot[] = [];
+  // The pipeline's shape (tools/screenmap/package.py): screens[] -> { screen, states: { state: { light|dark: { image, bounds } } } }.
+  if (isObj(raw) && Array.isArray(raw.screens) && raw.screens.every((x) => isObj(x) && typeof x.screen === "string" && isObj(x.states))) {
+    for (const sc of raw.screens as Json[]) {
+      for (const [state, themes] of Object.entries(sc.states as Json)) {
+        if (!isObj(themes)) continue;
+        for (const [th, e] of Object.entries(themes)) {
+          if (!isObj(e) || !str(e.image)) continue;
+          out.push({
+            screen: sc.screen as string,
+            state,
+            theme: theme(th),
+            imageUrl: resolve(base, e.image as string),
+            boundsUrl: str(e.bounds) ? resolve(base, e.bounds as string) : null,
+          });
+        }
+      }
+    }
+    return out;
+  }
   const walk = (v: unknown, screen?: string, state?: string, th?: string) => {
     if (Array.isArray(v)) {
       v.forEach((x) => walk(x, screen, state, th));
@@ -97,10 +132,16 @@ export function readBounds(raw: unknown): Bounds | null {
   if (!isObj(raw)) return null;
   const width = num(raw.width) ?? num((raw.image as Json | undefined)?.width) ?? null;
   const height = num(raw.height) ?? num((raw.image as Json | undefined)?.height) ?? null;
-  const list = raw.elements ?? raw.bounds ?? raw.nodes ?? raw.rects;
+  const list = raw.elements ?? raw.controls ?? raw.bounds ?? raw.nodes ?? raw.rects;
   const rects: Rect[] = [];
   const add = (id: string | null, r: unknown) => {
     if (!id || !isObj(r)) return;
+    // `[left, top, right, bottom]`, as the pipeline writes it.
+    if (Array.isArray(r.bounds) && r.bounds.length === 4 && r.bounds.every((v) => num(v) !== null)) {
+      const [l, t, rt, b] = (r.bounds as unknown[]).map((v) => num(v)!);
+      if (rt > l && b > t) rects.push({ id, x: l, y: t, w: rt - l, h: b - t });
+      return;
+    }
     const src = isObj(r.bounds) ? r.bounds : isObj(r.boundsInRoot) ? r.boundsInRoot : r;
     const left = num(src.left) ?? num(src.x);
     const top = num(src.top) ?? num(src.y);
@@ -109,7 +150,8 @@ export function readBounds(raw: unknown): Bounds | null {
     if (left === null || top === null || w === null || h === null || w <= 0 || h <= 0) return;
     rects.push({ id, x: left, y: top, w, h });
   };
-  if (Array.isArray(list)) list.forEach((r) => isObj(r) && add(str(r.id) ?? str(r.tag) ?? str(r.analyticsId) ?? str(r.testTag), r));
+  // `event` is the name the tap arrives under, screen included, so it is preferred to the bare tag.
+  if (Array.isArray(list)) list.forEach((r) => isObj(r) && add(str(r.id) ?? str(r.event) ?? str(r.tag) ?? str(r.analyticsId) ?? str(r.testTag), r));
   else if (isObj(list)) Object.entries(list).forEach(([id, r]) => add(id, r));
   if (!width || !height) return rects.length ? { width: Math.max(...rects.map((r) => r.x + r.w)), height: Math.max(...rects.map((r) => r.y + r.h)), rects } : null;
   return { width, height, rects };
@@ -121,7 +163,7 @@ let cache: Promise<Shot[]> | null = null;
 export function loadShots(): Promise<Shot[]> {
   if (!MANIFEST_URL) return Promise.resolve([]);
   if (!cache) {
-    cache = fetch(MANIFEST_URL, { cache: "no-store" })
+    cache = authedFetch(MANIFEST_URL, { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : null))
       .then((j) => (j ? readManifest(MANIFEST_URL, j) : []))
       .catch(() => []);
@@ -132,8 +174,22 @@ export function loadShots(): Promise<Shot[]> {
 export async function loadBounds(url: string | null): Promise<Bounds | null> {
   if (!url) return null;
   try {
-    const r = await fetch(url, { cache: "force-cache" });
+    const r = await authedFetch(url);
     return r.ok ? readBounds(await r.json()) : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * A picture as an object URL (the caller revokes it). An `<img>` cannot carry the admin's token, so the picture is
+ * fetched with it and handed over as a blob.
+ */
+export async function loadImage(url: string): Promise<string | null> {
+  if (!url.startsWith("/")) return url; // not ours: a public URL the page may show as is
+  try {
+    const r = await authedFetch(url);
+    return r.ok ? URL.createObjectURL(await r.blob()) : null;
   } catch {
     return null;
   }
