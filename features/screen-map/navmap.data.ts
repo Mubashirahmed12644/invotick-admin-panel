@@ -1,15 +1,17 @@
 /**
- * The app's navigation map for release 113 (VC_113_VN_149), read from the app's code — see navmap.ts for what it is and
+ * The app's navigation map for release 114 (release/1.5.1), read from the app's code — see navmap.ts for what it is and
  * tools/screen-map-nav-check.mjs for the check that keeps it whole. `controls` are the pictures' tappable controls as
- * the screenshot pipeline's bounds files list them (commit 911d1cf3); every one is covered by a point.
+ * the screenshot pipeline's bounds files list them (release/1.5.1 a6eddc161, kaam/screen-map/out/114); every one is
+ * covered by a point. Brought from 113 on 2026-09-30 for decision 0199's renamed tap ids (and the 1.5.1 renames beside
+ * them). The 30 screens the 114 pipeline pictures for the first time are not in the map yet: `--out …/114` lists them.
  *
  * Generated from the code-derived inventory; edit a point here, then run `npm run check:screen-map-nav`.
  */
 import type { NavMap } from "./navmap";
 
 export const NAV: NavMap = {
- "versionCode": 113,
- "appBranch": "VC_113_VN_149",
+ "versionCode": 114,
+ "appBranch": "release/1.5.1",
  "root": "splash_scr",
  "screens": {
   "ad_dialog_shown": {
@@ -23,21 +25,21 @@ export const NAV: NavMap = {
    ],
    "controls": [
     {
-     "key": "tap:saved_inv_scr:AdOrPremiumDialog.dismiss_1",
+     "key": "ad_dialog_dismissed",
      "states": []
     },
     {
-     "key": "tap:saved_inv_scr:AdOrPremiumDialog.loading_ad_2",
+     "key": "watch_ad_click",
      "states": []
     },
     {
-     "key": "tap:saved_inv_scr:AdOrPremiumDialog.go_premium_3",
+     "key": "ad_dailog_premium_click",
      "states": []
     }
    ],
    "points": [
     {
-     "match": "tap:saved_inv_scr:AdOrPremiumDialog.dismiss_1",
+     "match": "ad_dialog_dismissed",
      "label": "Close (X)",
      "kind": "conditional",
      "branches": [
@@ -62,10 +64,13 @@ export const NAV: NavMap = {
        "back": true
       }
      ],
-     "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/save/components/AdOrPremiumDialog.kt:207"
+     "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/save/components/AdOrPremiumDialog.kt:207",
+     "events": [
+      "ad_dialog_dismissed#close_button"
+     ]
     },
     {
-     "match": "tap:saved_inv_scr:AdOrPremiumDialog.loading_ad_2",
+     "match": "watch_ad_click",
      "label": "Watch a Short Ad",
      "kind": "conditional",
      "branches": [
@@ -87,7 +92,7 @@ export const NAV: NavMap = {
      "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/save/components/AdOrPremiumDialog.kt:288"
     },
     {
-     "match": "tap:saved_inv_scr:AdOrPremiumDialog.go_premium_3",
+     "match": "ad_dailog_premium_click",
      "label": "Go Premium",
      "kind": "forward",
      "to": "premium_scr",
@@ -1466,7 +1471,7 @@ export const NAV: NavMap = {
      "states": []
     },
     {
-     "key": "tap:create_business:BusinessFormScreen.business_form_content_1",
+     "key": "tap:create_business:business_form.toggle_details",
      "states": []
     },
     {
@@ -1494,7 +1499,7 @@ export const NAV: NavMap = {
      "source": "feature/company/src/commonMain/kotlin/invotick/invoicemaker/feature/company/presentation/businessForm/BusinessFormScreen.kt:176"
     },
     {
-     "match": "tap:create_business:BusinessFormScreen.business_form_content_1",
+     "match": "tap:create_business:business_form.toggle_details",
      "label": "Show More Details",
      "kind": "stay",
      "stay": "expands/collapses the extra fields",
@@ -1585,75 +1590,7 @@ export const NAV: NavMap = {
      "states": []
     },
     {
-     "key": "label:School",
-     "states": []
-    },
-    {
-     "key": "label:Decking",
-     "states": []
-    },
-    {
-     "key": "label:Tailors",
-     "states": []
-    },
-    {
-     "key": "label:Electrical",
-     "states": []
-    },
-    {
-     "key": "label:Digital Freelancer",
-     "states": []
-    },
-    {
-     "key": "label:Fencing",
-     "states": []
-    },
-    {
-     "key": "label:Mechanics",
-     "states": []
-    },
-    {
-     "key": "label:General Contracting",
-     "states": []
-    },
-    {
-     "key": "label:Carpentry",
-     "states": []
-    },
-    {
-     "key": "label:Cleaning",
-     "states": []
-    },
-    {
-     "key": "label:HVAC",
-     "states": []
-    },
-    {
-     "key": "label:Handyman",
-     "states": []
-    },
-    {
-     "key": "label:Home Builder",
-     "states": []
-    },
-    {
-     "key": "label:Pharmacy",
-     "states": []
-    },
-    {
-     "key": "label:Landscaping",
-     "states": []
-    },
-    {
-     "key": "label:Masonry",
-     "states": []
-    },
-    {
-     "key": "label:Painting",
-     "states": []
-    },
-    {
-     "key": "label:Other",
+     "key": "tap:business_add_form_landed:BusinessCategoryItem.category_item",
      "states": []
     }
    ],
@@ -1686,15 +1623,8 @@ export const NAV: NavMap = {
      "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/create/bottomSheet/business/create/CreateBusinessScreen.kt:401"
     },
     {
-     "match": "re:^(label:School|label:Decking|label:Tailors|label:Electrical|label:Digital\\ Freelancer|label:Fencing|label:Mechanics|label:General\\ Contracting|label:Carpentry|label:Cleaning|label:HVAC|label:Handyman|label:Home\\ Builder|label:Pharmacy|label:Landscaping|label:Masonry|label:Painting)$",
-     "label": "Pick a category (closes)",
-     "kind": "backward",
-     "to": "business_add_form_landed",
-     "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/create/bottomSheet/business/create/CreateBusinessScreen.kt:422"
-    },
-    {
-     "match": "label:Other",
-     "label": "Other (closes; the form asks for a custom category name)",
+     "match": "tap:business_add_form_landed:BusinessCategoryItem.category_item",
+     "label": "Pick a category (closes; Other makes the form ask for a custom category name)",
      "kind": "backward",
      "to": "business_add_form_landed",
      "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/create/bottomSheet/business/create/CreateBusinessScreen.kt:422"
@@ -2127,25 +2057,25 @@ export const NAV: NavMap = {
    ],
    "controls": [
     {
-     "key": "tap:create_inv_scr:components_DiscardChangesDialog.close_1",
+     "key": "discard_dialog_closed",
      "states": [
       "discard-dialog"
      ]
     },
     {
-     "key": "tap:create_inv_scr:components_DiscardChangesDialog.discard_changes_dialog_2",
+     "key": "Draft_click",
      "states": [
       "discard-dialog"
      ]
     },
     {
-     "key": "create_inv_discard_click",
+     "key": "discard_confirmed",
      "states": [
       "discard-dialog"
      ]
     },
     {
-     "key": "tap:create_inv_scr:components_DiscardChangesDialog.keep_editing_4",
+     "key": "discard_cancelled",
      "states": [
       "discard-dialog"
      ]
@@ -2306,7 +2236,7 @@ export const NAV: NavMap = {
      ]
     },
     {
-     "key": "invoice_action_bar_secondary",
+     "key": "create_inv_saved_click",
      "states": [
       "filled",
       "tour-4-send"
@@ -2323,14 +2253,14 @@ export const NAV: NavMap = {
    ],
    "points": [
     {
-     "match": "tap:create_inv_scr:components_DiscardChangesDialog.close_1",
+     "match": "discard_dialog_closed",
      "label": "Discard dialog: close (X)",
      "kind": "stay",
      "stay": "closes the dialog, keeps editing",
      "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/create/components/DiscardChangesDialog.kt:144"
     },
     {
-     "match": "tap:create_inv_scr:components_DiscardChangesDialog.discard_changes_dialog_2",
+     "match": "Draft_click",
      "label": "Discard dialog: Save as Draft (leaves)",
      "kind": "conditional",
      "branches": [
@@ -2347,14 +2277,14 @@ export const NAV: NavMap = {
      "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/document/invoice/InvoiceScreen.kt:573"
     },
     {
-     "match": "create_inv_discard_click",
+     "match": "discard_confirmed",
      "label": "Discard dialog: Discard Everything (leaves)",
      "kind": "backward",
      "to": "dashboard",
      "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/create/components/DiscardChangesDialog.kt:277"
     },
     {
-     "match": "tap:create_inv_scr:components_DiscardChangesDialog.keep_editing_4",
+     "match": "discard_cancelled",
      "label": "Discard dialog: Keep Editing",
      "kind": "stay",
      "stay": "closes the dialog, keeps editing",
@@ -2505,7 +2435,7 @@ export const NAV: NavMap = {
      "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/document/invoice/InvoiceScreen.kt:1607"
     },
     {
-     "match": "invoice_action_bar_secondary",
+     "match": "create_inv_saved_click",
      "label": "Save",
      "kind": "conditional",
      "branches": [
@@ -3049,12 +2979,6 @@ export const NAV: NavMap = {
      ]
     },
     {
-     "key": "label:Outstanding",
-     "states": [
-      "filled"
-     ]
-    },
-    {
      "key": "label:Overdue",
      "states": [
       "filled"
@@ -3080,6 +3004,12 @@ export const NAV: NavMap = {
     },
     {
      "key": "tap:customer_list:customerList_ClientListScreen.chevron_right_2",
+     "states": [
+      "filled"
+     ]
+    },
+    {
+     "key": "label:Outstanding · 3",
      "states": [
       "filled"
      ]
@@ -3109,7 +3039,7 @@ export const NAV: NavMap = {
      "source": "feature/paymentForm/src/commonMain/kotlin/invotick/invoicemaker/feature/paymentform/presentation/customerList/ClientListScreen.kt:94,101-106; feature/paymentForm/src/commonMain/kotlin/invotick/invoicemaker/feature/paymentform/navigation/PaymentFormNavigation.kt:127"
     },
     {
-     "match": "re:^label:(All|Outstanding|Overdue|Paid|No Invoices)$",
+     "match": "re:^label:(All|Outstanding(?: · \\d+)?|Overdue|Paid|No Invoices)$",
      "label": "Filter chip",
      "kind": "stay",
      "stay": "Filters clients",
@@ -3318,37 +3248,6 @@ export const NAV: NavMap = {
      ]
     },
     {
-     "key": "label:Ayesha Khan · $450.00 · INV-0012 · · · Due in 12 days",
-     "states": [
-      "filled"
-     ]
-    },
-    {
-     "key": "label:Sara Malik · $1,200.00 · INV-0011 · · · Paid in full",
-     "states": [
-      "filled"
-     ]
-    },
-    {
-     "key": "label:Bilal Ahmed · $480.50 · of $780.50 · INV-0010 · · · 8 days overdue",
-     "states": [
-      "filled"
-     ]
-    },
-    {
-     "key": "label:Omar Farooq · $95.00 · INV-0009 · · · 18 days overdue",
-     "states": [
-      "filled",
-      "filter-overdue"
-     ]
-    },
-    {
-     "key": "label:Ayesha Khan · $260.00 · INV-0008 · · · Due in 13 days",
-     "states": [
-      "filled"
-     ]
-    },
-    {
      "key": "tap:dashboard:InvoiceListScreen.multi_select_2",
      "states": [
       "filled",
@@ -3362,38 +3261,16 @@ export const NAV: NavMap = {
      ]
     },
     {
-     "key": "label:Ayesha Khan · $450.00 · INV-0012 · · · Due in 12 days · Selected",
-     "states": [
-      "multi-select"
-     ]
-    },
-    {
-     "key": "label:Sara Malik · $1,200.00 · INV-0011 · · · Paid in full · Not selected",
-     "states": [
-      "multi-select"
-     ]
-    },
-    {
-     "key": "label:Bilal Ahmed · $480.50 · of $780.50 · INV-0010 · · · 8 days overdue · Selected",
-     "states": [
-      "multi-select"
-     ]
-    },
-    {
-     "key": "label:Omar Farooq · $95.00 · INV-0009 · · · 18 days overdue · Not selected",
-     "states": [
-      "multi-select"
-     ]
-    },
-    {
-     "key": "label:Ayesha Khan · $260.00 · INV-0008 · · · Due in 13 days · Not selected",
-     "states": [
-      "multi-select"
-     ]
-    },
-    {
      "key": "tap:dashboard:InvoiceListScreen.delete_selected_1",
      "states": [
+      "multi-select"
+     ]
+    },
+    {
+     "key": "tap:dashboard:InvoiceListItem.invoice_item",
+     "states": [
+      "filled",
+      "filter-overdue",
       "multi-select"
      ]
     }
@@ -3514,7 +3391,7 @@ export const NAV: NavMap = {
      "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/list/InvoiceListScreen.kt:632"
     },
     {
-     "match": "re:^label:.* · INV-\\d+ · (?!.*(Selected|Not selected)$).*$",
+     "match": "tap:dashboard:InvoiceListItem.invoice_item",
      "label": "Open invoice row",
      "kind": "conditional",
      "branches": [
@@ -3544,7 +3421,7 @@ export const NAV: NavMap = {
      "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/list/components/FirstInvoiceEmptyState.kt:150; feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/list/InvoiceListScreen.kt:578; composeApp/src/commonMain/kotlin/invotick/invoicemaker/app/navigation/InvoiceDocNavigation.kt:61-69"
     },
     {
-     "match": "re:^label:.* · INV-\\d+ · .* · (Selected|Not selected)$",
+     "match": "tap:dashboard:InvoiceListItem.invoice_item",
      "label": "Invoice row in multi-select",
      "kind": "stay",
      "stay": "Toggles this invoice's selection",
@@ -3666,7 +3543,7 @@ export const NAV: NavMap = {
      "states": []
     },
     {
-     "key": "label:Edit business",
+     "key": "tap:db_business_list_scr:BusinessSelectionList.edit_business",
      "states": []
     }
    ],
@@ -3707,7 +3584,7 @@ export const NAV: NavMap = {
      "source": "core/ui/src/commonMain/kotlin/invotick/invoicemaker/core/ui/components/business/BusinessSelectionList.kt:193; feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/list/InvoiceListScreen.kt:188-190; feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/list/InvoiceListViewModel.kt:985"
     },
     {
-     "match": "label:Edit business",
+     "match": "tap:db_business_list_scr:BusinessSelectionList.edit_business",
      "label": "Edit business (sheet closes first)",
      "kind": "forward",
      "to": "edit_business",
@@ -3855,7 +3732,7 @@ export const NAV: NavMap = {
      "states": []
     },
     {
-     "key": "tap:edit_business:BusinessFormScreen.business_form_content_1",
+     "key": "tap:edit_business:business_form.toggle_details",
      "states": []
     },
     {
@@ -3868,10 +3745,6 @@ export const NAV: NavMap = {
     },
     {
      "key": "label:Business Number",
-     "states": []
-    },
-    {
-     "key": "tap:edit_business:TextFiedl.invotick_clickable_text_field_2",
      "states": []
     },
     {
@@ -3913,6 +3786,10 @@ export const NAV: NavMap = {
     {
      "key": "tap:edit_business:Update",
      "states": []
+    },
+    {
+     "key": "tap:edit_business:business_form.select_category",
+     "states": []
     }
    ],
    "points": [
@@ -3931,14 +3808,14 @@ export const NAV: NavMap = {
      "source": "feature/company/src/commonMain/kotlin/invotick/invoicemaker/feature/company/presentation/businessForm/BusinessFormScreen.kt:176"
     },
     {
-     "match": "tap:edit_business:BusinessFormScreen.business_form_content_1",
+     "match": "tap:edit_business:business_form.toggle_details",
      "label": "Show Less / More Details",
      "kind": "stay",
      "stay": "collapses/expands the extra fields",
      "source": "feature/company/src/commonMain/kotlin/invotick/invoicemaker/feature/company/presentation/businessForm/BusinessFormScreen.kt:460"
     },
     {
-     "match": "re:^(tap:edit_business:TextFiedl\\.invotick_clickable_text_field_2|label:Default\\ category\\ ·\\ Arrow\\ drop\\ down)$",
+     "match": "re:^(tap:edit_business:business_form\\.select_category|label:Default\\ category\\ ·\\ Arrow\\ drop\\ down)$",
      "label": "Business category field",
      "kind": "forward",
      "to": "off:business_form_business_category_sheet",
@@ -4050,7 +3927,7 @@ export const NAV: NavMap = {
      "states": []
     },
     {
-     "key": "invoice_action_bar_secondary",
+     "key": "create_inv_saved_click",
      "states": []
     },
     {
@@ -4125,7 +4002,7 @@ export const NAV: NavMap = {
      "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/document/invoice/InvoiceScreen.kt:772"
     },
     {
-     "match": "invoice_action_bar_secondary",
+     "match": "create_inv_saved_click",
      "label": "Save",
      "kind": "conditional",
      "branches": [
@@ -4269,25 +4146,13 @@ export const NAV: NavMap = {
      ]
     },
     {
-     "key": "label:Ayesha Khan · $640.00 · EST-0004 · · · Expires in 27 days",
-     "states": [
-      "filled"
-     ]
-    },
-    {
-     "key": "label:Sara Malik · $1,500.00 · EST-0003 · · · Expires in 21 days · Accepted",
-     "states": [
-      "filled"
-     ]
-    },
-    {
-     "key": "label:Bilal Ahmed · $85.00 · EST-0002 · · · Expires in 29 days · Draft",
-     "states": [
-      "filled"
-     ]
-    },
-    {
      "key": "tap:estimate_scr:EstimateListScreen.multi_select_2",
+     "states": [
+      "filled"
+     ]
+    },
+    {
+     "key": "tap:estimate_scr:EstimateListScreen.estimate_item",
      "states": [
       "filled"
      ]
@@ -4375,7 +4240,7 @@ export const NAV: NavMap = {
      "source": "feature/document/estimate/src/commonMain/kotlin/invotick/invoicemaker/feature/estimate/presentation/list/EstimateListScreen.kt:590"
     },
     {
-     "match": "re:^label:.* · EST-\\d+ · .*$",
+     "match": "tap:estimate_scr:EstimateListScreen.estimate_item",
      "label": "Open estimate row",
      "kind": "conditional",
      "branches": [
@@ -5437,15 +5302,15 @@ export const NAV: NavMap = {
      "states": []
     },
     {
-     "key": "tap:premium_scr:PremiumPaywallSheet.hero_feature_card_4",
+     "key": "p_no_ads_click",
      "states": []
     },
     {
-     "key": "tap:premium_scr:PremiumPaywallSheet.hero_feature_card_clean_pdf_5",
+     "key": "p_clean_pdf_click",
      "states": []
     },
     {
-     "key": "tap:premium_scr:PremiumPaywallSheet.hero_feature_card_own_footer_6",
+     "key": "p_own_footer_click",
      "states": []
     },
     {
@@ -5465,7 +5330,7 @@ export const NAV: NavMap = {
      "states": []
     },
     {
-     "key": "label:Already have Premium?",
+     "key": "tap:premium_scr:PremiumPaywallSheet.already_purchased",
      "states": []
     }
    ],
@@ -5555,7 +5420,7 @@ export const NAV: NavMap = {
      "source": "feature/premium/src/commonMain/kotlin/invotick/invoicemaker/feature/premium/presentation/PremiumPaywallSheet.kt:373,112; composeApp/src/commonMain/kotlin/invotick/invoicemaker/app/navigation/MainShellNavigation.kt:895"
     },
     {
-     "match": "re:^tap:premium_scr:PremiumPaywallSheet\\.hero_feature_card",
+     "match": "re:^p_(no_ads|clean_pdf|own_footer)_click$",
      "label": "Feature card",
      "kind": "stay",
      "stay": "Records the tap only",
@@ -5585,7 +5450,7 @@ export const NAV: NavMap = {
      "source": "feature/premium/src/commonMain/kotlin/invotick/invoicemaker/feature/premium/presentation/PremiumPaywallSheet.kt:891-892; feature/premium/src/commonMain/kotlin/invotick/invoicemaker/feature/premium/presentation/PremiumViewModel.kt:147-149"
     },
     {
-     "match": "label:Already have Premium?",
+     "match": "tap:premium_scr:PremiumPaywallSheet.already_purchased",
      "label": "Already have Premium?",
      "kind": "forward",
      "to": "off:already_have_premium_dialog",
@@ -5729,31 +5594,105 @@ export const NAV: NavMap = {
     },
     {
      "key": "tap:received_invoice:ReceivedInvoiceScreen.download_pdf",
-     "states": []
+     "states": [
+      "approved",
+      "approved-small",
+      "decided-by-other",
+      "deciding",
+      "decision-error",
+      "declined",
+      "loading",
+      "note-open",
+      "note-paid",
+      "pending",
+      "pending-small"
+     ]
     },
     {
      "key": "tap:received_invoice:ReceivedInvoiceScreen.translate",
-     "states": []
+     "states": [
+      "approved",
+      "approved-small",
+      "decided-by-other",
+      "deciding",
+      "decision-error",
+      "declined",
+      "loading",
+      "note-open",
+      "note-paid",
+      "pending",
+      "pending-small"
+     ]
     },
     {
      "key": "label:Note for the sender (optional)",
-     "states": []
+     "states": [
+      "note-open"
+     ]
     },
     {
-     "key": "label:I've paid",
-     "states": []
+     "key": "tap:received_invoice:ReceivedInvoiceScreen.decline",
+     "states": [
+      "deciding",
+      "decision-error",
+      "note-open",
+      "note-paid",
+      "pending",
+      "pending-small"
+     ]
     },
     {
-     "key": "label:Decline",
-     "states": []
+     "key": "tap:received_invoice:ReceivedInvoiceScreen.approve",
+     "states": [
+      "deciding",
+      "decision-error",
+      "note-open",
+      "note-paid",
+      "pending",
+      "pending-small"
+     ]
     },
     {
-     "key": "label:Approve",
-     "states": []
+     "key": "tap:received_invoice:ReceivedInvoiceScreen.create_your_own_invoice_2",
+     "states": [
+      "approved",
+      "approved-small",
+      "decided-by-other",
+      "declined",
+      "error"
+     ]
     },
     {
-     "key": "label:Create your own invoice — free",
-     "states": []
+     "key": "tap:received_invoice:ReceivedInvoiceScreen.note_for_sender",
+     "states": [
+      "deciding",
+      "decision-error",
+      "note-paid",
+      "pending",
+      "pending-small"
+     ]
+    },
+    {
+     "key": "tap:received_invoice:ReceivedInvoiceScreen.i_ve_paid",
+     "states": [
+      "deciding",
+      "decision-error",
+      "note-open",
+      "note-paid",
+      "pending",
+      "pending-small"
+     ]
+    },
+    {
+     "key": "tap:received_invoice:ReceivedInvoiceScreen.create_your_own_invoice_pending",
+     "states": [
+      "deciding",
+      "decision-error",
+      "note-open",
+      "note-paid",
+      "pending",
+      "pending-small"
+     ]
     }
    ],
    "points": [
@@ -5795,35 +5734,35 @@ export const NAV: NavMap = {
      "source": "feature/receivedInvoice/src/commonMain/kotlin/invotick/invoicemaker/feature/receivedInvoice/presentation/ReceivedInvoiceScreen.kt:488,211,287"
     },
     {
-     "match": "label:Note for the sender (optional)",
+     "match": "re:^(label:Note\\ for\\ the\\ sender\\ \\(optional\\)|tap:received_invoice:ReceivedInvoiceScreen\\.note_for_sender)$",
      "label": "Note field",
      "kind": "stay",
      "stay": "Types a note",
      "source": "feature/receivedInvoice/src/commonMain/kotlin/invotick/invoicemaker/feature/receivedInvoice/presentation/ReceivedInvoiceScreen.kt:557-566"
     },
     {
-     "match": "label:I've paid",
+     "match": "tap:received_invoice:ReceivedInvoiceScreen.i_ve_paid",
      "label": "I've paid chip",
      "kind": "stay",
      "stay": "Appends \"I've paid.\" to the note",
      "source": "feature/receivedInvoice/src/commonMain/kotlin/invotick/invoicemaker/feature/receivedInvoice/presentation/ReceivedInvoiceScreen.kt:569"
     },
     {
-     "match": "label:Decline",
+     "match": "tap:received_invoice:ReceivedInvoiceScreen.decline",
      "label": "Decline",
      "kind": "stay",
      "stay": "Records the decision; screen shows the result",
      "source": "feature/receivedInvoice/src/commonMain/kotlin/invotick/invoicemaker/feature/receivedInvoice/presentation/ReceivedInvoiceScreen.kt:580,241; feature/receivedInvoice/src/commonMain/kotlin/invotick/invoicemaker/feature/receivedInvoice/presentation/ReceivedInvoiceViewModel.kt:72"
     },
     {
-     "match": "label:Approve",
+     "match": "tap:received_invoice:ReceivedInvoiceScreen.approve",
      "label": "Approve",
      "kind": "stay",
      "stay": "Records the decision; screen shows the result",
      "source": "feature/receivedInvoice/src/commonMain/kotlin/invotick/invoicemaker/feature/receivedInvoice/presentation/ReceivedInvoiceScreen.kt:587,240; feature/receivedInvoice/src/commonMain/kotlin/invotick/invoicemaker/feature/receivedInvoice/presentation/ReceivedInvoiceViewModel.kt:71"
     },
     {
-     "match": "label:Create your own invoice — free",
+     "match": "re:^tap:received_invoice:ReceivedInvoiceScreen\\.create_your_own_invoice_(2|pending)$",
      "label": "Create your own invoice — free (wired to Back: onCreateYourOwn defaults to onNavigateBack)",
      "kind": "conditional",
      "branches": [
@@ -5889,7 +5828,7 @@ export const NAV: NavMap = {
      "states": []
     },
     {
-     "key": "label:Continue as Guest",
+     "key": "tap:register_acc_scr:RegisterGuestButton.continue_as_guest",
      "states": []
     },
     {
@@ -5918,7 +5857,7 @@ export const NAV: NavMap = {
      "source": "feature/auth/src/commonMain/kotlin/invotick/invoicemaker/feature/auth/presentation/register/components/RegisterGoogleButton.kt:29; feature/auth/src/commonMain/kotlin/invotick/invoicemaker/feature/auth/presentation/register/RegisterScreen.kt:212,89; feature/auth/src/commonMain/kotlin/invotick/invoicemaker/feature/auth/navigation/AuthNavigation.kt:112"
     },
     {
-     "match": "label:Continue as Guest",
+     "match": "tap:register_acc_scr:RegisterGuestButton.continue_as_guest",
      "label": "Continue as Guest",
      "kind": "forward",
      "to": "dashboard",
@@ -6014,9 +5953,20 @@ export const NAV: NavMap = {
     {
      "key": "saved_inv_send_invoice",
      "states": []
+    },
+    {
+     "key": "saved_inv_edit_click",
+     "states": []
     }
    ],
    "points": [
+    {
+     "match": "saved_inv_edit_click",
+     "label": "Edit (top bar)",
+     "kind": "forward",
+     "to": "edit_inv_scr",
+     "source": "decision 0193: Edit is one tap in the saved invoice's top bar"
+    },
     {
      "match": "tap:saved_inv_scr:InvoiceDetailsComponents.action_templates",
      "label": "Templates → preview (templates panel)",
@@ -6892,31 +6842,7 @@ export const NAV: NavMap = {
      "states": []
     },
     {
-     "key": "label:English · Selected",
-     "states": []
-    },
-    {
-     "key": "label:简体中文 · Chinese (Simplified)",
-     "states": []
-    },
-    {
-     "key": "label:Français · French",
-     "states": []
-    },
-    {
-     "key": "label:العربية · Arabic",
-     "states": []
-    },
-    {
-     "key": "label:فارسی · Persian",
-     "states": []
-    },
-    {
-     "key": "label:Español · Spanish",
-     "states": []
-    },
-    {
-     "key": "label:Português · Portuguese",
+     "key": "tap:saved_inv_scr:TranslateSheet.language_option",
      "states": []
     }
    ],
@@ -6936,7 +6862,7 @@ export const NAV: NavMap = {
      "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/save/components/TranslateSheet.kt:55; feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/save/SaveInvoiceScreen.kt:457"
     },
     {
-     "match": "re:^label:(English|简体中文|Français|العربية|فارسی|Español|Português) · ",
+     "match": "tap:saved_inv_scr:TranslateSheet.language_option",
      "label": "Pick language (closes)",
      "kind": "backward",
      "to": "saved_inv_scr",
