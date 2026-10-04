@@ -77,6 +77,12 @@ export interface NavMap {
   appBranch: string;
   root: string;
   screens: Record<string, NavScreen>;
+  /**
+   * Screens the screenshot pipeline pictures but that nothing in the app opens: screen id → why not, with the code that
+   * shows it. They are not in [screens]: a screen no tap can reach has no points to read, and listing them here keeps
+   * `--out` from reporting them as drift while saying out loud that the app has them and cannot show them.
+   */
+  unreachable?: Record<string, string>;
 }
 
 /** Where a point goes, flattened: one entry per branch. */

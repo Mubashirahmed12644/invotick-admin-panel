@@ -21,7 +21,8 @@
  *
  * With `--out <dir>` (a screenshot-pipeline release folder, e.g. kaam/screen-map/out/113) it also re-reads that
  * release's bounds files and fails when a picture's controls differ from the ones the map was made against — the
- * signal that a new release needs its map brought up to date.
+ * signal that a new release needs its map brought up to date. A pictured screen that nothing in the app opens is not
+ * drift when `NAV.unreachable` names it, with the code that shows why; it is printed as a note instead.
  *
  * Run: `npm run check:screen-map-nav` (add `-- --out ../kaam/screen-map/out/113` to compare with a release folder).
  */
@@ -35,6 +36,7 @@ const { counts, problems } = checkNav(NAV);
 // Optional: the release folder the map should agree with.
 const outAt = process.argv.indexOf("--out");
 let drift = 0;
+let unreachable = 0;
 if (outAt > 0 && process.argv[outAt + 1]) {
   const dir = process.argv[outAt + 1];
   const manifest = JSON.parse(readFileSync(join(dir, "manifest.json"), "utf8"));
@@ -44,6 +46,11 @@ if (outAt > 0 && process.argv[outAt + 1]) {
   for (const sc of manifest.screens) {
     const mapped = NAV.screens[sc.screen];
     if (!mapped || !mapped.pictured) {
+      if (NAV.unreachable?.[sc.screen]) {
+        unreachable++;
+        console.log(`  note  ${sc.screen}: pictured, but no tap in the app opens it (${NAV.unreachable[sc.screen].split("; ")[0]})`);
+        continue;
+      }
       drift++;
       console.log(`  DRIFT ${sc.screen}: pictured in the release, not in the map`);
       continue;
@@ -64,6 +71,10 @@ if (outAt > 0 && process.argv[outAt + 1]) {
   for (const [k, s] of Object.entries(NAV.screens)) {
     if (s.pictured && !manifest.screens.some((sc) => sc.screen === k)) { drift++; console.log(`  DRIFT ${k}: in the map as pictured, not in the release`); }
   }
+  for (const k of Object.keys(NAV.unreachable ?? {})) {
+    if (NAV.screens[k]) { drift++; console.log(`  DRIFT ${k}: listed as unreachable and also in the map`); }
+    else if (!manifest.screens.some((sc) => sc.screen === k)) { drift++; console.log(`  DRIFT ${k}: listed as unreachable, not in the release`); }
+  }
 }
 
 for (const p of problems) console.log(`  FAIL  ${p.screen}: ${p.what}`);
@@ -80,6 +91,7 @@ console.log(`    conditional  ${counts.conditional}`);
 console.log(`    auto         ${counts.auto}`);
 console.log(`  stays-here   ${counts.stay}  controls that act where they are`);
 console.log(`  unresolved   ${counts.unresolved}`);
+if (outAt > 0) console.log(`  unreachable  ${unreachable}  pictured, but nothing in the app opens them (NAV.unreachable)`);
 if (outAt > 0) console.log(`  drift        ${drift}`);
 
 if (counts.unresolved > 0 || drift > 0) {

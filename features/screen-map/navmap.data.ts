@@ -3,7 +3,10 @@
  * tools/screen-map-nav-check.mjs for the check that keeps it whole. `controls` are the pictures' tappable controls as
  * the screenshot pipeline's bounds files list them (release/1.5.1 a6eddc161, kaam/screen-map/out/114); every one is
  * covered by a point. Brought from 113 on 2026-09-30 for decision 0199's renamed tap ids (and the 1.5.1 renames beside
- * them). The 30 screens the 114 pipeline pictures for the first time are not in the map yet: `--out …/114` lists them.
+ * them). The 30 screens that 114 pictures for the first time were read from the app's code on 2026-10-04 (release/1.5.1
+ * 4ffe740c7): 23 are in the map, and 7 are pictured but nothing in the app opens them (`unreachable`, each with the code
+ * that shows it). The pictures themselves are still the a6eddc161 package: Print, the PDF viewer and the later 1.5.1
+ * changes appear here once the pictures are re-recorded.
  *
  * Generated from the code-derived inventory; edit a point here, then run `npm run check:screen-map-nav`.
  */
@@ -768,7 +771,7 @@ export const NAV: NavMap = {
   "business_list": {
    "dataScreen": "business_list",
    "kind": "screen",
-   "parent": "off:navigation_drawer",
+   "parent": "drawer",
    "pictured": true,
    "states": [
     "filled"
@@ -796,7 +799,7 @@ export const NAV: NavMap = {
      "match": "tap:business_list:BusinessListItem.business_list_item_1",
      "label": "Business row → details",
      "kind": "forward",
-     "to": "off:business_details",
+     "to": "business_details_scr",
      "source": "feature/company/src/commonMain/kotlin/invotick/invoicemaker/feature/company/presentation/manageBusiness/components/BusinessListItem.kt:42; feature/company/src/commonMain/kotlin/invotick/invoicemaker/feature/company/presentation/manageBusiness/ManageBusinessScreen.kt:134; feature/company/src/commonMain/kotlin/invotick/invoicemaker/feature/company/navigation/BusinessNavigation.kt:65-67"
     },
     {
@@ -2004,7 +2007,7 @@ export const NAV: NavMap = {
      "branches": [
       {
        "when": "estimate has business + client + item and unsaved changes",
-       "to": "off:discard_changes_dialog",
+       "to": "discard_changes_dialog",
        "back": true
       },
       {
@@ -2026,7 +2029,7 @@ export const NAV: NavMap = {
       },
       {
        "when": "estimate has business + client + item and unsaved changes",
-       "to": "off:discard_changes_dialog",
+       "to": "discard_changes_dialog",
        "back": true
       },
       {
@@ -3318,7 +3321,7 @@ export const NAV: NavMap = {
      "branches": [
       {
        "when": "normal mode",
-       "to": "off:navigation_drawer"
+       "to": "drawer"
       },
       {
        "when": "multi-select mode: icon cancels selection",
@@ -3338,7 +3341,7 @@ export const NAV: NavMap = {
      "match": "tap:dashboard:InvoiceListScreen.contact_support_5",
      "label": "Contact Support → feedback dialog",
      "kind": "forward",
-     "to": "off:feedback_dialog",
+     "to": "feedback_dialog",
      "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/list/InvoiceListScreen.kt:348-349,446"
     },
     {
@@ -3430,9 +3433,17 @@ export const NAV: NavMap = {
     {
      "match": "tap:dashboard:InvoiceListScreen.delete_selected_1",
      "label": "Delete selected",
-     "kind": "stay",
-     "stay": "Opens the delete confirmation (dashboard delete-dialog state)",
-     "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/list/InvoiceListScreen.kt:266-268,410"
+     "kind": "forward",
+     "to": "delete_invoice_dialog",
+     "toState": "one",
+     "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/list/InvoiceListScreen.kt:430; feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/list/InvoiceListViewModel.kt:696"
+    },
+    {
+     "match": "@total",
+     "label": "Total on the revenue card (only when the invoices are in several currencies)",
+     "kind": "forward",
+     "to": "currency_breakdown_sheet",
+     "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/list/InvoiceListScreen.kt:630; feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/list/InvoiceListScreen.kt:488"
     },
     {
      "match": "@system_back",
@@ -3445,7 +3456,7 @@ export const NAV: NavMap = {
       },
       {
        "when": "nothing underneath (normal): exit dialog",
-       "to": "off:app_exit_dialog",
+       "to": "exit_scr",
        "back": true
       },
       {
@@ -3717,7 +3728,7 @@ export const NAV: NavMap = {
   "edit_business": {
    "dataScreen": "edit_business",
    "kind": "screen",
-   "parent": "off:business_details",
+   "parent": "business_details_scr",
    "pictured": true,
    "states": [
     "form"
@@ -3828,7 +3839,7 @@ export const NAV: NavMap = {
      "branches": [
       {
        "when": "opened from Business details",
-       "to": "off:business_details",
+       "to": "business_details_scr",
        "back": true
       },
       {
@@ -3850,7 +3861,7 @@ export const NAV: NavMap = {
       },
       {
        "when": "opened from Business details",
-       "to": "off:business_details"
+       "to": "business_details_scr"
       },
       {
        "when": "opened from the drawer or invoice list",
@@ -3866,7 +3877,7 @@ export const NAV: NavMap = {
      "branches": [
       {
        "when": "opened from Business details",
-       "to": "off:business_details",
+       "to": "business_details_scr",
        "back": true
       },
       {
@@ -4166,7 +4177,7 @@ export const NAV: NavMap = {
      "branches": [
       {
        "when": "normal mode",
-       "to": "off:navigation_drawer",
+       "to": "drawer",
        "back": true
       },
       {
@@ -4180,7 +4191,7 @@ export const NAV: NavMap = {
      "match": "tap:estimate_scr:EstimateListScreen.contact_support_4",
      "label": "Contact Support → feedback dialog",
      "kind": "forward",
-     "to": "off:feedback_dialog",
+     "to": "feedback_dialog",
      "source": "feature/document/estimate/src/commonMain/kotlin/invotick/invoicemaker/feature/estimate/presentation/list/EstimateListScreen.kt:354-355,440"
     },
     {
@@ -4353,7 +4364,7 @@ export const NAV: NavMap = {
      "match": "tap:expense_list:ExpenseEmptyStateComponents.add_first_expense_1",
      "label": "Add First Expense",
      "kind": "forward",
-     "to": "off:create_expense",
+     "to": "create_expense_scr",
      "source": "feature/expense/src/commonMain/kotlin/invotick/invoicemaker/feature/expense/presentation/expenseList/components/ExpenseEmptyStateComponents.kt:137; feature/expense/src/commonMain/kotlin/invotick/invoicemaker/feature/expense/presentation/expenseList/ExpenseListScreen.kt:274; feature/expense/src/commonMain/kotlin/invotick/invoicemaker/feature/expense/navigation/ExpenseNavigation.kt:62-64"
     },
     {
@@ -4389,7 +4400,7 @@ export const NAV: NavMap = {
      "match": "label:Add Expense",
      "label": "Add Expense (FAB)",
      "kind": "forward",
-     "to": "off:create_expense",
+     "to": "create_expense_scr",
      "source": "feature/expense/src/commonMain/kotlin/invotick/invoicemaker/feature/expense/presentation/expenseList/ExpenseListScreen.kt:114; feature/expense/src/commonMain/kotlin/invotick/invoicemaker/feature/expense/navigation/ExpenseNavigation.kt:62-64"
     },
     {
@@ -5085,7 +5096,7 @@ export const NAV: NavMap = {
      "match": "login_forget_pass_click",
      "label": "Forgot password?",
      "kind": "forward",
-     "to": "off:forgot_password_scr",
+     "to": "forgot_password_scr",
      "source": "feature/auth/src/commonMain/kotlin/invotick/invoicemaker/feature/auth/presentation/login/LoginScreen.kt:269-276; feature/auth/src/commonMain/kotlin/invotick/invoicemaker/feature/auth/navigation/AuthNavigation.kt:92"
     },
     {
@@ -5099,7 +5110,7 @@ export const NAV: NavMap = {
       },
       {
        "when": "email not verified (HTTP 403)",
-       "to": "off:otp_verfication_scr"
+       "to": "otp_scr"
       },
       {
        "when": "signed in",
@@ -5516,10 +5527,18 @@ export const NAV: NavMap = {
    "points": [
     {
      "match": "preview_inv_template_click",
-     "label": "TEMPLATES tab",
-     "kind": "stay",
-     "stay": "Switches the bottom panel to templates",
-     "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/preview/components/ContentType.kt:388"
+     "label": "Templates / Customize tabs (both tabs carry this one id)",
+     "kind": "conditional",
+     "branches": [
+      {
+       "when": "Templates tab: the templates panel",
+       "to": "template_sheet"
+      },
+      {
+       "when": "Customize tab: the six customise cards (stays here)"
+      }
+     ],
+     "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/preview/components/ContentType.kt:407; feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/preview/components/ContentType.kt:169"
     },
     {
      "match": "preview_inv_back_click",
@@ -5566,6 +5585,66 @@ export const NAV: NavMap = {
       }
      ],
      "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/preview/PreviewInvoiceScreen.kt:650-657; feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/preview/PreviewInvoiceViewModel.kt:113-130,379-404; composeApp/src/commonMain/kotlin/invotick/invoicemaker/app/navigation/InvoiceDocNavigation.kt:221-228"
+    },
+    {
+     "match": "@customize_color",
+     "label": "Customize → Color card",
+     "kind": "forward",
+     "to": "color_sheet",
+     "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/preview/components/ContentType.kt:552; feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/preview/components/ContentType.kt:701",
+     "events": [
+      "preview_inv_customize_color_clic"
+     ]
+    },
+    {
+     "match": "@customize_header",
+     "label": "Customize → Header card",
+     "kind": "forward",
+     "to": "header_sheet",
+     "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/preview/components/ContentType.kt:558; feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/preview/components/ContentType.kt:709",
+     "events": [
+      "preview_inv_header_click"
+     ]
+    },
+    {
+     "match": "@customize_background",
+     "label": "Customize → Background card",
+     "kind": "forward",
+     "to": "background_sheet",
+     "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/preview/components/ContentType.kt:572; feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/preview/components/ContentType.kt:724",
+     "events": [
+      "preview_inv_select_bg_click"
+     ]
+    },
+    {
+     "match": "@customize_settings",
+     "label": "Customize → Settings card",
+     "kind": "forward",
+     "to": "settings_sheet",
+     "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/preview/components/ContentType.kt:578; feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/preview/components/ContentType.kt:769",
+     "events": [
+      "preview_inv_setting_click"
+     ]
+    },
+    {
+     "match": "@footer_button",
+     "label": "Footer button on the page (round ×, or pencil for Premium; absent when the footer is switched off)",
+     "kind": "conditional",
+     "branches": [
+      {
+       "when": "free account: the paywall opens (Remove)",
+       "to": "premium_scr"
+      },
+      {
+       "when": "Premium account: 'Edit' / 'Add footer' opens the footer sheet",
+       "to": "own_footer_sheet"
+      }
+     ],
+     "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/footer/OwnFooterPreviewHooks.kt:74; feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/footer/OwnFooterPreviewHooks.kt:75; feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/footer/OwnFooterPreviewHooks.kt:78",
+     "events": [
+      "invoice_preview_footer_remove",
+      "invoice_preview_footer_edit"
+     ]
     },
     {
      "match": "@system_back",
@@ -5708,7 +5787,7 @@ export const NAV: NavMap = {
       },
       {
        "when": "opened from Tools → Received Invoices",
-       "to": "off:received_invoice_list",
+       "to": "received_invoice_list",
        "back": true
       },
       {
@@ -5730,7 +5809,7 @@ export const NAV: NavMap = {
      "match": "tap:received_invoice:ReceivedInvoiceScreen.translate",
      "label": "Translate → language sheet",
      "kind": "forward",
-     "to": "off:document_language_sheet",
+     "to": "document_language_sheet",
      "source": "feature/receivedInvoice/src/commonMain/kotlin/invotick/invoicemaker/feature/receivedInvoice/presentation/ReceivedInvoiceScreen.kt:488,211,287"
     },
     {
@@ -5773,7 +5852,7 @@ export const NAV: NavMap = {
       },
       {
        "when": "opened from Tools → Received Invoices",
-       "to": "off:received_invoice_list",
+       "to": "received_invoice_list",
        "back": true
       },
       {
@@ -5796,7 +5875,7 @@ export const NAV: NavMap = {
       },
       {
        "when": "opened from Tools → Received Invoices",
-       "to": "off:received_invoice_list",
+       "to": "received_invoice_list",
        "back": true
       },
       {
@@ -5845,7 +5924,7 @@ export const NAV: NavMap = {
      "match": "reg_continue_with_email_click",
      "label": "Continue with Email",
      "kind": "forward",
-     "to": "off:signup_scr",
+     "to": "signup_scr",
      "source": "feature/auth/src/commonMain/kotlin/invotick/invoicemaker/feature/auth/presentation/register/components/RegisterEmailButton.kt:24; feature/auth/src/commonMain/kotlin/invotick/invoicemaker/feature/auth/presentation/register/RegisterScreen.kt:207,91; feature/auth/src/commonMain/kotlin/invotick/invoicemaker/feature/auth/navigation/AuthNavigation.kt:107-111"
     },
     {
@@ -6039,6 +6118,34 @@ export const NAV: NavMap = {
      ],
      "returnsTo": "saved_inv_scr",
      "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/save/components/SendButton.kt:132; feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/save/SaveInvoiceScreen.kt:531-546,787; feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/save/SaveInvoiceViewModel.kt:164-188"
+    },
+    {
+     "match": "@footer_button",
+     "label": "Footer button on the page (round ×, or pencil for Premium; absent when the footer is switched off)",
+     "kind": "conditional",
+     "branches": [
+      {
+       "when": "free account: the paywall opens (Remove)",
+       "to": "premium_scr"
+      },
+      {
+       "when": "Premium account: 'Edit' / 'Add footer' opens the footer sheet",
+       "to": "own_footer_sheet"
+      }
+     ],
+     "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/footer/OwnFooterPreviewHooks.kt:74; feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/footer/OwnFooterPreviewHooks.kt:75; feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/footer/OwnFooterPreviewHooks.kt:78",
+     "events": [
+      "invoice_preview_footer_remove",
+      "invoice_preview_footer_edit"
+     ]
+    },
+    {
+     "match": "@more_delete",
+     "label": "More → Delete",
+     "kind": "forward",
+     "to": "delete_invoice_dialog",
+     "toState": "payments-advance",
+     "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/save/SaveInvoiceScreen.kt:676; feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/save/SaveInvoiceScreen.kt:699"
     },
     {
      "match": "@system_back",
@@ -6745,7 +6852,7 @@ export const NAV: NavMap = {
      "branches": [
       {
        "when": "count > 0",
-       "to": "off:received_invoice_list"
+       "to": "received_invoice_list"
       },
       {
        "when": "none received: snackbar 'You haven't received any invoices yet'",
@@ -6934,11 +7041,24 @@ export const NAV: NavMap = {
      "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/document/invoice/InvoiceScreen.kt:841"
     },
     {
-     "match": "@footer_remove",
-     "label": "Footer 'Remove' on the page",
-     "kind": "forward",
-     "to": "premium_scr",
-     "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/footer/OwnFooterPreviewHooks.kt:69"
+     "match": "@footer_button",
+     "label": "Footer button on the page (round ×, or pencil for Premium; absent when the footer is switched off)",
+     "kind": "conditional",
+     "branches": [
+      {
+       "when": "free account: the paywall opens (Remove)",
+       "to": "premium_scr"
+      },
+      {
+       "when": "Premium account: 'Edit' / 'Add footer' opens the footer sheet",
+       "to": "own_footer_sheet"
+      }
+     ],
+     "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/footer/OwnFooterPreviewHooks.kt:74; feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/footer/OwnFooterPreviewHooks.kt:75; feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/footer/OwnFooterPreviewHooks.kt:78",
+     "events": [
+      "invoice_preview_footer_remove",
+      "invoice_preview_footer_edit"
+     ]
     },
     {
      "match": "@system_back",
@@ -6946,38 +7066,6 @@ export const NAV: NavMap = {
      "kind": "backward",
      "to": "create_inv_scr",
      "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/document/invoice/InvoiceScreen.kt:841"
-    }
-   ]
-  },
-  "off:business_details": {
-   "label": "Business details",
-   "dataScreen": "business_details",
-   "kind": "screen",
-   "parent": "business_list",
-   "pictured": false,
-   "states": [],
-   "controls": [],
-   "points": [
-    {
-     "match": "@edit",
-     "label": "Edit business",
-     "kind": "forward",
-     "to": "edit_business",
-     "source": "feature/company/src/commonMain/kotlin/invotick/invoicemaker/feature/company/navigation/BusinessNavigation.kt:86"
-    },
-    {
-     "match": "@system_back",
-     "label": "Back",
-     "kind": "backward",
-     "to": "business_list",
-     "source": "feature/company/src/commonMain/kotlin/invotick/invoicemaker/feature/company/navigation/BusinessNavigation.kt:89"
-    },
-    {
-     "match": "@back",
-     "label": "Back",
-     "kind": "backward",
-     "to": "business_list",
-     "source": "feature/company/src/commonMain/kotlin/invotick/invoicemaker/feature/company/navigation/BusinessNavigation.kt:88-90"
     }
    ]
   },
@@ -7169,151 +7257,6 @@ export const NAV: NavMap = {
     }
    ]
   },
-  "off:navigation_drawer": {
-   "label": "Navigation drawer (menu)",
-   "dataScreen": null,
-   "kind": "screen",
-   "parent": "dashboard",
-   "pictured": false,
-   "states": [],
-   "controls": [],
-   "points": [
-    {
-     "match": "@close",
-     "label": "Close drawer / tap outside",
-     "kind": "backward",
-     "to": "dashboard",
-     "source": "composeApp/src/commonMain/kotlin/invotick/invoicemaker/components/drawer/components/DrawerHeaderSection.kt:114; composeApp/src/commonMain/kotlin/invotick/invoicemaker/app/navigation/MainShellNavigation.kt:478-480"
-    },
-    {
-     "match": "@invoices",
-     "label": "Invoices",
-     "kind": "forward",
-     "to": "dashboard",
-     "source": "composeApp/src/commonMain/kotlin/invotick/invoicemaker/components/drawer/components/DrawerMenuSection.kt:197; composeApp/src/commonMain/kotlin/invotick/invoicemaker/app/navigation/MainShellNavigation.kt:1038"
-    },
-    {
-     "match": "@dashboard",
-     "label": "Dashboard / Analytics Dashboard",
-     "kind": "forward",
-     "to": "analytics_dashboard_scr",
-     "source": "composeApp/src/commonMain/kotlin/invotick/invoicemaker/components/drawer/components/DrawerMenuSection.kt:156,249; composeApp/src/commonMain/kotlin/invotick/invoicemaker/app/navigation/MainShellNavigation.kt:1029,1048"
-    },
-    {
-     "match": "@create_invoice",
-     "label": "Create Invoice",
-     "kind": "forward",
-     "to": "create_inv_scr",
-     "source": "composeApp/src/commonMain/kotlin/invotick/invoicemaker/components/drawer/components/DrawerMenuSection.kt:167; composeApp/src/commonMain/kotlin/invotick/invoicemaker/app/navigation/MainShellNavigation.kt:1033-1035"
-    },
-    {
-     "match": "@business",
-     "label": "Business (manage businesses)",
-     "kind": "forward",
-     "to": "business_list",
-     "source": "composeApp/src/commonMain/kotlin/invotick/invoicemaker/components/drawer/components/DrawerMenuSection.kt:208; composeApp/src/commonMain/kotlin/invotick/invoicemaker/app/navigation/MainShellNavigation.kt:1042"
-    },
-    {
-     "match": "@clients",
-     "label": "Clients / Customer ledgers",
-     "kind": "forward",
-     "to": "client_ledger_scr",
-     "source": "composeApp/src/commonMain/kotlin/invotick/invoicemaker/components/drawer/components/DrawerMenuSection.kt:219,260; composeApp/src/commonMain/kotlin/invotick/invoicemaker/app/navigation/MainShellNavigation.kt:1043,1052"
-    },
-    {
-     "match": "@payments",
-     "label": "Payments / Payment slips",
-     "kind": "forward",
-     "to": "customer_list",
-     "source": "composeApp/src/commonMain/kotlin/invotick/invoicemaker/components/drawer/components/DrawerMenuSection.kt:230,282; composeApp/src/commonMain/kotlin/invotick/invoicemaker/app/navigation/MainShellNavigation.kt:1047,1054"
-    },
-    {
-     "match": "@add_business",
-     "label": "Add business (header)",
-     "kind": "forward",
-     "to": "create_business",
-     "source": "composeApp/src/commonMain/kotlin/invotick/invoicemaker/components/drawer/components/DrawerHeaderSection.kt:437-439,628; composeApp/src/commonMain/kotlin/invotick/invoicemaker/app/navigation/MainShellNavigation.kt:466-469"
-    },
-    {
-     "match": "@go_premium",
-     "label": "Go Premium",
-     "kind": "forward",
-     "to": "premium_scr",
-     "source": "composeApp/src/commonMain/kotlin/invotick/invoicemaker/components/drawer/components/NavigationDrawerContent.kt:66-67; composeApp/src/commonMain/kotlin/invotick/invoicemaker/app/navigation/MainShellNavigation.kt:482-485"
-    },
-    {
-     "match": "@sign_in",
-     "label": "Sign in (guest)",
-     "kind": "forward",
-     "to": "login_scr",
-     "source": "composeApp/src/commonMain/kotlin/invotick/invoicemaker/components/drawer/components/DrawerHeaderSection.kt:278; composeApp/src/commonMain/kotlin/invotick/invoicemaker/components/drawer/components/DrawerMenuSection.kt:472; composeApp/src/commonMain/kotlin/invotick/invoicemaker/components/drawer/NavigationDrawerScreen.kt:59-70; composeApp/src/commonMain/kotlin/invotick/invoicemaker/app/navigation/AppNavHost.kt:435-439"
-    },
-    {
-     "match": "@sign_up",
-     "label": "Sign up (guest)",
-     "kind": "forward",
-     "to": "register_acc_scr",
-     "source": "composeApp/src/commonMain/kotlin/invotick/invoicemaker/components/drawer/components/DrawerHeaderSection.kt:293; composeApp/src/commonMain/kotlin/invotick/invoicemaker/components/drawer/NavigationDrawerScreen.kt:71-73; composeApp/src/commonMain/kotlin/invotick/invoicemaker/app/navigation/AppNavHost.kt:440-443"
-    },
-    {
-     "match": "@sign_out",
-     "label": "Sign out",
-     "kind": "forward",
-     "to": "login_scr",
-     "source": "composeApp/src/commonMain/kotlin/invotick/invoicemaker/components/drawer/components/DrawerMenuSection.kt:491; composeApp/src/commonMain/kotlin/invotick/invoicemaker/components/drawer/NavigationDrawerScreen.kt:67; composeApp/src/commonMain/kotlin/invotick/invoicemaker/app/navigation/AppNavHost.kt:444-450"
-    },
-    {
-     "match": "@system_back",
-     "label": "Android back (closes drawer)",
-     "kind": "backward",
-     "to": "dashboard",
-     "source": "composeApp/src/commonMain/kotlin/invotick/invoicemaker/app/navigation/MainShellNavigation.kt:351-352"
-    }
-   ]
-  },
-  "off:app_exit_dialog": {
-   "label": "Exit app dialog",
-   "dataScreen": null,
-   "kind": "screen",
-   "parent": "dashboard",
-   "pictured": false,
-   "states": [],
-   "controls": [],
-   "points": [
-    {
-     "match": "@exit",
-     "label": "Exit",
-     "kind": "outside",
-     "outside": "Leaves the app (home screen)",
-     "source": "composeApp/src/commonMain/kotlin/invotick/invoicemaker/components/exit/ExitScreen.kt:66; composeApp/src/commonMain/kotlin/invotick/invoicemaker/app/navigation/MainShellNavigation.kt:833-862"
-    },
-    {
-     "match": "@cancel",
-     "label": "Cancel / Android back",
-     "kind": "backward",
-     "to": "dashboard",
-     "source": "composeApp/src/commonMain/kotlin/invotick/invoicemaker/components/exit/ExitScreen.kt:57,67; composeApp/src/commonMain/kotlin/invotick/invoicemaker/app/navigation/MainShellNavigation.kt:864-869"
-    }
-   ]
-  },
-  "off:feedback_dialog": {
-   "label": "Feedback dialog (Contact Support)",
-   "dataScreen": null,
-   "kind": "screen",
-   "parent": "dashboard",
-   "pictured": false,
-   "states": [],
-   "controls": [],
-   "points": [
-    {
-     "match": "@close",
-     "label": "Close / Submit",
-     "kind": "backward",
-     "to": "dashboard",
-     "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/save/components/FeedbackDialog.kt:109-110,208; feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/list/InvoiceListScreen.kt:452-457"
-    }
-   ]
-  },
   "off:estimate_list_business_sheet": {
    "label": "Estimates business sheet",
    "dataScreen": "estimate_list_business_sheet",
@@ -7408,31 +7351,6 @@ export const NAV: NavMap = {
      "kind": "backward",
      "to": "create_estimate",
      "source": "feature/document/estimate/src/commonMain/kotlin/invotick/invoicemaker/feature/document/estimate/EstimateScreen.kt:646,724-733"
-    }
-   ]
-  },
-  "off:discard_changes_dialog": {
-   "label": "Discard changes dialog",
-   "dataScreen": null,
-   "kind": "screen",
-   "parent": "create_estimate",
-   "pictured": false,
-   "states": [],
-   "controls": [],
-   "points": [
-    {
-     "match": "@discard",
-     "label": "Discard",
-     "kind": "backward",
-     "to": "estimate_scr",
-     "source": "feature/document/estimate/src/commonMain/kotlin/invotick/invoicemaker/feature/document/estimate/EstimateScreen.kt:413-440; feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/create/components/DiscardChangesDialog.kt:277"
-    },
-    {
-     "match": "@keep",
-     "label": "Keep editing / close",
-     "kind": "backward",
-     "to": "create_estimate",
-     "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/create/components/DiscardChangesDialog.kt:144,313"
     }
    ]
   },
@@ -7554,61 +7472,18 @@ export const NAV: NavMap = {
    "controls": [],
    "points": [
     {
+     "match": "@create",
+     "label": "New payment (Add payment)",
+     "kind": "forward",
+     "to": "payment_form_scr",
+     "source": "feature/paymentForm/src/commonMain/kotlin/invotick/invoicemaker/feature/paymentform/navigation/PaymentFormNavigation.kt:69; feature/paymentForm/src/commonMain/kotlin/invotick/invoicemaker/feature/paymentform/navigation/PaymentFormNavigation.kt:70"
+    },
+    {
      "match": "@back",
      "label": "Back (navigates to the Payment Form graph start)",
      "kind": "backward",
      "to": "customer_list",
      "source": "feature/paymentForm/src/commonMain/kotlin/invotick/invoicemaker/feature/paymentform/navigation/PaymentFormNavigation.kt:71-77"
-    }
-   ]
-  },
-  "off:received_invoice_list": {
-   "label": "Received invoices list",
-   "dataScreen": "received_invoice_list",
-   "kind": "screen",
-   "parent": "tools_scr",
-   "pictured": false,
-   "states": [],
-   "controls": [],
-   "points": [
-    {
-     "match": "@row",
-     "label": "Open a received invoice",
-     "kind": "forward",
-     "to": "received_invoice",
-     "source": "feature/receivedInvoice/src/commonMain/kotlin/invotick/invoicemaker/feature/receivedInvoice/navigation/ReceivedInvoiceNavigation.kt:44-49"
-    },
-    {
-     "match": "@back_arrow",
-     "label": "Back arrow — no-op: shell's onNavigateBack pops ReceivedInvoice, which is not on the stack",
-     "kind": "stay",
-     "stay": "Nothing happens (popBackStack<ReceivedInvoice> finds no entry) — probable bug",
-     "source": "feature/receivedInvoice/src/commonMain/kotlin/invotick/invoicemaker/feature/receivedInvoice/presentation/ReceivedInvoiceListScreen.kt:61-62; composeApp/src/commonMain/kotlin/invotick/invoicemaker/app/navigation/MainShellNavigation.kt:702-713"
-    },
-    {
-     "match": "@system_back",
-     "label": "Android back (NavHost pops)",
-     "kind": "backward",
-     "to": "tools_scr",
-     "source": "feature/receivedInvoice/src/commonMain/kotlin/invotick/invoicemaker/feature/receivedInvoice/navigation/ReceivedInvoiceNavigation.kt:42"
-    }
-   ]
-  },
-  "off:create_expense": {
-   "label": "New expense",
-   "dataScreen": "create_expense",
-   "kind": "screen",
-   "parent": "expense_list",
-   "pictured": false,
-   "states": [],
-   "controls": [],
-   "points": [
-    {
-     "match": "@back",
-     "label": "Back / saved",
-     "kind": "backward",
-     "to": "expense_list",
-     "source": "feature/expense/src/commonMain/kotlin/invotick/invoicemaker/feature/expense/navigation/ExpenseNavigation.kt:77-83"
     }
    ]
   },
@@ -7645,60 +7520,6 @@ export const NAV: NavMap = {
      "kind": "backward",
      "to": "expense_list",
      "source": "feature/expense/src/commonMain/kotlin/invotick/invoicemaker/feature/expense/presentation/expenseList/ExpenseListScreen.kt:467-476"
-    }
-   ]
-  },
-  "off:forgot_password_scr": {
-   "label": "Forgot password",
-   "dataScreen": "forgot_password_scr",
-   "kind": "screen",
-   "parent": "login_scr",
-   "pictured": false,
-   "states": [],
-   "controls": [],
-   "points": [
-    {
-     "match": "@back",
-     "label": "Back",
-     "kind": "backward",
-     "to": "login_scr",
-     "source": "feature/auth/src/commonMain/kotlin/invotick/invoicemaker/feature/auth/navigation/AuthNavigation.kt:140"
-    }
-   ]
-  },
-  "off:otp_verfication_scr": {
-   "label": "OTP verification",
-   "dataScreen": "otp_verfication_scr",
-   "kind": "screen",
-   "parent": "login_scr",
-   "pictured": false,
-   "states": [],
-   "controls": [],
-   "points": [
-    {
-     "match": "@back",
-     "label": "Back",
-     "kind": "backward",
-     "to": "login_scr",
-     "source": "feature/auth/src/commonMain/kotlin/invotick/invoicemaker/feature/auth/navigation/AuthNavigation.kt:166"
-    }
-   ]
-  },
-  "off:signup_scr": {
-   "label": "Sign up with email",
-   "dataScreen": "signup_scr",
-   "kind": "screen",
-   "parent": "register_acc_scr",
-   "pictured": false,
-   "states": [],
-   "controls": [],
-   "points": [
-    {
-     "match": "@back",
-     "label": "Back",
-     "kind": "backward",
-     "to": "register_acc_scr",
-     "source": "feature/auth/src/commonMain/kotlin/invotick/invoicemaker/feature/auth/navigation/AuthNavigation.kt:123"
     }
    ]
   },
@@ -7752,24 +7573,6 @@ export const NAV: NavMap = {
     }
    ]
   },
-  "off:document_language_sheet": {
-   "label": "Received invoice language sheet",
-   "dataScreen": null,
-   "kind": "screen",
-   "parent": "received_invoice",
-   "pictured": false,
-   "states": [],
-   "controls": [],
-   "points": [
-    {
-     "match": "@close",
-     "label": "Pick language / dismiss (closes)",
-     "kind": "backward",
-     "to": "received_invoice",
-     "source": "feature/receivedInvoice/src/commonMain/kotlin/invotick/invoicemaker/feature/receivedInvoice/presentation/ReceivedInvoiceScreen.kt:287-296"
-    }
-   ]
-  },
   "off:save_template_dialog": {
    "label": "Save custom template dialog",
    "dataScreen": null,
@@ -7819,6 +7622,2323 @@ export const NAV: NavMap = {
      "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/preview/bottomSheet/stamp/create/StampBottomSheetContent.kt:181,240-241"
     }
    ]
+  },
+  "drawer": {
+   "label": "Navigation drawer (menu)",
+   "dataScreen": null,
+   "kind": "screen",
+   "parent": "dashboard",
+   "pictured": true,
+   "states": [
+    "guest",
+    "signed-in"
+   ],
+   "controls": [
+    {
+     "key": "sb_login_click",
+     "states": [
+      "guest"
+     ]
+    },
+    {
+     "key": "tap:dashboard:DrawerHeaderSection.guest_mode_card_4",
+     "states": [
+      "guest"
+     ]
+    },
+    {
+     "key": "tap:dashboard:DrawerHeaderSection.business_info_card_6",
+     "states": []
+    },
+    {
+     "key": "tap:dashboard:DrawerHeaderSection.close_drawer_1",
+     "states": []
+    },
+    {
+     "key": "tap:dashboard:NavigationDrawerContent.go_premium_1",
+     "states": []
+    },
+    {
+     "key": "tap:dashboard:DrawerTiles.drawer_item_dashboard",
+     "states": []
+    },
+    {
+     "key": "tap:dashboard:DrawerTiles.drawer_create_invoice_item_2",
+     "states": []
+    },
+    {
+     "key": "tap:dashboard:DrawerTiles.drawer_item_create_client",
+     "states": []
+    },
+    {
+     "key": "tap:dashboard:DrawerTiles.drawer_item_business",
+     "states": []
+    },
+    {
+     "key": "label:Invoice",
+     "states": []
+    },
+    {
+     "key": "label:Estimate",
+     "states": []
+    },
+    {
+     "key": "label:Analytics",
+     "states": []
+    },
+    {
+     "key": "label:Ledgers",
+     "states": []
+    },
+    {
+     "key": "label:Tools",
+     "states": []
+    },
+    {
+     "key": "tap:dashboard:DrawerHeaderSection.drawer_header_section_2",
+     "states": [
+      "signed-in"
+     ]
+    },
+    {
+     "key": "tap:dashboard:DrawerHeaderSection.invotick_id_chip_5",
+     "states": [
+      "signed-in"
+     ]
+    },
+    {
+     "key": "tap:dashboard:DrawerTiles.drawer_item_appearance",
+     "states": [
+      "signed-in"
+     ]
+    }
+   ],
+   "points": [
+    {
+     "match": "sb_login_click",
+     "label": "Sign In (guest)",
+     "kind": "forward",
+     "to": "login_scr",
+     "source": "composeApp/src/commonMain/kotlin/invotick/invoicemaker/components/drawer/components/DrawerHeaderSection.kt:285; composeApp/src/commonMain/kotlin/invotick/invoicemaker/components/drawer/NavigationDrawerScreen.kt:72; composeApp/src/commonMain/kotlin/invotick/invoicemaker/app/navigation/AppNavHost.kt:444"
+    },
+    {
+     "match": "tap:dashboard:DrawerHeaderSection.guest_mode_card_4",
+     "label": "Create Account (guest)",
+     "kind": "forward",
+     "to": "register_acc_scr",
+     "source": "composeApp/src/commonMain/kotlin/invotick/invoicemaker/components/drawer/components/DrawerHeaderSection.kt:300; composeApp/src/commonMain/kotlin/invotick/invoicemaker/components/drawer/NavigationDrawerScreen.kt:78; composeApp/src/commonMain/kotlin/invotick/invoicemaker/app/navigation/AppNavHost.kt:450"
+    },
+    {
+     "match": "tap:dashboard:DrawerHeaderSection.drawer_header_section_2",
+     "label": "Account card (name, email)",
+     "kind": "stay",
+     "stay": "Does nothing: it sends NavigateToProfile, and the shell's handler for that is empty (onNavigateToProfile = {})",
+     "source": "composeApp/src/commonMain/kotlin/invotick/invoicemaker/components/drawer/components/DrawerHeaderSection.kt:146; composeApp/src/commonMain/kotlin/invotick/invoicemaker/app/navigation/MainShellNavigation.kt:480"
+    },
+    {
+     "match": "tap:dashboard:DrawerHeaderSection.invotick_id_chip_5",
+     "label": "Invotick ID chip",
+     "kind": "stay",
+     "stay": "Copies the Invotick ID to the clipboard",
+     "source": "composeApp/src/commonMain/kotlin/invotick/invoicemaker/components/drawer/components/DrawerHeaderSection.kt:350"
+    },
+    {
+     "match": "tap:dashboard:DrawerHeaderSection.business_info_card_6",
+     "label": "Business card",
+     "kind": "conditional",
+     "branches": [
+      {
+       "when": "no business set yet (drawer closes)",
+       "to": "create_business"
+      },
+      {
+       "when": "a business is set: opens the business switcher menu in place (pick one, or Add business)"
+      }
+     ],
+     "source": "composeApp/src/commonMain/kotlin/invotick/invoicemaker/components/drawer/components/DrawerHeaderSection.kt:446,448; composeApp/src/commonMain/kotlin/invotick/invoicemaker/app/navigation/MainShellNavigation.kt:483"
+    },
+    {
+     "match": "tap:dashboard:DrawerHeaderSection.close_drawer_1",
+     "label": "Close drawer (X)",
+     "kind": "conditional",
+     "branches": [
+      {
+       "when": "drawer was opened on the Invoices list",
+       "to": "dashboard",
+       "back": true
+      },
+      {
+       "when": "drawer was opened on the Estimates list",
+       "to": "estimate_scr",
+       "back": true
+      }
+     ],
+     "source": "composeApp/src/commonMain/kotlin/invotick/invoicemaker/components/drawer/components/DrawerHeaderSection.kt:121; composeApp/src/commonMain/kotlin/invotick/invoicemaker/app/navigation/MainShellNavigation.kt:370"
+    },
+    {
+     "match": "tap:dashboard:NavigationDrawerContent.go_premium_1",
+     "label": "Go Premium",
+     "kind": "forward",
+     "to": "premium_scr",
+     "source": "composeApp/src/commonMain/kotlin/invotick/invoicemaker/components/drawer/components/NavigationDrawerContent.kt:66,67; composeApp/src/commonMain/kotlin/invotick/invoicemaker/app/navigation/MainShellNavigation.kt:499"
+    },
+    {
+     "match": "tap:dashboard:DrawerTiles.drawer_item_dashboard",
+     "label": "Dashboard (reports)",
+     "kind": "forward",
+     "to": "analytics_dashboard_scr",
+     "source": "composeApp/src/commonMain/kotlin/invotick/invoicemaker/components/drawer/components/DrawerMenuSection.kt:166; composeApp/src/commonMain/kotlin/invotick/invoicemaker/app/navigation/MainShellNavigation.kt:1066"
+    },
+    {
+     "match": "tap:dashboard:DrawerTiles.drawer_create_invoice_item_2",
+     "label": "Create Invoice",
+     "kind": "forward",
+     "to": "create_inv_scr",
+     "source": "composeApp/src/commonMain/kotlin/invotick/invoicemaker/components/drawer/components/DrawerMenuSection.kt:175; composeApp/src/commonMain/kotlin/invotick/invoicemaker/app/navigation/MainShellNavigation.kt:1070"
+    },
+    {
+     "match": "tap:dashboard:DrawerTiles.drawer_item_create_client",
+     "label": "Create Client",
+     "kind": "forward",
+     "to": "off:create_client",
+     "source": "composeApp/src/commonMain/kotlin/invotick/invoicemaker/components/drawer/components/DrawerMenuSection.kt:188; composeApp/src/commonMain/kotlin/invotick/invoicemaker/app/navigation/MainShellNavigation.kt:1074"
+    },
+    {
+     "match": "tap:dashboard:DrawerTiles.drawer_item_business",
+     "label": "Manage Business",
+     "kind": "forward",
+     "to": "business_list",
+     "source": "composeApp/src/commonMain/kotlin/invotick/invoicemaker/components/drawer/components/DrawerMenuSection.kt:218; composeApp/src/commonMain/kotlin/invotick/invoicemaker/app/navigation/MainShellNavigation.kt:1079"
+    },
+    {
+     "match": "tap:dashboard:DrawerTiles.drawer_item_appearance",
+     "label": "Appearance",
+     "kind": "forward",
+     "to": "appearance_scr",
+     "source": "composeApp/src/commonMain/kotlin/invotick/invoicemaker/components/drawer/components/DrawerMenuSection.kt:310; composeApp/src/commonMain/kotlin/invotick/invoicemaker/app/navigation/MainShellNavigation.kt:1097"
+    },
+    {
+     "match": "re:^label:(Invoice|Estimate|Analytics|Ledgers|Tools)$",
+     "label": "Bottom bar tabs (drawn under the drawer)",
+     "kind": "stay",
+     "stay": "Not tappable in the app: the drawer is a full-width panel that covers the bottom bar. The picture draws the bar under it",
+     "source": "composeApp/src/commonMain/kotlin/invotick/invoicemaker/app/navigation/MainShellNavigation.kt:505; composeApp/src/commonMain/kotlin/invotick/invoicemaker/app/navigation/MainShellNavigation.kt:557"
+    },
+    {
+     "match": "@accounts",
+     "label": "Accounts on this phone (row under the account card; absent while Remote Config switches it off)",
+     "kind": "conditional",
+     "branches": [
+      {
+       "when": "opens a sheet listing the accounts; picking another account opens that account's own place",
+       "to": "dashboard"
+      },
+      {
+       "when": "'Add another account' in that sheet: a new empty place opens",
+       "to": "add_account_scr"
+      }
+     ],
+     "source": "composeApp/src/commonMain/kotlin/invotick/invoicemaker/accounts/AccountsOnThisPhone.kt:212,250,249; composeApp/src/commonMain/kotlin/invotick/invoicemaker/components/drawer/components/DrawerHeaderSection.kt:192",
+     "events": [
+      "tap:dashboard:AccountsOnThisPhone.open_accounts_1"
+     ]
+    },
+    {
+     "match": "@language",
+     "label": "Language",
+     "kind": "stay",
+     "stay": "Opens the app-language picker in place; choosing one switches the app's language",
+     "source": "composeApp/src/commonMain/kotlin/invotick/invoicemaker/components/drawer/components/DrawerMenuSection.kt:353; composeApp/src/commonMain/kotlin/invotick/invoicemaker/components/drawer/components/DrawerMenuSection.kt:357"
+    },
+    {
+     "match": "@feedback",
+     "label": "Feedback",
+     "kind": "forward",
+     "to": "feedback_dialog",
+     "source": "composeApp/src/commonMain/kotlin/invotick/invoicemaker/components/drawer/components/DrawerMenuSection.kt:374; composeApp/src/commonMain/kotlin/invotick/invoicemaker/components/drawer/NavigationDrawerScreen.kt:125"
+    },
+    {
+     "match": "@rate_us",
+     "label": "Rate Us (Android only)",
+     "kind": "forward",
+     "to": "feedback_dialog",
+     "source": "composeApp/src/commonMain/kotlin/invotick/invoicemaker/components/drawer/components/DrawerMenuSection.kt:391; composeApp/src/commonMain/kotlin/invotick/invoicemaker/components/drawer/NavigationDrawerViewModel.kt:163"
+    },
+    {
+     "match": "@share_app",
+     "label": "Share app",
+     "kind": "outside",
+     "outside": "Share chooser (shares the app's store link)",
+     "returnsTo": "drawer",
+     "source": "composeApp/src/commonMain/kotlin/invotick/invoicemaker/components/drawer/components/DrawerMenuSection.kt:404"
+    },
+    {
+     "match": "@legal",
+     "label": "Privacy Policy / Terms & Conditions",
+     "kind": "stay",
+     "stay": "Opens the page in a web view over the drawer",
+     "source": "composeApp/src/commonMain/kotlin/invotick/invoicemaker/components/drawer/components/DrawerMenuSection.kt:425; composeApp/src/commonMain/kotlin/invotick/invoicemaker/components/drawer/NavigationDrawerScreen.kt:117"
+    },
+    {
+     "match": "@linked_devices",
+     "label": "Linked devices",
+     "kind": "forward",
+     "to": "off:linked_devices",
+     "source": "composeApp/src/commonMain/kotlin/invotick/invoicemaker/components/drawer/components/DrawerMenuSection.kt:505; composeApp/src/commonMain/kotlin/invotick/invoicemaker/app/navigation/MainShellNavigation.kt:1092"
+    },
+    {
+     "match": "@sign_in",
+     "label": "Sign in (guest, Account section)",
+     "kind": "forward",
+     "to": "login_scr",
+     "source": "composeApp/src/commonMain/kotlin/invotick/invoicemaker/components/drawer/components/DrawerMenuSection.kt:516; composeApp/src/commonMain/kotlin/invotick/invoicemaker/components/drawer/NavigationDrawerScreen.kt:72"
+    },
+    {
+     "match": "@sign_out",
+     "label": "Sign out (a guest holding a purchase is warned first)",
+     "kind": "forward",
+     "to": "login_scr",
+     "source": "composeApp/src/commonMain/kotlin/invotick/invoicemaker/components/drawer/components/DrawerMenuSection.kt:535; composeApp/src/commonMain/kotlin/invotick/invoicemaker/components/drawer/NavigationDrawerScreen.kt:56,74; composeApp/src/commonMain/kotlin/invotick/invoicemaker/app/navigation/AppNavHost.kt:453"
+    },
+    {
+     "match": "@system_back",
+     "label": "Android back (closes the drawer)",
+     "kind": "conditional",
+     "branches": [
+      {
+       "when": "drawer was opened on the Invoices list",
+       "to": "dashboard",
+       "back": true
+      },
+      {
+       "when": "drawer was opened on the Estimates list",
+       "to": "estimate_scr",
+       "back": true
+      }
+     ],
+     "source": "composeApp/src/commonMain/kotlin/invotick/invoicemaker/app/navigation/ShellBack.kt:41"
+    }
+   ],
+   "source": "composeApp/src/commonMain/kotlin/invotick/invoicemaker/components/drawer/components/NavigationDrawerContent.kt:38; composeApp/src/commonMain/kotlin/invotick/invoicemaker/app/navigation/MainShellNavigation.kt:452"
+  },
+  "exit_scr": {
+   "label": "Exit app dialog",
+   "dataScreen": null,
+   "kind": "dialog",
+   "parent": "dashboard",
+   "pictured": true,
+   "states": [
+    "default"
+   ],
+   "controls": [
+    {
+     "key": "tap:exit_scr:ExitScreen.sign_in_from_exit",
+     "states": []
+    },
+    {
+     "key": "tap:exit_scr:ExitScreen.share_feedback_exit_2",
+     "states": []
+    },
+    {
+     "key": "app_exit_confirmed",
+     "states": []
+    },
+    {
+     "key": "app_exit_cancelled",
+     "states": []
+    }
+   ],
+   "points": [
+    {
+     "match": "tap:exit_scr:ExitScreen.sign_in_from_exit",
+     "label": "Sign in (guests only)",
+     "kind": "forward",
+     "to": "login_scr",
+     "source": "composeApp/src/commonMain/kotlin/invotick/invoicemaker/components/exit/ExitScreen.kt:166; composeApp/src/commonMain/kotlin/invotick/invoicemaker/components/exit/ExitScreen.kt:80; composeApp/src/commonMain/kotlin/invotick/invoicemaker/app/navigation/MainShellNavigation.kt:617"
+    },
+    {
+     "match": "tap:exit_scr:ExitScreen.share_feedback_exit_2",
+     "label": "Share feedback",
+     "kind": "forward",
+     "to": "feedback_dialog",
+     "source": "composeApp/src/commonMain/kotlin/invotick/invoicemaker/components/exit/ExitScreen.kt:174; composeApp/src/commonMain/kotlin/invotick/invoicemaker/components/exit/ExitScreen.kt:128"
+    },
+    {
+     "match": "app_exit_confirmed",
+     "label": "Exit",
+     "kind": "outside",
+     "outside": "Leaves the app (home screen)",
+     "source": "composeApp/src/commonMain/kotlin/invotick/invoicemaker/components/exit/ExitScreen.kt:190; composeApp/src/commonMain/kotlin/invotick/invoicemaker/app/navigation/MainShellNavigation.kt:865,868"
+    },
+    {
+     "match": "app_exit_cancelled",
+     "label": "Stay",
+     "kind": "backward",
+     "to": "dashboard",
+     "source": "composeApp/src/commonMain/kotlin/invotick/invoicemaker/components/exit/ExitScreen.kt:183; composeApp/src/commonMain/kotlin/invotick/invoicemaker/app/navigation/MainShellNavigation.kt:874,875"
+    },
+    {
+     "match": "@system_back",
+     "label": "Android back / tap outside (closes the dialog)",
+     "kind": "backward",
+     "to": "dashboard",
+     "source": "composeApp/src/commonMain/kotlin/invotick/invoicemaker/components/exit/ExitScreen.kt:66; composeApp/src/commonMain/kotlin/invotick/invoicemaker/components/exit/ExitScreen.kt:146"
+    }
+   ],
+   "source": "composeApp/src/commonMain/kotlin/invotick/invoicemaker/components/exit/ExitScreen.kt:145; composeApp/src/commonMain/kotlin/invotick/invoicemaker/app/navigation/MainShellNavigation.kt:837"
+  },
+  "feedback_dialog": {
+   "label": "Feedback dialog (Contact Support / Rate us)",
+   "dataScreen": null,
+   "kind": "dialog",
+   "parent": "dashboard",
+   "pictured": true,
+   "states": [
+    "open"
+   ],
+   "controls": [
+    {
+     "key": "label:Close",
+     "states": []
+    },
+    {
+     "key": "tap:saved_inv_scr:components_FeedbackDialog_2.star_2",
+     "states": []
+    }
+   ],
+   "points": [
+    {
+     "match": "label:Close",
+     "label": "Close (X)",
+     "kind": "conditional",
+     "branches": [
+      {
+       "when": "opened from the drawer's Feedback or Rate Us",
+       "to": "drawer",
+       "back": true
+      },
+      {
+       "when": "opened from Contact Support on the Invoices list",
+       "to": "dashboard",
+       "back": true
+      },
+      {
+       "when": "opened from the saved invoice (More → Feedback)",
+       "to": "saved_inv_scr",
+       "back": true
+      },
+      {
+       "when": "opened from the exit dialog's 'Share feedback'",
+       "to": "exit_scr",
+       "back": true
+      }
+     ],
+     "source": "core/ui/src/commonMain/kotlin/invotick/invoicemaker/core/ui/components/FeedbackDialog.kt:178; composeApp/src/commonMain/kotlin/invotick/invoicemaker/components/exit/ExitScreen.kt:133; composeApp/src/commonMain/kotlin/invotick/invoicemaker/components/drawer/NavigationDrawerScreen.kt:131"
+    },
+    {
+     "match": "re:^tap:saved_inv_scr:components_FeedbackDialog_2\\.star_2$",
+     "label": "Star (1 to 5)",
+     "kind": "stay",
+     "stay": "Picks the rating. 5 stars: 'Rate on Google Play' (opens our store page); fewer: topics and a note to send",
+     "source": "core/ui/src/commonMain/kotlin/invotick/invoicemaker/core/ui/components/FeedbackDialog.kt:235; core/ui/src/commonMain/kotlin/invotick/invoicemaker/core/ui/components/FeedbackDialog.kt:138"
+    },
+    {
+     "match": "@system_back",
+     "label": "Android back / tap outside (closes the dialog)",
+     "kind": "conditional",
+     "branches": [
+      {
+       "when": "opened from the drawer's Feedback or Rate Us",
+       "to": "drawer",
+       "back": true
+      },
+      {
+       "when": "opened from Contact Support on the Invoices list",
+       "to": "dashboard",
+       "back": true
+      },
+      {
+       "when": "opened from the saved invoice (More → Feedback)",
+       "to": "saved_inv_scr",
+       "back": true
+      },
+      {
+       "when": "opened from the exit dialog's 'Share feedback'",
+       "to": "exit_scr",
+       "back": true
+      }
+     ],
+     "source": "core/ui/src/commonMain/kotlin/invotick/invoicemaker/core/ui/components/FeedbackDialog.kt:192"
+    }
+   ],
+   "source": "core/ui/src/commonMain/kotlin/invotick/invoicemaker/core/ui/components/FeedbackDialog.kt:119; composeApp/src/commonMain/kotlin/invotick/invoicemaker/components/exit/ExitScreen.kt:129; composeApp/src/commonMain/kotlin/invotick/invoicemaker/components/drawer/NavigationDrawerScreen.kt:125; feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/save/SaveInvoiceScreen.kt:723"
+  },
+  "discard_changes_dialog": {
+   "label": "Discard changes dialog",
+   "dataScreen": null,
+   "kind": "dialog",
+   "parent": "create_inv_scr",
+   "pictured": true,
+   "states": [
+    "payments"
+   ],
+   "controls": [
+    {
+     "key": "discard_dialog_closed",
+     "states": []
+    },
+    {
+     "key": "tap:create_inv_scr:components_DiscardChangesDialog.discard_changes_dialog_2",
+     "states": []
+    },
+    {
+     "key": "discard_confirmed",
+     "states": []
+    },
+    {
+     "key": "discard_cancelled",
+     "states": []
+    }
+   ],
+   "points": [
+    {
+     "match": "discard_dialog_closed",
+     "label": "Close (X)",
+     "kind": "conditional",
+     "branches": [
+      {
+       "when": "over Create Invoice: back to editing",
+       "to": "create_inv_scr",
+       "back": true
+      },
+      {
+       "when": "over Create Estimate: back to editing",
+       "to": "create_estimate",
+       "back": true
+      }
+     ],
+     "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/create/components/DiscardChangesDialog.kt:196"
+    },
+    {
+     "match": "tap:create_inv_scr:components_DiscardChangesDialog.discard_changes_dialog_2",
+     "label": "Save as Draft",
+     "kind": "conditional",
+     "branches": [
+      {
+       "when": "Create Invoice: the draft is saved and the screen pops back to where Create was opened (usually the invoice list)",
+       "to": "dashboard",
+       "back": true
+      },
+      {
+       "when": "Create Estimate: the draft is saved and the screen pops back to the estimate list",
+       "to": "estimate_scr",
+       "back": true
+      },
+      {
+       "when": "the draft cannot be written: stays on the dialog's screen with an error",
+       "to": "create_inv_scr"
+      }
+     ],
+     "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/create/components/DiscardChangesDialog.kt:103; feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/document/invoice/InvoiceScreen.kt:617",
+     "events": [
+      "Draft_click"
+     ]
+    },
+    {
+     "match": "discard_confirmed",
+     "label": "Discard Everything",
+     "kind": "conditional",
+     "branches": [
+      {
+       "when": "over Create Invoice: leaves, the work is gone",
+       "to": "dashboard",
+       "back": true
+      },
+      {
+       "when": "over Create Estimate: leaves, the work is gone",
+       "to": "estimate_scr",
+       "back": true
+      }
+     ],
+     "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/create/components/DiscardChangesDialog.kt:339"
+    },
+    {
+     "match": "discard_cancelled",
+     "label": "Keep Editing",
+     "kind": "conditional",
+     "branches": [
+      {
+       "when": "over Create Invoice: back to editing",
+       "to": "create_inv_scr",
+       "back": true
+      },
+      {
+       "when": "over Create Estimate: back to editing",
+       "to": "create_estimate",
+       "back": true
+      }
+     ],
+     "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/create/components/DiscardChangesDialog.kt:373"
+    },
+    {
+     "match": "@system_back",
+     "label": "Android back / tap outside (closes the dialog)",
+     "kind": "conditional",
+     "branches": [
+      {
+       "when": "over Create Invoice: back to editing",
+       "to": "create_inv_scr",
+       "back": true
+      },
+      {
+       "when": "over Create Estimate: back to editing",
+       "to": "create_estimate",
+       "back": true
+      }
+     ],
+     "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/create/components/DiscardChangesDialog.kt:126"
+    }
+   ],
+   "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/create/components/DiscardChangesDialog.kt:79; feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/document/invoice/InvoiceScreen.kt:604; feature/document/estimate/src/commonMain/kotlin/invotick/invoicemaker/feature/document/estimate/EstimateScreen.kt:447"
+  },
+  "delete_invoice_dialog": {
+   "label": "Delete invoice dialog",
+   "dataScreen": null,
+   "kind": "dialog",
+   "parent": "dashboard",
+   "pictured": true,
+   "states": [
+    "one",
+    "payments-advance",
+    "payments-instalments",
+    "payments-several",
+    "payments-split"
+   ],
+   "controls": [
+    {
+     "key": "tap:dashboard:components_DeleteInvoiceDialog.close_1",
+     "states": [
+      "one",
+      "payments-several"
+     ]
+    },
+    {
+     "key": "tap:dashboard:components_DeleteInvoiceDialog.yes_delete_if_invoicecount_1_2",
+     "states": [
+      "one",
+      "payments-several"
+     ]
+    },
+    {
+     "key": "tap:dashboard:components_DeleteInvoiceDialog.cancel_3",
+     "states": [
+      "one",
+      "payments-several"
+     ]
+    },
+    {
+     "key": "delete_inv_dailog_closed_",
+     "states": [
+      "payments-advance",
+      "payments-instalments",
+      "payments-split"
+     ]
+    },
+    {
+     "key": "delete_inv_success",
+     "states": [
+      "payments-advance",
+      "payments-instalments",
+      "payments-split"
+     ]
+    },
+    {
+     "key": "tap:saved_inv_scr:components_DeleteInvoiceDialog_2.cancel_3",
+     "states": [
+      "payments-advance",
+      "payments-instalments",
+      "payments-split"
+     ]
+    }
+   ],
+   "points": [
+    {
+     "match": "tap:dashboard:components_DeleteInvoiceDialog.close_1",
+     "label": "Close (X), from the invoice list",
+     "kind": "backward",
+     "to": "dashboard",
+     "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/delete/DeleteInvoiceDialog.kt:90"
+    },
+    {
+     "match": "tap:dashboard:components_DeleteInvoiceDialog.yes_delete_if_invoicecount_1_2",
+     "label": "Yes, delete (from the invoice list: deletes the selected invoices and closes; payments listed in the dialog go with them)",
+     "kind": "backward",
+     "to": "dashboard",
+     "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/delete/DeleteInvoiceDialog.kt:91"
+    },
+    {
+     "match": "tap:dashboard:components_DeleteInvoiceDialog.cancel_3",
+     "label": "Cancel, from the invoice list",
+     "kind": "backward",
+     "to": "dashboard",
+     "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/delete/DeleteInvoiceDialog.kt:92"
+    },
+    {
+     "match": "delete_inv_dailog_closed_",
+     "label": "Close (X), from the saved invoice",
+     "kind": "backward",
+     "to": "saved_inv_scr",
+     "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/delete/DeleteInvoiceDialog.kt:83"
+    },
+    {
+     "match": "delete_inv_success",
+     "label": "Yes, delete (from the saved invoice: deletes it and the payments listed, then goes to the Invoices list)",
+     "kind": "forward",
+     "to": "dashboard",
+     "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/delete/DeleteInvoiceDialog.kt:84; feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/save/SaveInvoiceViewModel.kt:381; composeApp/src/commonMain/kotlin/invotick/invoicemaker/app/navigation/InvoiceDocNavigation.kt:323"
+    },
+    {
+     "match": "tap:saved_inv_scr:components_DeleteInvoiceDialog_2.cancel_3",
+     "label": "Cancel, from the saved invoice",
+     "kind": "backward",
+     "to": "saved_inv_scr",
+     "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/delete/DeleteInvoiceDialog.kt:85"
+    },
+    {
+     "match": "@system_back",
+     "label": "Android back / tap outside (closes the dialog)",
+     "kind": "conditional",
+     "branches": [
+      {
+       "when": "opened from the invoice list",
+       "to": "dashboard",
+       "back": true
+      },
+      {
+       "when": "opened from the saved invoice",
+       "to": "saved_inv_scr",
+       "back": true
+      }
+     ],
+     "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/delete/DeleteInvoiceDialog.kt:122"
+    }
+   ],
+   "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/delete/DeleteInvoiceDialog.kt:110; feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/list/InvoiceListScreen.kt:433; feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/save/SaveInvoiceScreen.kt:699"
+  },
+  "currency_breakdown_sheet": {
+   "label": "What this total is made of (sheet)",
+   "dataScreen": null,
+   "kind": "sheet",
+   "parent": "dashboard",
+   "pictured": true,
+   "states": [
+    "open"
+   ],
+   "controls": [
+    {
+     "key": "label:Close sheet",
+     "states": []
+    },
+    {
+     "key": "label:Drag handle. Swipe down to close.",
+     "states": []
+    }
+   ],
+   "points": [
+    {
+     "match": "label:Close sheet",
+     "label": "Tap outside the sheet (closes)",
+     "kind": "backward",
+     "to": "dashboard",
+     "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/list/components/CurrencyBreakdownSheet.kt:70"
+    },
+    {
+     "match": "label:Drag handle. Swipe down to close.",
+     "label": "Swipe sheet down (closes)",
+     "kind": "backward",
+     "to": "dashboard",
+     "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/list/components/CurrencyBreakdownSheet.kt:70"
+    },
+    {
+     "match": "@system_back",
+     "label": "Android back (closes the sheet)",
+     "kind": "backward",
+     "to": "dashboard",
+     "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/list/components/CurrencyBreakdownSheet.kt:70"
+    }
+   ],
+   "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/list/components/CurrencyBreakdownSheet.kt:67; feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/list/InvoiceListScreen.kt:488"
+  },
+  "document_language_sheet": {
+   "label": "Received invoice language sheet",
+   "dataScreen": null,
+   "kind": "sheet",
+   "parent": "received_invoice",
+   "pictured": true,
+   "states": [
+    "open"
+   ],
+   "controls": [
+    {
+     "key": "label:Close sheet",
+     "states": []
+    },
+    {
+     "key": "label:Drag handle. Swipe down to close.",
+     "states": []
+    },
+    {
+     "key": "tap:received_invoice:DocumentLanguageSheet.language_en",
+     "states": []
+    },
+    {
+     "key": "tap:received_invoice:DocumentLanguageSheet.language_es",
+     "states": []
+    },
+    {
+     "key": "tap:received_invoice:DocumentLanguageSheet.language_fr",
+     "states": []
+    },
+    {
+     "key": "tap:received_invoice:DocumentLanguageSheet.language_de",
+     "states": []
+    },
+    {
+     "key": "tap:received_invoice:DocumentLanguageSheet.language_it",
+     "states": []
+    },
+    {
+     "key": "tap:received_invoice:DocumentLanguageSheet.language_pt",
+     "states": []
+    },
+    {
+     "key": "tap:received_invoice:DocumentLanguageSheet.language_ru",
+     "states": []
+    },
+    {
+     "key": "tap:received_invoice:DocumentLanguageSheet.language_zh",
+     "states": []
+    }
+   ],
+   "points": [
+    {
+     "match": "label:Close sheet",
+     "label": "Tap outside the sheet (closes)",
+     "kind": "backward",
+     "to": "received_invoice",
+     "source": "feature/receivedInvoice/src/commonMain/kotlin/invotick/invoicemaker/feature/receivedInvoice/presentation/DocumentLanguageSheet.kt:74"
+    },
+    {
+     "match": "label:Drag handle. Swipe down to close.",
+     "label": "Swipe sheet down (closes)",
+     "kind": "backward",
+     "to": "received_invoice",
+     "source": "feature/receivedInvoice/src/commonMain/kotlin/invotick/invoicemaker/feature/receivedInvoice/presentation/DocumentLanguageSheet.kt:74"
+    },
+    {
+     "match": "re:^tap:received_invoice:DocumentLanguageSheet\\.language_",
+     "label": "Pick a language (closes; the document is read in it)",
+     "kind": "backward",
+     "to": "received_invoice",
+     "source": "feature/receivedInvoice/src/commonMain/kotlin/invotick/invoicemaker/feature/receivedInvoice/presentation/DocumentLanguageSheet.kt:125; feature/receivedInvoice/src/commonMain/kotlin/invotick/invoicemaker/feature/receivedInvoice/presentation/ReceivedInvoiceScreen.kt:364"
+    },
+    {
+     "match": "@system_back",
+     "label": "Android back (closes the sheet)",
+     "kind": "backward",
+     "to": "received_invoice",
+     "source": "feature/receivedInvoice/src/commonMain/kotlin/invotick/invoicemaker/feature/receivedInvoice/presentation/DocumentLanguageSheet.kt:74"
+    }
+   ],
+   "source": "feature/receivedInvoice/src/commonMain/kotlin/invotick/invoicemaker/feature/receivedInvoice/presentation/DocumentLanguageSheet.kt:66; feature/receivedInvoice/src/commonMain/kotlin/invotick/invoicemaker/feature/receivedInvoice/presentation/ReceivedInvoiceScreen.kt:360"
+  },
+  "own_footer_sheet": {
+   "label": "Your footer (sheet)",
+   "dataScreen": null,
+   "kind": "sheet",
+   "parent": "saved_inv_scr",
+   "pictured": true,
+   "states": [
+    "open"
+   ],
+   "controls": [
+    {
+     "key": "label:Close sheet",
+     "states": []
+    },
+    {
+     "key": "label:Drag handle. Swipe down to close.",
+     "states": []
+    },
+    {
+     "key": "label:Switch",
+     "states": []
+    },
+    {
+     "key": "label:Message · 28/60",
+     "states": []
+    },
+    {
+     "key": "label:Phone · email",
+     "states": []
+    },
+    {
+     "key": "label:WhatsApp",
+     "states": []
+    },
+    {
+     "key": "label:Website",
+     "states": []
+    },
+    {
+     "key": "label:No QR",
+     "states": []
+    },
+    {
+     "key": "label:WhatsApp number · Scans to https://wa.me/923001234567",
+     "states": []
+    }
+   ],
+   "points": [
+    {
+     "match": "label:Close sheet",
+     "label": "Tap outside the sheet (closes, nothing saved)",
+     "kind": "conditional",
+     "branches": [
+      {
+       "when": "opened from the saved invoice",
+       "to": "saved_inv_scr",
+       "back": true
+      },
+      {
+       "when": "opened from Preview",
+       "to": "preview_invoice_scr",
+       "back": true
+      },
+      {
+       "when": "opened from the preview sheet of Create Invoice",
+       "to": "off:invoice_preview_sheet",
+       "back": true
+      }
+     ],
+     "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/footer/OwnFooterSheet.kt:108"
+    },
+    {
+     "match": "label:Drag handle. Swipe down to close.",
+     "label": "Swipe sheet down (closes, nothing saved)",
+     "kind": "conditional",
+     "branches": [
+      {
+       "when": "opened from the saved invoice",
+       "to": "saved_inv_scr",
+       "back": true
+      },
+      {
+       "when": "opened from Preview",
+       "to": "preview_invoice_scr",
+       "back": true
+      },
+      {
+       "when": "opened from the preview sheet of Create Invoice",
+       "to": "off:invoice_preview_sheet",
+       "back": true
+      }
+     ],
+     "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/footer/OwnFooterSheet.kt:108"
+    },
+    {
+     "match": "label:Switch",
+     "label": "Switches (show footer, logo, message, name, contact)",
+     "kind": "stay",
+     "stay": "Turns that part of the footer on or off in the live picture at the top of the sheet",
+     "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/footer/OwnFooterSheet.kt:141; feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/footer/OwnFooterSheet.kt:261"
+    },
+    {
+     "match": "re:^label:(Message · \\d+/\\d+|WhatsApp number · .*)$",
+     "label": "Text fields (footer message, WhatsApp number)",
+     "kind": "stay",
+     "stay": "Types into the footer text",
+     "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/footer/OwnFooterSheet.kt:70"
+    },
+    {
+     "match": "re:^label:(Phone · email|WhatsApp|Website|No QR)$",
+     "label": "QR choice",
+     "kind": "stay",
+     "stay": "Chooses what the footer's QR code scans",
+     "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/footer/OwnFooterSheet.kt:283"
+    },
+    {
+     "match": "@save",
+     "label": "Save",
+     "kind": "conditional",
+     "branches": [
+      {
+       "when": "opened from the saved invoice",
+       "to": "saved_inv_scr",
+       "back": true
+      },
+      {
+       "when": "opened from Preview",
+       "to": "preview_invoice_scr",
+       "back": true
+      },
+      {
+       "when": "opened from the preview sheet of Create Invoice",
+       "to": "off:invoice_preview_sheet",
+       "back": true
+      }
+     ],
+     "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/footer/OwnFooterSheet.kt:247",
+     "events": [
+      "own_footer_save"
+     ]
+    },
+    {
+     "match": "@cancel",
+     "label": "Cancel",
+     "kind": "conditional",
+     "branches": [
+      {
+       "when": "opened from the saved invoice",
+       "to": "saved_inv_scr",
+       "back": true
+      },
+      {
+       "when": "opened from Preview",
+       "to": "preview_invoice_scr",
+       "back": true
+      },
+      {
+       "when": "opened from the preview sheet of Create Invoice",
+       "to": "off:invoice_preview_sheet",
+       "back": true
+      }
+     ],
+     "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/footer/OwnFooterSheet.kt:252",
+     "events": [
+      "own_footer_cancel"
+     ]
+    },
+    {
+     "match": "@system_back",
+     "label": "Android back (closes the sheet)",
+     "kind": "conditional",
+     "branches": [
+      {
+       "when": "opened from the saved invoice",
+       "to": "saved_inv_scr",
+       "back": true
+      },
+      {
+       "when": "opened from Preview",
+       "to": "preview_invoice_scr",
+       "back": true
+      },
+      {
+       "when": "opened from the preview sheet of Create Invoice",
+       "to": "off:invoice_preview_sheet",
+       "back": true
+      }
+     ],
+     "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/footer/OwnFooterSheet.kt:108"
+    }
+   ],
+   "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/footer/OwnFooterSheet.kt:90; feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/footer/OwnFooterPreviewHooks.kt:78"
+  },
+  "header_sheet": {
+   "label": "Header panel (Preview → Customize → Header)",
+   "dataScreen": null,
+   "kind": "sheet",
+   "parent": "preview_invoice_scr",
+   "pictured": true,
+   "states": [
+    "open"
+   ],
+   "controls": [
+    {
+     "key": "label:Close sheet",
+     "states": []
+    },
+    {
+     "key": "label:Drag handle. Swipe down to close.",
+     "states": []
+    },
+    {
+     "key": "header_back_click",
+     "states": []
+    },
+    {
+     "key": "headr_color_btn_click",
+     "states": []
+    },
+    {
+     "key": "background_fab_btn_click",
+     "states": []
+    }
+   ],
+   "points": [
+    {
+     "match": "label:Close sheet",
+     "label": "Sheet wrapper's close area",
+     "kind": "stay",
+     "stay": "Drawn by the picture's sheet wrapper, not in the app: there this panel is part of Preview and its own Back arrow closes it",
+     "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/preview/bottomSheet/header/HeaderBottomSheetContent.kt:240"
+    },
+    {
+     "match": "label:Drag handle. Swipe down to close.",
+     "label": "Sheet wrapper's drag handle",
+     "kind": "stay",
+     "stay": "Drawn by the picture's sheet wrapper, not in the app: there this panel is part of Preview and its own Back arrow closes it",
+     "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/preview/bottomSheet/header/HeaderBottomSheetContent.kt:240"
+    },
+    {
+     "match": "header_back_click",
+     "label": "Back arrow",
+     "kind": "conditional",
+     "branches": [
+      {
+       "when": "on the colour or settings view: back to the header list (stays)"
+      },
+      {
+       "when": "on the header list: closes the panel, back to the Customize cards",
+       "to": "preview_invoice_scr",
+       "back": true
+      }
+     ],
+     "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/preview/bottomSheet/header/HeaderBottomSheetContent.kt:241; feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/preview/components/ContentType.kt:705"
+    },
+    {
+     "match": "headr_color_btn_click",
+     "label": "Colour button (top right)",
+     "kind": "stay",
+     "stay": "Opens or closes the colour view inside this panel",
+     "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/preview/bottomSheet/header/HeaderBottomSheetContent.kt:270"
+    },
+    {
+     "match": "background_fab_btn_click",
+     "label": "+ button (add your own header)",
+     "kind": "stay",
+     "stay": "Opens the Gallery / Camera menu in place",
+     "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/preview/bottomSheet/header/HeaderBottomSheetContent.kt:212; feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/preview/bottomSheet/background/GradientFAB.kt:293"
+    },
+    {
+     "match": "@gallery",
+     "label": "Gallery (from the + menu)",
+     "kind": "outside",
+     "outside": "Gallery (system photo picker), then the cropper; the cut header is applied",
+     "returnsTo": "header_sheet",
+     "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/preview/bottomSheet/header/HeaderBottomSheetContent.kt:184; feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/preview/bottomSheet/header/HeaderBottomSheetContent.kt:218"
+    },
+    {
+     "match": "@camera",
+     "label": "Camera (from the + menu)",
+     "kind": "outside",
+     "outside": "Camera, then the cropper; the cut header is applied",
+     "returnsTo": "header_sheet",
+     "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/preview/bottomSheet/header/HeaderBottomSheetContent.kt:185; feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/preview/bottomSheet/header/HeaderBottomSheetContent.kt:225"
+    },
+    {
+     "match": "@apply_header",
+     "label": "A header design",
+     "kind": "stay",
+     "stay": "Applies it to the preview behind (applying is not leaving: the panel stays open)",
+     "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/preview/bottomSheet/header/HeaderBottomSheetContent.kt:708",
+     "events": [
+      "header_apply_success"
+     ]
+    },
+    {
+     "match": "@system_back",
+     "label": "Android back",
+     "kind": "conditional",
+     "branches": [
+      {
+       "when": "on the colour or settings view: back to the header list (stays)"
+      },
+      {
+       "when": "on the header list: closes the panel, back to the Customize cards",
+       "to": "preview_invoice_scr",
+       "back": true
+      }
+     ],
+     "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/preview/bottomSheet/header/HeaderBottomSheetContent.kt:153"
+    }
+   ],
+   "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/preview/bottomSheet/header/HeaderBottomSheetContent.kt:132; feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/preview/components/ContentType.kt:709"
+  },
+  "background_sheet": {
+   "label": "Background panel (Preview → Customize → Background)",
+   "dataScreen": null,
+   "kind": "sheet",
+   "parent": "preview_invoice_scr",
+   "pictured": true,
+   "states": [
+    "open"
+   ],
+   "controls": [
+    {
+     "key": "label:Close sheet",
+     "states": []
+    },
+    {
+     "key": "label:Drag handle. Swipe down to close.",
+     "states": []
+    },
+    {
+     "key": "background_back_click",
+     "states": []
+    },
+    {
+     "key": "tap:preview_invoice_scr:BackgroundBottomSheetContent.background_bottom_sheet_content_1",
+     "states": []
+    },
+    {
+     "key": "background_fab_btn_click",
+     "states": []
+    }
+   ],
+   "points": [
+    {
+     "match": "label:Close sheet",
+     "label": "Sheet wrapper's close area",
+     "kind": "stay",
+     "stay": "Drawn by the picture's sheet wrapper, not in the app: there this panel is part of Preview and its own Back arrow closes it",
+     "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/preview/bottomSheet/background/BackgroundBottomSheetContent.kt:203"
+    },
+    {
+     "match": "label:Drag handle. Swipe down to close.",
+     "label": "Sheet wrapper's drag handle",
+     "kind": "stay",
+     "stay": "Drawn by the picture's sheet wrapper, not in the app: there this panel is part of Preview and its own Back arrow closes it",
+     "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/preview/bottomSheet/background/BackgroundBottomSheetContent.kt:203"
+    },
+    {
+     "match": "background_back_click",
+     "label": "Back arrow",
+     "kind": "conditional",
+     "branches": [
+      {
+       "when": "on the settings view: back to the background list (stays)"
+      },
+      {
+       "when": "on the background list: closes the panel, back to the Customize cards",
+       "to": "preview_invoice_scr",
+       "back": true
+      }
+     ],
+     "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/preview/bottomSheet/background/BackgroundBottomSheetContent.kt:204; feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/preview/components/ContentType.kt:705"
+    },
+    {
+     "match": "tap:preview_invoice_scr:BackgroundBottomSheetContent.background_bottom_sheet_content_1",
+     "label": "Settings button (top right)",
+     "kind": "stay",
+     "stay": "Opens or closes the background settings view inside this panel",
+     "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/preview/bottomSheet/background/BackgroundBottomSheetContent.kt:231"
+    },
+    {
+     "match": "background_fab_btn_click",
+     "label": "+ button (add your own background)",
+     "kind": "stay",
+     "stay": "Opens the Gallery / Camera menu in place",
+     "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/preview/bottomSheet/background/BackgroundBottomSheetContent.kt:175; feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/preview/bottomSheet/background/GradientFAB.kt:293"
+    },
+    {
+     "match": "@gallery",
+     "label": "Gallery (from the + menu)",
+     "kind": "outside",
+     "outside": "Gallery (system photo picker), then the cropper",
+     "returnsTo": "background_sheet",
+     "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/preview/bottomSheet/background/BackgroundBottomSheetContent.kt:153; feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/preview/bottomSheet/background/BackgroundBottomSheetContent.kt:181"
+    },
+    {
+     "match": "@camera",
+     "label": "Camera (from the + menu)",
+     "kind": "outside",
+     "outside": "Camera, then the cropper",
+     "returnsTo": "background_sheet",
+     "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/preview/bottomSheet/background/BackgroundBottomSheetContent.kt:154; feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/preview/bottomSheet/background/BackgroundBottomSheetContent.kt:188"
+    },
+    {
+     "match": "@apply_background",
+     "label": "A background design",
+     "kind": "stay",
+     "stay": "Applies it to the preview behind (the panel stays open)",
+     "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/preview/bottomSheet/background/BackgroundBottomSheetContent.kt:578",
+     "events": [
+      "background_apply_success"
+     ]
+    },
+    {
+     "match": "@system_back",
+     "label": "Android back",
+     "kind": "conditional",
+     "branches": [
+      {
+       "when": "on the settings view: back to the background list (stays)"
+      },
+      {
+       "when": "on the background list: closes the panel, back to the Customize cards",
+       "to": "preview_invoice_scr",
+       "back": true
+      }
+     ],
+     "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/preview/bottomSheet/background/BackgroundBottomSheetContent.kt:122"
+    }
+   ],
+   "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/preview/bottomSheet/background/BackgroundBottomSheetContent.kt:105; feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/preview/components/ContentType.kt:724"
+  },
+  "color_sheet": {
+   "label": "Colour panel (Preview → Customize → Color)",
+   "dataScreen": null,
+   "kind": "sheet",
+   "parent": "preview_invoice_scr",
+   "pictured": true,
+   "states": [
+    "open"
+   ],
+   "controls": [
+    {
+     "key": "label:Close sheet",
+     "states": []
+    },
+    {
+     "key": "label:Drag handle. Swipe down to close.",
+     "states": []
+    },
+    {
+     "key": "select_color_back",
+     "states": []
+    },
+    {
+     "key": "tap:preview_invoice_scr:ColorBottomSheetContent.color_picker_1",
+     "states": []
+    },
+    {
+     "key": "select_color_added_success",
+     "states": []
+    }
+   ],
+   "points": [
+    {
+     "match": "label:Close sheet",
+     "label": "Sheet wrapper's close area",
+     "kind": "stay",
+     "stay": "Drawn by the picture's sheet wrapper, not in the app: there this panel is part of Preview and its own Back arrow closes it",
+     "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/preview/bottomSheet/color/ColorBottomSheetContent.kt:72"
+    },
+    {
+     "match": "label:Drag handle. Swipe down to close.",
+     "label": "Sheet wrapper's drag handle",
+     "kind": "stay",
+     "stay": "Drawn by the picture's sheet wrapper, not in the app: there this panel is part of Preview and its own Back arrow closes it",
+     "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/preview/bottomSheet/color/ColorBottomSheetContent.kt:72"
+    },
+    {
+     "match": "select_color_back",
+     "label": "Back arrow (closes the panel)",
+     "kind": "backward",
+     "to": "preview_invoice_scr",
+     "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/preview/bottomSheet/color/ColorBottomSheetContent.kt:73; feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/preview/components/ContentType.kt:705"
+    },
+    {
+     "match": "tap:preview_invoice_scr:ColorBottomSheetContent.color_picker_1",
+     "label": "Colour picker icon",
+     "kind": "stay",
+     "stay": "Opens the free colour picker over this panel",
+     "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/preview/bottomSheet/color/ColorBottomSheetContent.kt:80; feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/preview/bottomSheet/color/ColorBottomSheetContent.kt:57"
+    },
+    {
+     "match": "select_color_added_success",
+     "label": "A shade",
+     "kind": "stay",
+     "stay": "Applies it to the preview behind (the panel stays open)",
+     "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/preview/bottomSheet/color/ColorBottomSheetContent.kt:277"
+    },
+    {
+     "match": "@system_back",
+     "label": "Android back (closes the panel)",
+     "kind": "backward",
+     "to": "preview_invoice_scr",
+     "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/preview/bottomSheet/color/ColorBottomSheetContent.kt:52"
+    }
+   ],
+   "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/preview/bottomSheet/color/ColorBottomSheetContent.kt:45; feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/preview/components/ContentType.kt:701"
+  },
+  "settings_sheet": {
+   "label": "Invoice settings panel (Preview → Customize → Settings)",
+   "dataScreen": null,
+   "kind": "sheet",
+   "parent": "preview_invoice_scr",
+   "pictured": true,
+   "states": [
+    "open"
+   ],
+   "controls": [
+    {
+     "key": "label:Close sheet",
+     "states": []
+    },
+    {
+     "key": "label:Drag handle. Swipe down to close.",
+     "states": []
+    },
+    {
+     "key": "setting_back_click",
+     "states": []
+    },
+    {
+     "key": "tap:preview_invoice_scr:SettingsBottomSheetContent.toggle_settings_item_row_1",
+     "states": []
+    },
+    {
+     "key": "tap:preview_invoice_scr:SettingsBottomSheetContent.i_o_s_switch_3",
+     "states": []
+    },
+    {
+     "key": "settings_align_left",
+     "states": []
+    },
+    {
+     "key": "settings_align_center",
+     "states": []
+    },
+    {
+     "key": "settings_align_right",
+     "states": []
+    }
+   ],
+   "points": [
+    {
+     "match": "label:Close sheet",
+     "label": "Sheet wrapper's close area",
+     "kind": "stay",
+     "stay": "Drawn by the picture's sheet wrapper, not in the app: there this panel is part of Preview and its own Back arrow closes it",
+     "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/preview/bottomSheet/settings/SettingsBottomSheetContent.kt:113"
+    },
+    {
+     "match": "label:Drag handle. Swipe down to close.",
+     "label": "Sheet wrapper's drag handle",
+     "kind": "stay",
+     "stay": "Drawn by the picture's sheet wrapper, not in the app: there this panel is part of Preview and its own Back arrow closes it",
+     "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/preview/bottomSheet/settings/SettingsBottomSheetContent.kt:113"
+    },
+    {
+     "match": "setting_back_click",
+     "label": "Back arrow (closes the panel)",
+     "kind": "backward",
+     "to": "preview_invoice_scr",
+     "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/preview/bottomSheet/settings/SettingsBottomSheetContent.kt:114; feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/preview/bottomSheet/settings/SettingsBottomSheetContent.kt:89"
+    },
+    {
+     "match": "re:^tap:preview_invoice_scr:SettingsBottomSheetContent\\.(toggle_settings_item_row_1|i_o_s_switch_3)$",
+     "label": "Setting row / its switch",
+     "kind": "stay",
+     "stay": "Turns the setting on or off; the preview behind redraws",
+     "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/preview/bottomSheet/settings/SettingsBottomSheetContent.kt:239; feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/preview/bottomSheet/settings/SettingsBottomSheetContent.kt:556"
+    },
+    {
+     "match": "re:^settings_align_(left|center|right)$",
+     "label": "Text alignment",
+     "kind": "stay",
+     "stay": "Sets how the document's text is aligned; the preview behind redraws",
+     "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/preview/bottomSheet/settings/SettingsBottomSheetContent.kt:331"
+    },
+    {
+     "match": "@system_back",
+     "label": "Android back (closes the panel)",
+     "kind": "backward",
+     "to": "preview_invoice_scr",
+     "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/preview/bottomSheet/settings/SettingsBottomSheetContent.kt:82"
+    }
+   ],
+   "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/preview/bottomSheet/settings/SettingsBottomSheetContent.kt:72; feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/preview/components/ContentType.kt:769"
+  },
+  "template_sheet": {
+   "label": "Templates panel (Preview → Templates)",
+   "dataScreen": null,
+   "kind": "sheet",
+   "parent": "preview_invoice_scr",
+   "pictured": true,
+   "states": [
+    "open"
+   ],
+   "controls": [
+    {
+     "key": "label:Close sheet",
+     "states": []
+    },
+    {
+     "key": "label:Drag handle. Swipe down to close.",
+     "states": []
+    }
+   ],
+   "points": [
+    {
+     "match": "label:Close sheet",
+     "label": "Sheet wrapper's close area",
+     "kind": "stay",
+     "stay": "Drawn by the picture's sheet wrapper, not in the app: there the templates are the Preview screen's own lower half",
+     "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/preview/bottomSheet/template/InvoiceTemplatesBottomSheetContent.kt:102"
+    },
+    {
+     "match": "label:Drag handle. Swipe down to close.",
+     "label": "Sheet wrapper's drag handle",
+     "kind": "stay",
+     "stay": "Drawn by the picture's sheet wrapper, not in the app: there the templates are the Preview screen's own lower half",
+     "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/preview/bottomSheet/template/InvoiceTemplatesBottomSheetContent.kt:102"
+    },
+    {
+     "match": "@pick_template",
+     "label": "A template",
+     "kind": "stay",
+     "stay": "Applies it to the preview behind (the Save button wakes once the design changed)",
+     "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/preview/bottomSheet/template/InvoiceTemplatesBottomSheetContent.kt:468",
+     "events": [
+      "temeplate_apply_success"
+     ]
+    },
+    {
+     "match": "@placeholder_header",
+     "label": "'Header' button on the custom-template placeholder card",
+     "kind": "forward",
+     "to": "header_sheet",
+     "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/preview/bottomSheet/template/InvoiceTemplatesBottomSheetContent.kt:602; feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/preview/components/ContentType.kt:124"
+    },
+    {
+     "match": "@placeholder_background",
+     "label": "'Background' button on the custom-template placeholder card",
+     "kind": "forward",
+     "to": "background_sheet",
+     "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/preview/bottomSheet/template/InvoiceTemplatesBottomSheetContent.kt:634; feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/preview/components/ContentType.kt:132"
+    },
+    {
+     "match": "@system_back",
+     "label": "Android back (this panel has none of its own: leaves Preview, to the Invoices list)",
+     "kind": "backward",
+     "to": "dashboard",
+     "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/preview/PreviewInvoiceScreen.kt:164"
+    }
+   ],
+   "source": "feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/preview/bottomSheet/template/InvoiceTemplatesBottomSheetContent.kt:102; feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/preview/components/ContentType.kt:180"
+  },
+  "appearance_scr": {
+   "label": "Appearance",
+   "dataScreen": "appearance_settings",
+   "kind": "screen",
+   "parent": "dashboard",
+   "pictured": true,
+   "states": [
+    "default"
+   ],
+   "controls": [
+    {
+     "key": "tap:appearance_scr:AppearanceScreen.theme_option",
+     "states": []
+    },
+    {
+     "key": "appearance_screen_close",
+     "states": []
+    }
+   ],
+   "points": [
+    {
+     "match": "tap:appearance_scr:AppearanceScreen.theme_option",
+     "label": "Theme option",
+     "kind": "stay",
+     "stay": "Picks that theme and applies it at once",
+     "source": "composeApp/src/commonMain/kotlin/invotick/invoicemaker/components/settings/AppearanceScreen.kt:242; composeApp/src/commonMain/kotlin/invotick/invoicemaker/components/settings/AppearanceScreen.kt:226"
+    },
+    {
+     "match": "appearance_screen_close",
+     "label": "Back arrow",
+     "kind": "conditional",
+     "branches": [
+      {
+       "when": "drawer was opened on the Invoices list",
+       "to": "dashboard",
+       "back": true
+      },
+      {
+       "when": "drawer was opened on the Estimates list",
+       "to": "estimate_scr",
+       "back": true
+      }
+     ],
+     "source": "composeApp/src/commonMain/kotlin/invotick/invoicemaker/components/settings/AppearanceScreen.kt:101; composeApp/src/commonMain/kotlin/invotick/invoicemaker/app/navigation/MainShellNavigation.kt:784"
+    },
+    {
+     "match": "@system_back",
+     "label": "Android back (NavHost pops)",
+     "kind": "conditional",
+     "branches": [
+      {
+       "when": "drawer was opened on the Invoices list",
+       "to": "dashboard",
+       "back": true
+      },
+      {
+       "when": "drawer was opened on the Estimates list",
+       "to": "estimate_scr",
+       "back": true
+      }
+     ],
+     "source": "composeApp/src/commonMain/kotlin/invotick/invoicemaker/app/navigation/MainShellNavigation.kt:810"
+    }
+   ],
+   "source": "composeApp/src/commonMain/kotlin/invotick/invoicemaker/components/settings/AppearanceScreen.kt:83; composeApp/src/commonMain/kotlin/invotick/invoicemaker/app/navigation/MainShellNavigation.kt:810"
+  },
+  "business_details_scr": {
+   "label": "Business details",
+   "dataScreen": "business_details",
+   "kind": "screen",
+   "parent": "business_list",
+   "pictured": true,
+   "states": [
+    "default"
+   ],
+   "controls": [
+    {
+     "key": "tap:business_details_scr:BusinessDetailsScreen.action_edit_business",
+     "states": []
+    },
+    {
+     "key": "tap:business_details_scr:BusinessDetailsScreen.attach_money_2",
+     "states": []
+    },
+    {
+     "key": "business_details_screen_close",
+     "states": []
+    },
+    {
+     "key": "tap:business_details_scr:BusinessDetailsScreen.edit_business_1",
+     "states": []
+    }
+   ],
+   "points": [
+    {
+     "match": "tap:business_details_scr:BusinessDetailsScreen.edit_business_1",
+     "label": "Edit (top bar pencil)",
+     "kind": "forward",
+     "to": "edit_business",
+     "source": "feature/company/src/commonMain/kotlin/invotick/invoicemaker/feature/company/presentation/businessDetails/BusinessDetailsScreen.kt:102; feature/company/src/commonMain/kotlin/invotick/invoicemaker/feature/company/navigation/BusinessNavigation.kt:86"
+    },
+    {
+     "match": "tap:business_details_scr:BusinessDetailsScreen.action_edit_business",
+     "label": "Edit business (button)",
+     "kind": "forward",
+     "to": "edit_business",
+     "source": "feature/company/src/commonMain/kotlin/invotick/invoicemaker/feature/company/presentation/businessDetails/BusinessDetailsScreen.kt:194; feature/company/src/commonMain/kotlin/invotick/invoicemaker/feature/company/navigation/BusinessNavigation.kt:86"
+    },
+    {
+     "match": "tap:business_details_scr:BusinessDetailsScreen.attach_money_2",
+     "label": "Currency (change)",
+     "kind": "stay",
+     "stay": "Opens the currency dialog in place",
+     "source": "feature/company/src/commonMain/kotlin/invotick/invoicemaker/feature/company/presentation/businessDetails/BusinessDetailsScreen.kt:393; feature/company/src/commonMain/kotlin/invotick/invoicemaker/feature/company/presentation/businessDetails/BusinessDetailsScreen.kt:134"
+    },
+    {
+     "match": "business_details_screen_close",
+     "label": "Back arrow",
+     "kind": "backward",
+     "to": "business_list",
+     "source": "feature/company/src/commonMain/kotlin/invotick/invoicemaker/feature/company/presentation/businessDetails/BusinessDetailsScreen.kt:95; feature/company/src/commonMain/kotlin/invotick/invoicemaker/feature/company/navigation/BusinessNavigation.kt:72"
+    },
+    {
+     "match": "@set_default",
+     "label": "Set as default (not drawn while this business already is the default)",
+     "kind": "stay",
+     "stay": "Makes this business the default one for new invoices",
+     "source": "feature/company/src/commonMain/kotlin/invotick/invoicemaker/feature/company/presentation/businessDetails/BusinessDetailsScreen.kt:203",
+     "events": [
+      "tap:business_details_scr:BusinessDetailsScreen.action_set_as_default"
+     ]
+    },
+    {
+     "match": "@system_back",
+     "label": "Android back (NavHost pops)",
+     "kind": "backward",
+     "to": "business_list",
+     "source": "feature/company/src/commonMain/kotlin/invotick/invoicemaker/feature/company/navigation/BusinessNavigation.kt:78"
+    }
+   ],
+   "source": "feature/company/src/commonMain/kotlin/invotick/invoicemaker/feature/company/presentation/businessDetails/BusinessDetailsScreen.kt:64; feature/company/src/commonMain/kotlin/invotick/invoicemaker/feature/company/navigation/BusinessNavigation.kt:78"
+  },
+  "create_expense_scr": {
+   "label": "New expense",
+   "dataScreen": "create_expense",
+   "kind": "screen",
+   "parent": "expense_list",
+   "pictured": true,
+   "states": [
+    "empty",
+    "error",
+    "filled"
+   ],
+   "controls": [
+    {
+     "key": "tap:create_expense_scr:BusinessSelectionComponents.business_card",
+     "states": []
+    },
+    {
+     "key": "tap:create_expense_scr:ReceiptImageCard.add_image_empty",
+     "states": []
+    },
+    {
+     "key": "tap:create_expense_scr:QuickEntryCards.merchant_card",
+     "states": []
+    },
+    {
+     "key": "tap:create_expense_scr:QuickEntryCards.date_card",
+     "states": []
+    },
+    {
+     "key": "tap:create_expense_scr:QuickEntryCards.category_card",
+     "states": []
+    },
+    {
+     "key": "label:$ · 0.00",
+     "states": [
+      "empty",
+      "error"
+     ]
+    },
+    {
+     "key": "label:Add notes about this expense...",
+     "states": [
+      "empty",
+      "error"
+     ]
+    },
+    {
+     "key": "label:$",
+     "states": [
+      "filled"
+     ]
+    },
+    {
+     "key": "nolabel@35,1140,685,1245",
+     "states": [
+      "filled"
+     ]
+    }
+   ],
+   "points": [
+    {
+     "match": "tap:create_expense_scr:BusinessSelectionComponents.business_card",
+     "label": "Business card",
+     "kind": "stay",
+     "stay": "Opens the business list sheet in place; picking a business sets it",
+     "source": "feature/expense/src/commonMain/kotlin/invotick/invoicemaker/feature/expense/presentation/createExpense/components/BusinessSelectionComponents.kt:44; feature/expense/src/commonMain/kotlin/invotick/invoicemaker/feature/expense/presentation/createExpense/CreateExpenseScreen.kt:87"
+    },
+    {
+     "match": "tap:create_expense_scr:ReceiptImageCard.add_image_empty",
+     "label": "Add receipt image",
+     "kind": "stay",
+     "stay": "Opens the 'choose image' sheet (camera or gallery) in place",
+     "source": "feature/expense/src/commonMain/kotlin/invotick/invoicemaker/feature/expense/presentation/createExpense/components/ReceiptImageCard.kt:118; feature/expense/src/commonMain/kotlin/invotick/invoicemaker/feature/expense/presentation/createExpense/CreateExpenseScreen.kt:258"
+    },
+    {
+     "match": "tap:create_expense_scr:QuickEntryCards.merchant_card",
+     "label": "Merchant card",
+     "kind": "stay",
+     "stay": "Opens the merchant sheet in place (a list, with creating a merchant inside it)",
+     "source": "feature/expense/src/commonMain/kotlin/invotick/invoicemaker/feature/expense/presentation/createExpense/components/QuickEntryCards.kt:55; feature/expense/src/commonMain/kotlin/invotick/invoicemaker/feature/expense/presentation/createExpense/CreateExpenseScreen.kt:282"
+    },
+    {
+     "match": "tap:create_expense_scr:QuickEntryCards.date_card",
+     "label": "Date card",
+     "kind": "stay",
+     "stay": "Opens the date picker over the screen",
+     "source": "feature/expense/src/commonMain/kotlin/invotick/invoicemaker/feature/expense/presentation/createExpense/components/QuickEntryCards.kt:123; feature/expense/src/commonMain/kotlin/invotick/invoicemaker/feature/expense/presentation/createExpense/CreateExpenseScreen.kt:73"
+    },
+    {
+     "match": "tap:create_expense_scr:QuickEntryCards.category_card",
+     "label": "Category card",
+     "kind": "stay",
+     "stay": "Opens the category sheet in place",
+     "source": "feature/expense/src/commonMain/kotlin/invotick/invoicemaker/feature/expense/presentation/createExpense/components/QuickEntryCards.kt:189; feature/expense/src/commonMain/kotlin/invotick/invoicemaker/feature/expense/presentation/createExpense/CreateExpenseScreen.kt:282"
+    },
+    {
+     "match": "re:^(label:\\$.*|label:Add notes about this expense\\.\\.\\.|nolabel@35,1140,685,1245)$",
+     "label": "Amount, tax and notes fields",
+     "kind": "stay",
+     "stay": "Types into the field",
+     "source": "feature/expense/src/commonMain/kotlin/invotick/invoicemaker/feature/expense/presentation/createExpense/CreateExpenseScreen.kt:326"
+    },
+    {
+     "match": "@back",
+     "label": "Back arrow",
+     "kind": "backward",
+     "to": "expense_list",
+     "source": "feature/expense/src/commonMain/kotlin/invotick/invoicemaker/feature/expense/presentation/createExpense/CreateExpenseScreen.kt:135; feature/expense/src/commonMain/kotlin/invotick/invoicemaker/feature/expense/navigation/ExpenseNavigation.kt:81",
+     "events": [
+      "create_expense_screen_close"
+     ]
+    },
+    {
+     "match": "@save",
+     "label": "Save (top right; dimmed until the form can be saved)",
+     "kind": "backward",
+     "to": "expense_list",
+     "source": "feature/expense/src/commonMain/kotlin/invotick/invoicemaker/feature/expense/presentation/createExpense/CreateExpenseScreen.kt:148; feature/expense/src/commonMain/kotlin/invotick/invoicemaker/feature/expense/presentation/createExpense/CreateExpenseViewModel.kt:410"
+    },
+    {
+     "match": "@system_back",
+     "label": "Android back (NavHost pops)",
+     "kind": "backward",
+     "to": "expense_list",
+     "source": "feature/expense/src/commonMain/kotlin/invotick/invoicemaker/feature/expense/navigation/ExpenseNavigation.kt:77"
+    }
+   ],
+   "source": "feature/expense/src/commonMain/kotlin/invotick/invoicemaker/feature/expense/presentation/createExpense/CreateExpenseScreen.kt:43; feature/expense/src/commonMain/kotlin/invotick/invoicemaker/feature/expense/navigation/ExpenseNavigation.kt:77"
+  },
+  "payment_form_scr": {
+   "label": "Add payment (payment form)",
+   "dataScreen": "create_payment_form",
+   "kind": "screen",
+   "parent": "off:payment_form_list",
+   "pictured": true,
+   "states": [
+    "filled"
+   ],
+   "controls": [
+    {
+     "key": "nolabel@21,663,699,761",
+     "states": []
+    },
+    {
+     "key": "tap:payment_form_scr:TextFiedl.invotick_clickable_text_field_2",
+     "states": []
+    },
+    {
+     "key": "nolabel@21,799,699,898",
+     "states": []
+    },
+    {
+     "key": "label:Select date",
+     "states": []
+    },
+    {
+     "key": "tap:payment_form_scr:PaymentFormScreen.allocate_payment_1",
+     "states": []
+    },
+    {
+     "key": "tap:payment_form_scr:PaymentFormTopBar.back_1",
+     "states": []
+    }
+   ],
+   "points": [
+    {
+     "match": "re:^(nolabel@21,663,699,761|nolabel@21,799,699,898|label:Select date)$",
+     "label": "Amount, payment method and date fields",
+     "kind": "stay",
+     "stay": "Amount: types. Method: opens a dropdown in place. Date: nothing opens, its tap handler is empty (onDateClick = { })",
+     "source": "feature/paymentForm/src/commonMain/kotlin/invotick/invoicemaker/feature/paymentform/presentation/createPaymentForm/PaymentFormScreen.kt:143; feature/paymentForm/src/commonMain/kotlin/invotick/invoicemaker/feature/paymentform/presentation/createPaymentForm/components/PaymentMethodSelector.kt:60"
+    },
+    {
+     "match": "tap:payment_form_scr:TextFiedl.invotick_clickable_text_field_2",
+     "label": "Payment method / date field",
+     "kind": "stay",
+     "stay": "Method: opens a dropdown in place. Date: nothing opens, its tap handler is empty (onDateClick = { })",
+     "source": "feature/paymentForm/src/commonMain/kotlin/invotick/invoicemaker/feature/paymentform/presentation/createPaymentForm/PaymentFormScreen.kt:143"
+    },
+    {
+     "match": "tap:payment_form_scr:PaymentFormScreen.allocate_payment_1",
+     "label": "Allocate Payment",
+     "kind": "conditional",
+     "branches": [
+      {
+       "when": "amount empty or invalid, or the client has no unpaid invoice: a message, stays here"
+      },
+      {
+       "when": "otherwise an allocation dialog opens over this screen; its Confirm saves the payments and goes back to the client's payment list",
+       "to": "off:payment_form_list",
+       "back": true
+      }
+     ],
+     "source": "feature/paymentForm/src/commonMain/kotlin/invotick/invoicemaker/feature/paymentform/presentation/createPaymentForm/PaymentFormScreen.kt:146; feature/paymentForm/src/commonMain/kotlin/invotick/invoicemaker/feature/paymentform/presentation/createPaymentForm/PaymentFormViewModel.kt:165,152; feature/paymentForm/src/commonMain/kotlin/invotick/invoicemaker/feature/paymentform/presentation/createPaymentForm/PaymentFormScreen.kt:51"
+    },
+    {
+     "match": "tap:payment_form_scr:PaymentFormTopBar.back_1",
+     "label": "Back arrow",
+     "kind": "backward",
+     "to": "off:payment_form_list",
+     "source": "feature/paymentForm/src/commonMain/kotlin/invotick/invoicemaker/feature/paymentform/presentation/createPaymentForm/components/PaymentFormTopBar.kt:36; feature/paymentForm/src/commonMain/kotlin/invotick/invoicemaker/feature/paymentform/navigation/PaymentFormNavigation.kt:101"
+    },
+    {
+     "match": "@system_back",
+     "label": "Android back (NavHost pops)",
+     "kind": "backward",
+     "to": "off:payment_form_list",
+     "source": "feature/paymentForm/src/commonMain/kotlin/invotick/invoicemaker/feature/paymentform/navigation/PaymentFormNavigation.kt:92"
+    }
+   ],
+   "source": "feature/paymentForm/src/commonMain/kotlin/invotick/invoicemaker/feature/paymentform/presentation/createPaymentForm/PaymentFormScreen.kt:36; feature/paymentForm/src/commonMain/kotlin/invotick/invoicemaker/feature/paymentform/navigation/PaymentFormNavigation.kt:92"
+  },
+  "received_invoice_list": {
+   "label": "Received invoices list",
+   "dataScreen": "received_invoice_list",
+   "kind": "screen",
+   "parent": "tools_scr",
+   "pictured": true,
+   "states": [
+    "empty",
+    "filled"
+   ],
+   "controls": [
+    {
+     "key": "tap:received_invoice_list:ReceivedInvoiceList.back_1",
+     "states": []
+    },
+    {
+     "key": "tap:received_invoice_list:ReceivedInvoiceList.open_invoice_1",
+     "states": [
+      "filled"
+     ]
+    }
+   ],
+   "points": [
+    {
+     "match": "tap:received_invoice_list:ReceivedInvoiceList.open_invoice_1",
+     "label": "A received invoice (one row per invoice; a row whose link no longer works says so and still opens)",
+     "kind": "forward",
+     "to": "received_invoice",
+     "source": "feature/receivedInvoice/src/commonMain/kotlin/invotick/invoicemaker/feature/receivedInvoice/presentation/ReceivedInvoiceListScreen.kt:130; feature/receivedInvoice/src/commonMain/kotlin/invotick/invoicemaker/feature/receivedInvoice/navigation/ReceivedInvoiceNavigation.kt:59"
+    },
+    {
+     "match": "tap:received_invoice_list:ReceivedInvoiceList.back_1",
+     "label": "Back arrow",
+     "kind": "backward",
+     "to": "tools_scr",
+     "source": "feature/receivedInvoice/src/commonMain/kotlin/invotick/invoicemaker/feature/receivedInvoice/presentation/ReceivedInvoiceListScreen.kt:80; feature/receivedInvoice/src/commonMain/kotlin/invotick/invoicemaker/feature/receivedInvoice/navigation/ReceivedInvoiceNavigation.kt:41"
+    },
+    {
+     "match": "@system_back",
+     "label": "Android back (NavHost pops)",
+     "kind": "backward",
+     "to": "tools_scr",
+     "source": "feature/receivedInvoice/src/commonMain/kotlin/invotick/invoicemaker/feature/receivedInvoice/navigation/ReceivedInvoiceNavigation.kt:54"
+    }
+   ],
+   "source": "feature/receivedInvoice/src/commonMain/kotlin/invotick/invoicemaker/feature/receivedInvoice/presentation/ReceivedInvoiceListScreen.kt:59; feature/receivedInvoice/src/commonMain/kotlin/invotick/invoicemaker/feature/receivedInvoice/navigation/ReceivedInvoiceNavigation.kt:54"
+  },
+  "add_account_scr": {
+   "label": "Add account",
+   "dataScreen": "add_account",
+   "kind": "screen",
+   "parent": "dashboard",
+   "pictured": true,
+   "states": [
+    "default"
+   ],
+   "controls": [
+    {
+     "key": "tap:add_account_scr:AddAccountScreen.sign_in_1",
+     "states": []
+    },
+    {
+     "key": "tap:add_account_scr:AddAccountScreen.new_guest_2",
+     "states": []
+    },
+    {
+     "key": "tap:add_account_scr:AddAccountScreen.go_back_3",
+     "states": []
+    }
+   ],
+   "points": [
+    {
+     "match": "tap:add_account_scr:AddAccountScreen.sign_in_1",
+     "label": "Sign in",
+     "kind": "forward",
+     "to": "login_scr",
+     "source": "composeApp/src/commonMain/kotlin/invotick/invoicemaker/accounts/AddAccount.kt:187; composeApp/src/commonMain/kotlin/invotick/invoicemaker/app/navigation/AppNavHost.kt:153"
+    },
+    {
+     "match": "tap:add_account_scr:AddAccountScreen.new_guest_2",
+     "label": "Start as a new guest",
+     "kind": "conditional",
+     "branches": [
+      {
+       "when": "the new guest is created on the phone: opens its dashboard",
+       "to": "dashboard"
+      },
+      {
+       "when": "it cannot be created: a message, stays here",
+       "to": "add_account_scr"
+      }
+     ],
+     "source": "composeApp/src/commonMain/kotlin/invotick/invoicemaker/accounts/AddAccount.kt:193; composeApp/src/commonMain/kotlin/invotick/invoicemaker/accounts/AddAccount.kt:112; composeApp/src/commonMain/kotlin/invotick/invoicemaker/accounts/AddAccount.kt:114"
+    },
+    {
+     "match": "tap:add_account_scr:AddAccountScreen.go_back_3",
+     "label": "Cancel (back to the account that was open; the empty new place is forgotten)",
+     "kind": "backward",
+     "to": "dashboard",
+     "source": "composeApp/src/commonMain/kotlin/invotick/invoicemaker/accounts/AddAccount.kt:199; composeApp/src/commonMain/kotlin/invotick/invoicemaker/accounts/AddAccount.kt:132"
+    }
+   ],
+   "source": "composeApp/src/commonMain/kotlin/invotick/invoicemaker/accounts/AddAccount.kt:141; composeApp/src/commonMain/kotlin/invotick/invoicemaker/app/navigation/AppNavHost.kt:409"
+  },
+  "signup_scr": {
+   "label": "Sign up with email",
+   "dataScreen": "signup_scr",
+   "kind": "screen",
+   "parent": "register_acc_scr",
+   "pictured": true,
+   "states": [
+    "filled-error"
+   ],
+   "controls": [
+    {
+     "key": "label:Username",
+     "states": []
+    },
+    {
+     "key": "label:Email · Enter a valid email",
+     "states": []
+    },
+    {
+     "key": "label:Password key · Show password · At least 8 characters",
+     "states": []
+    },
+    {
+     "key": "tap:signup_scr:TextFiedl.password_text_field_3",
+     "states": []
+    },
+    {
+     "key": "label:Password key · Show password · Passwords do not match",
+     "states": []
+    },
+    {
+     "key": "signup_button_click",
+     "states": []
+    }
+   ],
+   "points": [
+    {
+     "match": "re:^label:(Username|Email.*|Password key.*)$",
+     "label": "Username, email, password and confirm-password fields",
+     "kind": "stay",
+     "stay": "Types into the field (errors are shown under it)",
+     "source": "feature/auth/src/commonMain/kotlin/invotick/invoicemaker/feature/auth/presentation/signup/SignupScreen.kt:197"
+    },
+    {
+     "match": "tap:signup_scr:TextFiedl.password_text_field_3",
+     "label": "Show password",
+     "kind": "stay",
+     "stay": "Shows or hides the password text",
+     "source": "feature/auth/src/commonMain/kotlin/invotick/invoicemaker/feature/auth/presentation/signup/SignupScreen.kt:197"
+    },
+    {
+     "match": "signup_button_click",
+     "label": "Sign up",
+     "kind": "conditional",
+     "branches": [
+      {
+       "when": "a field is invalid, or the server refuses: the error is shown, stays here"
+      },
+      {
+       "when": "account created: a code is e-mailed and the verification screen opens",
+       "to": "otp_scr"
+      }
+     ],
+     "source": "feature/auth/src/commonMain/kotlin/invotick/invoicemaker/feature/auth/presentation/signup/SignupViewModel.kt:187; feature/auth/src/commonMain/kotlin/invotick/invoicemaker/feature/auth/navigation/AuthNavigation.kt:127"
+    },
+    {
+     "match": "@back",
+     "label": "Back arrow",
+     "kind": "backward",
+     "to": "register_acc_scr",
+     "source": "feature/auth/src/commonMain/kotlin/invotick/invoicemaker/feature/auth/presentation/signup/SignupScreen.kt:109; feature/auth/src/commonMain/kotlin/invotick/invoicemaker/feature/auth/navigation/AuthNavigation.kt:123",
+     "events": [
+      "signup_back_click"
+     ]
+    },
+    {
+     "match": "@system_back",
+     "label": "Android back (NavHost pops)",
+     "kind": "backward",
+     "to": "register_acc_scr",
+     "source": "feature/auth/src/commonMain/kotlin/invotick/invoicemaker/feature/auth/navigation/AuthNavigation.kt:120"
+    }
+   ],
+   "source": "feature/auth/src/commonMain/kotlin/invotick/invoicemaker/feature/auth/presentation/signup/SignupScreen.kt:74; feature/auth/src/commonMain/kotlin/invotick/invoicemaker/feature/auth/navigation/AuthNavigation.kt:120"
+  },
+  "forgot_password_scr": {
+   "label": "Forgot password",
+   "dataScreen": "forgot_password_scr",
+   "kind": "screen",
+   "parent": "login_scr",
+   "pictured": true,
+   "states": [
+    "default"
+   ],
+   "controls": [
+    {
+     "key": "label:Email · Enter your email",
+     "states": []
+    },
+    {
+     "key": "send_email_click",
+     "states": []
+    }
+   ],
+   "points": [
+    {
+     "match": "label:Email · Enter your email",
+     "label": "Email field",
+     "kind": "stay",
+     "stay": "Types the email",
+     "source": "feature/auth/src/commonMain/kotlin/invotick/invoicemaker/feature/auth/presentation/forgot/ForgotPasswordScreen.kt:184"
+    },
+    {
+     "match": "send_email_click",
+     "label": "Send email",
+     "kind": "conditional",
+     "branches": [
+      {
+       "when": "the email is invalid or the server refuses: the error is shown, stays here"
+      },
+      {
+       "when": "accepted: a code is e-mailed and the verification screen opens",
+       "to": "otp_scr"
+      }
+     ],
+     "source": "feature/auth/src/commonMain/kotlin/invotick/invoicemaker/feature/auth/presentation/forgot/ForgotPasswordViewModel.kt:91; feature/auth/src/commonMain/kotlin/invotick/invoicemaker/feature/auth/navigation/AuthNavigation.kt:144"
+    },
+    {
+     "match": "@back",
+     "label": "Back arrow",
+     "kind": "backward",
+     "to": "login_scr",
+     "source": "feature/auth/src/commonMain/kotlin/invotick/invoicemaker/feature/auth/presentation/forgot/ForgotPasswordScreen.kt:103; feature/auth/src/commonMain/kotlin/invotick/invoicemaker/feature/auth/navigation/AuthNavigation.kt:123",
+     "events": [
+      "forgot_password_screen_close"
+     ]
+    },
+    {
+     "match": "@system_back",
+     "label": "Android back (NavHost pops)",
+     "kind": "backward",
+     "to": "login_scr",
+     "source": "feature/auth/src/commonMain/kotlin/invotick/invoicemaker/feature/auth/navigation/AuthNavigation.kt:137"
+    }
+   ],
+   "source": "feature/auth/src/commonMain/kotlin/invotick/invoicemaker/feature/auth/presentation/forgot/ForgotPasswordScreen.kt:69; feature/auth/src/commonMain/kotlin/invotick/invoicemaker/feature/auth/navigation/AuthNavigation.kt:137"
+  },
+  "otp_scr": {
+   "label": "OTP verification",
+   "dataScreen": "otp_verfication_scr",
+   "kind": "screen",
+   "parent": "login_scr",
+   "pictured": true,
+   "states": [
+    "default"
+   ],
+   "controls": [
+    {
+     "key": "nolabel@45,1213,138,1306",
+     "states": []
+    },
+    {
+     "key": "nolabel@152,1213,246,1306",
+     "states": []
+    },
+    {
+     "key": "nolabel@260,1213,353,1306",
+     "states": []
+    },
+    {
+     "key": "nolabel@367,1213,461,1306",
+     "states": []
+    },
+    {
+     "key": "nolabel@475,1213,568,1306",
+     "states": []
+    },
+    {
+     "key": "nolabel@582,1213,676,1306",
+     "states": []
+    },
+    {
+     "key": "Verify",
+     "states": []
+    }
+   ],
+   "points": [
+    {
+     "match": "re:^nolabel@",
+     "label": "Code digit boxes (six)",
+     "kind": "stay",
+     "stay": "Types the digits of the code. The sixth digit verifies the code by itself, exactly as the Verify button does (see it)",
+     "source": "feature/auth/src/commonMain/kotlin/invotick/invoicemaker/feature/auth/presentation/otp/OtpVerificationScreen.kt:218,222"
+    },
+    {
+     "match": "Verify",
+     "label": "Verify",
+     "kind": "conditional",
+     "branches": [
+      {
+       "when": "wrong or expired code: the error is shown, stays here"
+      },
+      {
+       "when": "code from Sign up or Login is right: the account opens its dashboard",
+       "to": "dashboard"
+      },
+      {
+       "when": "code from Forgot password is right: the new-password screen opens",
+       "to": "reset_password_scr"
+      }
+     ],
+     "source": "feature/auth/src/commonMain/kotlin/invotick/invoicemaker/feature/auth/navigation/AuthNavigation.kt:169; feature/auth/src/commonMain/kotlin/invotick/invoicemaker/feature/auth/navigation/AuthNavigation.kt:172; feature/auth/src/commonMain/kotlin/invotick/invoicemaker/feature/auth/presentation/otp/OtpVerificationViewModel.kt:288"
+    },
+    {
+     "match": "@resend",
+     "label": "Resend code (after the countdown)",
+     "kind": "stay",
+     "stay": "Sends a new code",
+     "source": "feature/auth/src/commonMain/kotlin/invotick/invoicemaker/feature/auth/presentation/otp/components/ResendCodeSection.kt:40",
+     "events": [
+      "tap:otp_scr:ResendCodeSection.resend_code_section_1"
+     ]
+    },
+    {
+     "match": "@back",
+     "label": "Back arrow",
+     "kind": "conditional",
+     "branches": [
+      {
+       "when": "reached from Login (email not verified yet)",
+       "to": "login_scr",
+       "back": true
+      },
+      {
+       "when": "reached from Sign up",
+       "to": "signup_scr",
+       "back": true
+      },
+      {
+       "when": "reached from Forgot password",
+       "to": "forgot_password_scr",
+       "back": true
+      }
+     ],
+     "source": "feature/auth/src/commonMain/kotlin/invotick/invoicemaker/feature/auth/presentation/otp/OtpVerificationScreen.kt:134; feature/auth/src/commonMain/kotlin/invotick/invoicemaker/feature/auth/navigation/AuthNavigation.kt:123",
+     "events": [
+      "otp_verification_screen_close"
+     ]
+    },
+    {
+     "match": "@system_back",
+     "label": "Android back (NavHost pops)",
+     "kind": "conditional",
+     "branches": [
+      {
+       "when": "reached from Login (email not verified yet)",
+       "to": "login_scr",
+       "back": true
+      },
+      {
+       "when": "reached from Sign up",
+       "to": "signup_scr",
+       "back": true
+      },
+      {
+       "when": "reached from Forgot password",
+       "to": "forgot_password_scr",
+       "back": true
+      }
+     ],
+     "source": "feature/auth/src/commonMain/kotlin/invotick/invoicemaker/feature/auth/navigation/AuthNavigation.kt:157"
+    }
+   ],
+   "source": "feature/auth/src/commonMain/kotlin/invotick/invoicemaker/feature/auth/presentation/otp/OtpVerificationScreen.kt:81; feature/auth/src/commonMain/kotlin/invotick/invoicemaker/feature/auth/navigation/AuthNavigation.kt:157"
+  },
+  "reset_password_scr": {
+   "label": "Reset password",
+   "dataScreen": "reset_password",
+   "kind": "screen",
+   "parent": "otp_scr",
+   "pictured": true,
+   "states": [
+    "default"
+   ],
+   "controls": [
+    {
+     "key": "label:Enter your new password · Show password",
+     "states": []
+    },
+    {
+     "key": "tap:reset_password_scr:TextFiedl.password_text_field_3",
+     "states": []
+    },
+    {
+     "key": "label:Confirm your new password · Show password",
+     "states": []
+    },
+    {
+     "key": "Reset Password",
+     "states": []
+    }
+   ],
+   "points": [
+    {
+     "match": "re:^label:(Enter your new password|Confirm your new password)",
+     "label": "New and confirm-password fields",
+     "kind": "stay",
+     "stay": "Types into the field (errors are shown under it)",
+     "source": "feature/auth/src/commonMain/kotlin/invotick/invoicemaker/feature/auth/presentation/reset/ResetPasswordScreen.kt:59"
+    },
+    {
+     "match": "tap:reset_password_scr:TextFiedl.password_text_field_3",
+     "label": "Show password",
+     "kind": "stay",
+     "stay": "Shows or hides the password text",
+     "source": "feature/auth/src/commonMain/kotlin/invotick/invoicemaker/feature/auth/presentation/reset/ResetPasswordScreen.kt:59"
+    },
+    {
+     "match": "Reset Password",
+     "label": "Reset Password",
+     "kind": "conditional",
+     "branches": [
+      {
+       "when": "a field is invalid or the server refuses: the error is shown, stays here"
+      },
+      {
+       "when": "password changed: the login screen opens",
+       "to": "login_scr"
+      }
+     ],
+     "source": "feature/auth/src/commonMain/kotlin/invotick/invoicemaker/feature/auth/presentation/reset/ResetPasswordViewModel.kt:167; feature/auth/src/commonMain/kotlin/invotick/invoicemaker/feature/auth/navigation/AuthNavigation.kt:205"
+    },
+    {
+     "match": "@back",
+     "label": "Back arrow (goes to the login screen)",
+     "kind": "backward",
+     "to": "login_scr",
+     "source": "feature/auth/src/commonMain/kotlin/invotick/invoicemaker/feature/auth/presentation/reset/ResetPasswordScreen.kt:112; feature/auth/src/commonMain/kotlin/invotick/invoicemaker/feature/auth/navigation/AuthNavigation.kt:95",
+     "events": [
+      "reset_password_screen_close"
+     ]
+    },
+    {
+     "match": "@system_back",
+     "label": "Android back (NavHost pops)",
+     "kind": "backward",
+     "to": "otp_scr",
+     "source": "feature/auth/src/commonMain/kotlin/invotick/invoicemaker/feature/auth/navigation/AuthNavigation.kt:193"
+    }
+   ],
+   "source": "feature/auth/src/commonMain/kotlin/invotick/invoicemaker/feature/auth/presentation/reset/ResetPasswordScreen.kt:74; feature/auth/src/commonMain/kotlin/invotick/invoicemaker/feature/auth/navigation/AuthNavigation.kt:193"
   }
+ },
+ "unreachable": {
+  "landing_scr": "LandingScreen is declared and never composed: nothing in the app calls it and AuthRoute has no Landing route; feature/auth/src/commonMain/kotlin/invotick/invoicemaker/feature/auth/presentation/landing/LandingScreen.kt:60",
+  "user_profile_scr": "UserRoute.Profile is opened only through ToolsScreen's onProfileClick, which ToolsScreen declares and never calls; the drawer's account card sends NavigateToProfile to an empty handler (onNavigateToProfile = {}); composeApp/src/commonMain/kotlin/invotick/invoicemaker/components/ToolsColors.kt:81; composeApp/src/commonMain/kotlin/invotick/invoicemaker/app/navigation/MainShellNavigation.kt:480",
+  "business_ledger_scr": "BusinessRoute.Ledger is opened only by the drawer item 'business_ledger', and the drawer's Reports section that held it is commented out; composeApp/src/commonMain/kotlin/invotick/invoicemaker/components/drawer/components/DrawerMenuSection.kt:112,279; composeApp/src/commonMain/kotlin/invotick/invoicemaker/app/navigation/MainShellNavigation.kt:1090",
+  "rewarded_ad_gate_sheet": "RewardedAdGateSheet has no caller in the app: FeatureAccessManager.requestAccess, which would show it, is never called; feature/premium/src/commonMain/kotlin/invotick/invoicemaker/feature/premium/presentation/RewardedAdGateSheet.kt:37; domain/src/commonMain/kotlin/invotick/invoicemaker/domain/usecase/FeatureAccessManager.kt:46",
+  "feature_locked_dialog": "the saved invoice sets showGuestModeDialog only in code that is commented out, so the dialog never opens; feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/save/SaveInvoiceViewModel.kt:544; feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/save/SaveInvoiceScreen.kt:713",
+  "guest_mode_dialog": "nothing sends ShowGuestModeDialog to the Invoices or Estimates list, so its guest dialog never opens; feature/document/invoice/src/commonMain/kotlin/invotick/invoicemaker/feature/invoice/presentation/list/InvoiceListViewModel.kt:384; feature/document/estimate/src/commonMain/kotlin/invotick/invoicemaker/feature/estimate/presentation/list/EstimateListViewModel.kt:287",
+  "guest_data_transfer_dialog": "GuestDataTransferDialog is declared and never shown: nothing in the app calls it; feature/auth/src/commonMain/kotlin/invotick/invoicemaker/feature/auth/presentation/common/GuestDataTransferDialog.kt:83"
  }
 };
