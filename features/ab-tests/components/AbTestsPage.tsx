@@ -14,25 +14,31 @@ import styles from "../styles/ab-tests.module.css";
 import type { AbTest, AbTestsResponse, Metric, Unavailable, WindowChoice } from "../types";
 import {
   AD_QUESTION,
+  HOW_COUNTED,
   SCALE,
   SPLASH_WAITING,
   age,
+  answerLine,
   armLines,
   badgeText,
   barPos,
   barTone,
+  countPct,
   day,
   dayTime,
+  diffWords,
   fmt,
   leakLine,
+  metricFull,
   metricLabel,
+  metricMeaning,
   moreLine,
-  pct,
   pendingLine,
   percentLine,
   phonesAB,
   pts,
   pValue,
+  questionLine,
   recLine,
   remoteUnknownLine,
   setAsideLine,
@@ -40,7 +46,6 @@ import {
   summary,
   testWords,
   unavailableText,
-  verdictLine,
   weakReason,
   windowLabel,
 } from "../words";
@@ -135,6 +140,15 @@ export default function AbTestsPage() {
               <h1>A/B Tests</h1>
               <span className={cx("sub")}>Har test: kis ko kya mila, aur kaun aage hai</span>
             </div>
+
+            <details className={cx("calc howbox")}>
+              <summary>Ye numbers kaise gine gaye</summary>
+              <ul className={cx("howlist")}>
+                {HOW_COUNTED.map((x) => (
+                  <li key={x}>{x}</li>
+                ))}
+              </ul>
+            </details>
 
             <div className={cx("filters")}>
               <div className={cx("fg")} role="group" aria-label="Platform">
@@ -248,7 +262,7 @@ function Card({ t }: { t: AbTest }) {
       <div className={cx("chead")}>
         <div className={cx("ctitle")}>
           <h2>{w.name}</h2>
-          {w.what && <div className={cx("what")}>{w.what}</div>}
+          <div className={cx("what")}>{questionLine(t)}</div>
         </div>
         <div className={cx("pills")}>
           <span className={cx("status", t.status === "RUNNING" && "run")}>{statusText(t)}</span>
@@ -260,7 +274,7 @@ function Card({ t }: { t: AbTest }) {
       <div className={cx("cleft")}>
         <div className={cx("verdict")}>
           <span className={cx("badge", badge)}>{badgeText(t)}</span>
-          <span className={cx("vline")}>{verdictLine(t)}</span>
+          <span className={cx("vline")}>{answerLine(t)}</span>
           {more && <span className={cx("more")}>{more}</span>}
         </div>
 
@@ -287,7 +301,7 @@ function Card({ t }: { t: AbTest }) {
         </div>
         {t.leak && (
           <div className={cx("fact leak")}>
-            <span className={cx("fk")}>Leak</span>
+            <span className={cx("fk")}>Rissav (leak)</span>
             <span>{leakLine(t, t.leak)}</span>
           </div>
         )}
@@ -334,38 +348,35 @@ function MetricRows({ t }: { t: AbTest }) {
   const w = testWords(t.id);
   return (
     <>
-      <div className={cx("mhead")} aria-hidden="true">
-        <span>Kya</span>
-        <span>{w.a.short}</span>
-        <span>{w.b.short}</span>
-        <span>Farq</span>
-        <span>Farq ki range (points)</span>
-      </div>
       {t.metrics.map((m, i) => {
-        // A group heading above the first row of each group (G1 first, then the rest).
-        const first = i === 0 || t.metrics[i - 1].primary !== m.primary;
+        // A heading above the first row of each measure: its name, and one line of what it means.
+        const first = i === 0 || t.metrics[i - 1].metric !== m.metric;
         const head = first ? (
-          <div className={cx("mgroup")}>{m.primary ? "Asal maqsad · G1 = share ya payment" : "Saath mein dekhein (badge nahi badalte)"}</div>
+          <div className={cx("mgroup", m.primary && "mprimary")}>
+            <span className={cx("mname")}>{metricLabel(m)}</span>
+            {m.primary && <span className={cx("mtag")}>mukhya paimaana</span>}
+            <span className={cx("mmean")}>{metricMeaning(m)}</span>
+          </div>
         ) : null;
         const weak = weakReason(m);
+        const when = windowLabel(m.window);
         return (
           <div key={`${m.metric}-${m.window}`}>
             {head}
-            <div className={cx("mrow", weak && "weak")}>
+            <div className={cx("mrow", weak && "weak", m.primary && "prim")}>
               <span className={cx("lab")}>
-                {metricLabel(m)} <span className={cx("w")}>· {windowLabel(m.window)}</span>
+                {when || metricLabel(m)}
                 {weak && <span className={cx("kam")}>{weak}</span>}
               </span>
-              <span className={cx("diff")}>{pts(m.diffPts)} pts</span>
+              <span className={cx("diff")}>{diffWords(m.diffPts, w.a.short)}</span>
               <span className={cx("rates")}>
                 <span>
-                  <span className={cx("armname")}>{w.a.short} </span>
-                  <b>{pct(m.a.rate)}</b>
+                  <span className={cx("armname")}>{w.a.short}: </span>
+                  <b>{countPct(m.a)}</b>
                 </span>
-                <span className={cx("sep")}> · </span>
                 <span>
-                  <span className={cx("armname")}>{w.b.short} </span>
-                  <b>{pct(m.b.rate)}</b>
+                  <span className={cx("armname")}>{w.b.short}: </span>
+                  <b>{countPct(m.b)}</b>
                 </span>
               </span>
               <div className={cx("barcell")}>
@@ -377,11 +388,11 @@ function MetricRows({ t }: { t: AbTest }) {
       })}
       <div className={cx("scale")} aria-hidden="true">
         <span>
-          {w.a.short} peeche · −{SCALE}
+          {w.a.short} peeche · −{SCALE} points
         </span>
         <span>0</span>
         <span>
-          +{SCALE} · {w.a.short} aage
+          +{SCALE} points · {w.a.short} aage
         </span>
       </div>
     </>
@@ -393,7 +404,7 @@ function Bar({ m }: { m: Metric }) {
   const left = barPos(m.diffLo);
   const right = barPos(m.diffHi);
   return (
-    <div className={cx("track")} role="img" aria-label={`Farq ${pts(m.diffPts)} points, range ${pts(m.diffLo)} se ${pts(m.diffHi)}`}>
+    <div className={cx("track")} role="img" aria-label={`Farq ${pts(m.diffPts)} points, range ${pts(m.diffLo)} se ${pts(m.diffHi)} points`}>
       <span className={cx("iv", barTone(m))} style={{ left: `${left}%`, width: `${Math.max(0, right - left)}%` }} />
       <span className={cx("zero")} />
       <span className={cx("dot")} style={{ left: `${barPos(m.diffPts)}%` }} />
@@ -421,7 +432,7 @@ function Workings({ t }: { t: AbTest }) {
             {t.metrics.map((m) => (
               <tr key={`${m.metric}-${m.window}`} className={cx(!m.valid && "grey")}>
                 <td>
-                  {metricLabel(m)} {windowLabel(m.window)}
+                  {metricFull(m)}
                 </td>
                 <td className={cx("n")}>{phonesAB(m.a, m.b)}</td>
                 <td className={cx("n")}>{pts(m.diffPts)}</td>
@@ -436,7 +447,7 @@ function Workings({ t }: { t: AbTest }) {
         </table>
         <p className={cx("note")}>
           Har guroh ki range Wilson 95%, farq ki range Newcombe 95%, z do-guroh test. Faisla tab jab har guroh mein kam az kam 200
-          phones hon. Badge sirf G1 se tay hota hai.
+          phones hon. Badge sirf ASLI invoice se tay hota hai.
           {t.verdict.neededPerArm != null && ` Is farq ko pakka karne ke liye har guroh mein takreeban ${fmt(t.verdict.neededPerArm)} phones chahiye.`}
         </p>
       </div>
@@ -457,8 +468,8 @@ function Languages({ t }: { t: AbTest }) {
               <th className={cx("n")}>
                 {w.a.short} / {w.b.short}
               </th>
-              <th className={cx("n")}>Save 24 ghante</th>
-              <th className={cx("n")}>G1 24 ghante</th>
+              <th className={cx("n")}>Invoice save hua · 24 ghante mein</th>
+              <th className={cx("n")}>ASLI invoice · 24 ghante mein</th>
             </tr>
           </thead>
           <tbody>
@@ -471,8 +482,8 @@ function Languages({ t }: { t: AbTest }) {
                   <td className={cx("n")}>
                     {fmt(l.aPhones)} / {fmt(l.bPhones)}
                   </td>
-                  <td className={cx("n")}>{l.enough && saved ? `${pts(saved.diffPts)} (p ${pValue(saved.p)})` : "kam phones"}</td>
-                  <td className={cx("n")}>{l.enough && g1 ? `${pts(g1.diffPts)} (p ${pValue(g1.p)})` : "kam phones"}</td>
+                  <td className={cx("n")}>{l.enough && saved ? langCell(saved, w.a.short, w.b.short) : "kam phones"}</td>
+                  <td className={cx("n")}>{l.enough && g1 ? langCell(g1, w.a.short, w.b.short) : "kam phones"}</td>
                 </tr>
               );
             })}
@@ -485,4 +496,9 @@ function Languages({ t }: { t: AbTest }) {
       </div>
     </details>
   );
+}
+
+/** One language's cell: both groups as count and percent, then the gap in points. */
+function langCell(m: Metric, a: string, b: string): string {
+  return `${a} ${countPct(m.a)} · ${b} ${countPct(m.b)} · ${diffWords(m.diffPts, a)}`;
 }

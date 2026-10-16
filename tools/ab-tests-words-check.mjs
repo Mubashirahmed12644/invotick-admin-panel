@@ -12,10 +12,19 @@
  * Run: `npm run check:ab-tests`
  */
 import {
+  answerLine,
   badgeText,
   barPos,
   barTone,
+  countPct,
   day,
+  diffWords,
+  HOW_COUNTED,
+  metricFull,
+  metricLabel,
+  metricMeaning,
+  questionLine,
+  testWords,
   leakLine,
   moreLine,
   percentLine,
@@ -25,7 +34,6 @@ import {
   setAsideLine,
   statusText,
   summary,
-  verdictLine,
   weakReason,
 } from '../features/ab-tests/words.ts';
 
@@ -109,11 +117,24 @@ eq('p to three places, tiny as <0.001', [pValue(0.017), pValue(0.0004), pValue(0
 eq('a day in UTC', day('2026-09-30T00:00:00Z'), '30 Sep');
 eq('bar positions on ±15', [barPos(0), barPos(15), barPos(-30), barPos(7.5)], [50, 100, 0, 75]);
 eq('bar colour', [barTone(tour.metrics[0]), barTone(fr.metrics[1]), barTone(translated.metrics[1])], ['pos', '', 'dash']);
-eq('grey row says why', [weakReason(translated.metrics[1]), weakReason(tour.metrics[0])], ['kam data 184 < 200', null]);
+eq('grey row says why', [weakReason(translated.metrics[1]), weakReason(tour.metrics[0])], ['data kam: 184 < 200', null]);
+
+console.log('plain words: one vocabulary, count and percent, points zyada/kam');
+eq('the three measures', [metricLabel({ metric: 'g1' }), metricLabel({ metric: 'saved' }), metricLabel({ metric: 'return' })],
+  ['ASLI invoice', 'Invoice save hua', 'Din 2-7 mein wapas aaya']);
+eq('the main measure says what it is', metricMeaning({ metric: 'g1' }), 'jis invoice ko share kiya gaya ya jis par payment darj hui');
+eq('measure with its window', [metricFull({ metric: 'g1', window: '24h' }), metricFull({ metric: 'g1', window: '7d' }), metricFull({ metric: 'return', window: 'd2_7' })],
+  ['ASLI invoice · 24 ghante mein', 'ASLI invoice · 7 din mein', 'Din 2-7 mein wapas aaya']);
+eq('count and percent together', countPct(prop(3811, 454)), '454 / 3,811 phone = 11.9%');
+eq('difference in words', [diffWords(4.4, 'Tour'), diffWords(-2.6, 'Tour'), diffWords(0, 'Tour'), diffWords(null, 'Tour')],
+  ['Tour 4.4 points zyada', 'Tour 2.6 points kam', 'bilkul barabar', '—']);
+eq('every card has a question', ['tour', 'ui_fr', 'ui_translated', 'splash_wait'].every((id) => testWords(id).question.startsWith('Sawal: ')), true);
+eq('tour question', questionLine(tour), 'Sawal: kya naye phone ko pehli baar ka tour dikhane se zyada log ASLI invoice banate hain (tour ke saath ya bina tour)?');
 
 console.log('the four tests of 2026-10-15, as the mockup says them');
-eq('tour badge', badgeText(tour), 'Sabit hua');
-eq('tour line', verdictLine(tour), 'Tour wale zyada asli invoice bhejte hain: G1 +4.0 points (24 ghante), +4.4 (7 din).');
+eq('tour badge', badgeText(tour), 'PAKKA');
+eq('tour answer', answerLine(tour),
+  'Jawab: haan, tour wale 11.9% ne ASLI invoice banaya (24 ghante mein), bina tour wale 7.9%; farq pakka hai. 7 din mein bhi: 13.2% aur 8.9%.');
 eq('tour status: meant to be off, so no split', statusText(tour), 'Chal raha hai');
 eq('French status: the split it is set to deal', statusText(fr), 'Chal raha hai · 50/50');
 eq('tour more', moreLine(tour), 'Faisla ho chuka. Aur intezar ki zaroorat nahi.');
@@ -122,22 +143,27 @@ eq('tour leak', leakLine(tour, tour.leak),
 eq('tour recommendation', recLine(tour), 'Tour jeet gaya: agli app release mein app ka apna hissa 20% → 0 karein taake leak band ho.');
 eq('tour percent', percentLine(tour),
   'Remote Config onboarding_overlay_holdout_percent = 0. App ka apna hissa (Bina tour): 20%, builds 116. 26.0% phones ne Remote Config aane se pehle faisla kiya, un par app ka apna hissa chala.');
-eq('French badge', badgeText(fr), 'Aage, magar sabit nahi');
-eq('French line', verdictLine(fr), 'French aage hai (G1 7 din +3.6 points), magar ye farq abhi ittefaq bhi ho sakta hai.');
+eq('French badge', badgeText(fr), 'RUJHAN (sabit nahi)');
+eq('French answer', answerLine(fr),
+  'Jawab: abhi pata nahi: ASLI invoice (7 din mein) mein French wale 10.4%, English wale 6.8%; farq 3.6 points hai magar sample chhota hai, takreeban 36 din aur.');
 eq('French more', moreLine(fr, new Date('2026-10-16T09:00:00Z')),
   'Takreeban 36 din aur (lagbhag 21 Nov), aaj ki raftaar par: roz ~25 / ~25 naye phones.');
 eq('French percent', percentLine(fr),
   'Remote Config mein french_ui_holdout_percent nahi hai, is liye app ka apna hissa chalta hai. App ka apna hissa (English): 50%, builds 116. Sab phones ne Remote Config aane se pehle faisla kiya.');
 eq('French recommendation', recLine(fr), 'Chalne dein.');
 eq('French set aside', setAsideLine(fr), 'Nahi gine gaye: 157 update wale phones (naye install nahi).');
-eq('translated line', verdictLine(translated),
-  'Tarjuma aage hai (G1 24 ghante +5.4 points), magar ye farq abhi ittefaq bhi ho sakta hai; 7 din wala hisaab abhi kam data par hai.');
-eq('splash badge', badgeText(splash), 'Abhi data nahi');
-eq('splash line', verdictLine(splash), 'Ye test app mein maujood hai magar kabhi chala nahi: 0 phones.');
+eq('translated answer', answerLine(translated),
+  'Jawab: abhi pata nahi: ASLI invoice (24 ghante mein) mein apni zubaan wale 15.2%, English wale 9.8%; farq 5.4 points hai magar sample chhota hai, takreeban 10 din aur. 7 din wala hisaab abhi data kam hone se pakka nahi.');
+eq('splash badge', badgeText(splash), 'DATA KAM');
+eq('splash answer', answerLine(splash), 'Jawab: abhi pata nahi: ye test app mein maujood hai magar kabhi chala nahi (0 phones).');
 eq('splash never recommends', recLine(splash), null);
 eq('summary pills', summary([tour, fr, translated, splash]), [
-  { text: '1 sabit' }, { text: '2 aage, sabit nahi' }, { text: '1 shuru nahi hua' }, { text: '1 band hona tha, chal raha hai', warn: true },
+  { text: '1 PAKKA' }, { text: '2 RUJHAN (sabit nahi)' }, { text: '1 shuru nahi hua' }, { text: '1 band hona tha, chal raha hai', warn: true },
 ]);
+
+console.log('no jargon outside the workings');
+const visible = [HOW_COUNTED.join(' '), ...[tour, fr, translated, splash].flatMap((t) => [badgeText(t), answerLine(t), questionLine(t), moreLine(t), recLine(t) ?? '', statusText(t)])].join(' ');
+eq('no G1 / G2 / G3 / p-value / KPI in a visible sentence', /\bG[123]\b|p-value|KPI|\bz\b/.test(visible), false);
 
 if (failures) {
   console.log(`\n${failures} failed`);

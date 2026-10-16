@@ -11,42 +11,52 @@ import type { AbTest, AbTestsResponse, Arm, Leak, Metric, Percent, Prop, Unavail
 
 interface TestWords {
   name: string;
-  what: string;
-  /** Arm A then arm B: the long label (the arm box) and the short one (rates, the bar's ends). */
-  a: { long: string; short: string };
-  b: { long: string; short: string };
+  /** One plain sentence: what is compared and the question it answers. Starts the card. */
+  question: string;
+  /** Arm A then arm B: the long label (the arm box), the short one (bar ends, row names) and "who" (inside a sentence). */
+  a: { long: string; short: string; who: string };
+  b: { long: string; short: string; who: string };
 }
 
 export const TEST_WORDS: Record<string, TestWords> = {
   tour: {
     name: "Pehli invoice ka tour",
-    what: "Naye install par Create Invoice: tour ke saath, ya bina tour",
-    a: { long: "A · tour ke saath", short: "Tour" },
-    b: { long: "B · bina tour", short: "Bina tour" },
+    question:
+      "Sawal: kya naye phone ko pehli baar ka tour dikhane se zyada log ASLI invoice banate hain (tour ke saath ya bina tour)?",
+    a: { long: "A · tour ke saath", short: "Tour", who: "tour wale" },
+    b: { long: "B · bina tour", short: "Bina tour", who: "bina tour wale" },
   },
   ui_fr: {
     name: "French interface",
-    what: "French zubaan wale phones: French screens, ya English",
-    a: { long: "A · French", short: "French" },
-    b: { long: "B · English par rakhe", short: "English" },
+    question:
+      "Sawal: kya French zubaan wale phones ko French screens dikhane se zyada log ASLI invoice banate hain (French screens ya English)?",
+    a: { long: "A · French", short: "French", who: "French wale" },
+    b: { long: "B · English par rakhe", short: "English", who: "English wale" },
   },
   ui_translated: {
     name: "Tarjuma shuda interface",
-    what: "Arabic, Portuguese, Spanish aur baqi zubanein: apni zubaan, ya English",
-    a: { long: "A · apni zubaan", short: "Tarjuma" },
-    b: { long: "B · English par rakhe", short: "English" },
+    question:
+      "Sawal: kya Arabic, Portuguese, Spanish aur baqi zubanon ke phones ko unki apni zubaan dikhane se zyada log ASLI invoice banate hain (apni zubaan ya English)?",
+    a: { long: "A · apni zubaan", short: "Tarjuma", who: "apni zubaan wale" },
+    b: { long: "B · English par rakhe", short: "English", who: "English wale" },
   },
   splash_wait: {
     name: "Wapas aane walon ka splash intezar",
-    what: "Dobara khulne par app-open ad ka intezar: 4 second, ya aaj ke 6 second",
-    a: { long: "A · 4 second", short: "4 sec" },
-    b: { long: "B · 6 second (aaj)", short: "6 sec" },
+    question:
+      "Sawal: kya dobara khulne par app-open ad ka intezar 6 se ghata kar 4 second karne se zyada log aage jate hain, aur ad ki kamai par kya asar padta hai?",
+    a: { long: "A · 4 second", short: "4 sec", who: "4 second wale" },
+    b: { long: "B · 6 second (aaj)", short: "6 sec", who: "6 second wale" },
   },
 };
 
 export function testWords(id: string): TestWords {
   return (
-    TEST_WORDS[id] ?? { name: id, what: "", a: { long: "A", short: "A" }, b: { long: "B", short: "B" } }
+    TEST_WORDS[id] ?? {
+      name: id,
+      question: "",
+      a: { long: "A", short: "A", who: "A wale" },
+      b: { long: "B", short: "B", who: "B wale" },
+    }
   );
 }
 
@@ -62,6 +72,17 @@ export function pts(v: number | null | undefined): string {
   if (v == null || !Number.isFinite(v)) return "—";
   const s = Math.abs(v).toFixed(1);
   return v > 0 ? `+${s}` : v < 0 ? `−${s}` : s;
+}
+
+/** A count and its percent, always together: `482 / 3,959 phone = 12.2%`. */
+export const countPct = (p: Pick<Prop, "n" | "x" | "rate">): string => `${fmt(p.x)} / ${fmt(p.n)} phone = ${pct(p.rate)}`;
+
+/** A difference in plain words, from arm A's side: `Tour 4.4 points zyada`, `Tour 2.6 points kam`. */
+export function diffWords(diffPts: number | null | undefined, aName: string): string {
+  if (diffPts == null || !Number.isFinite(diffPts)) return "—";
+  const s = Math.abs(diffPts).toFixed(1);
+  if (s === "0.0") return "bilkul barabar";
+  return `${aName} ${s} points ${diffPts > 0 ? "zyada" : "kam"}`;
 }
 
 export function pValue(p: number | null | undefined): string {
@@ -97,19 +118,39 @@ export function age(iso: string, now: Date = new Date()): string {
 
 // ── a metric row ──
 
+/** The three measures, one fixed vocabulary on every card. */
 export function metricLabel(m: Pick<Metric, "metric">): string {
-  return m.metric === "g1" ? "G1" : m.metric === "saved" ? "Invoice save" : "Wapas aaye";
+  return m.metric === "g1" ? "ASLI invoice" : m.metric === "saved" ? "Invoice save hua" : "Din 2-7 mein wapas aaya";
 }
 
+/** The one-line meaning under a measure's name. */
+export function metricMeaning(m: Pick<Metric, "metric">): string {
+  switch (m.metric) {
+    case "g1":
+      return "jis invoice ko share kiya gaya ya jis par payment darj hui";
+    case "saved":
+      return "invoice save hua; ye kamzor paimaana hai, kyunki bekaar (throwaway) data ka invoice bhi save ho jata hai";
+    default:
+      return "install ke baad din 2 se 7 ke beech phone dobara app mein aaya";
+  }
+}
+
+/** Empty for the return measure: its name already says the days. */
 export function windowLabel(w: Metric["window"]): string {
-  return w === "24h" ? "24 ghante" : w === "7d" ? "7 din" : "din 2–7";
+  return w === "24h" ? "24 ghante mein" : w === "7d" ? "7 din mein" : "";
+}
+
+/** Measure and window together: `ASLI invoice · 24 ghante mein`. */
+export function metricFull(m: Pick<Metric, "metric" | "window">): string {
+  const w = windowLabel(m.window);
+  return w ? `${metricLabel(m)} · ${w}` : metricLabel(m);
 }
 
 /** Why a row is grey: the smaller arm under 200 phones, or under 10 who did (or did not) do it. */
 export function weakReason(m: Metric): string | null {
   if (m.valid) return null;
   const n = Math.min(m.a.n, m.b.n);
-  return n < 200 ? `kam data ${fmt(n)} < 200` : "kam data";
+  return n < 200 ? `data kam: ${fmt(n)} < 200` : "data kam";
 }
 
 /** The bar's shared scale, the same on every card so tests can be compared by eye. */
@@ -131,11 +172,11 @@ export function barTone(m: Metric): "pos" | "neg" | "dash" | "" {
 export function badgeText(t: AbTest): string {
   switch (t.verdict.state) {
     case "PROVEN":
-      return "Sabit hua";
+      return "PAKKA";
     case "LEANING":
-      return "Aage, magar sabit nahi";
+      return "RUJHAN (sabit nahi)";
     default:
-      return t.status === "NOT_STARTED" ? "Abhi data nahi" : "Kam data";
+      return "DATA KAM";
   }
 }
 
@@ -166,34 +207,47 @@ export function intendedShare(t: AbTest): { a: number; b: number } | null {
 const find = (t: AbTest, metric: Metric["metric"], window: Metric["window"]) =>
   t.metrics.find((m) => m.metric === metric && m.window === window);
 
-/** The one sentence under the badge. */
-export function verdictLine(t: AbTest): string {
+/** The card's first line: what is compared and the question it answers. */
+export function questionLine(t: AbTest): string {
+  return testWords(t.id).question;
+}
+
+/**
+ * The card's headline answer, one sentence, built from the endpoint's numbers with the main measure (ASLI invoice) first.
+ * Arm A is always the arm the question asks about, so "haan" means A won.
+ */
+export function answerLine(t: AbTest): string {
   const w = testWords(t.id);
   const v = t.verdict;
-  const g1d1 = find(t, "g1", "24h");
-  const g1d7 = find(t, "g1", "7d");
+  const g24 = find(t, "g1", "24h");
+  const g7 = find(t, "g1", "7d");
+  const days = v.moreDays != null ? `, takreeban ${fmt(v.moreDays)} din aur` : "";
   if (v.state === "NOT_ENOUGH_DATA") {
-    if (t.status === "NOT_STARTED") return "Ye test app mein maujood hai magar kabhi chala nahi: 0 phones.";
+    if (t.status === "NOT_STARTED") return "Jawab: abhi pata nahi: ye test app mein maujood hai magar kabhi chala nahi (0 phones).";
     if (!t.metricsBuilt) {
       const n = t.arms.reduce((s, a) => s + a.assigned, 0);
-      return `${fmt(n)} phones baante gaye. Is test ke numbers abhi tay nahi, is liye yahan sirf baant dikhti hai.`;
+      return `Jawab: abhi pata nahi: ${fmt(n)} phones baante gaye, magar is test ke numbers abhi tay nahi hain, is liye yahan sirf baant dikhti hai.`;
     }
-    return `Abhi data kam hai: har guroh mein kam az kam 200 phones chahiye (abhi ${fmt(g1d1?.a.n)} / ${fmt(g1d1?.b.n)}).`;
+    return `Jawab: abhi pata nahi: data kam hai, har taraf kam az kam 200 phones chahiye (abhi ${fmt(g24?.a.n)} aur ${fmt(g24?.b.n)} hain)${days}.`;
   }
-  if (v.direction === "EVEN") return "Dono guroh barabar hain: G1 ka farq aadhe point se kam hai.";
-  const winner = v.direction === "B" ? w.b.short : w.a.short;
-  const sign = v.direction === "B" ? -1 : 1;
+  if (v.direction === "EVEN") return "Jawab: nahi, dono taraf barabar hain: ASLI invoice mein farq aadhe point se kam hai.";
+  const bWins = v.direction === "B";
+  const win = bWins ? w.b : w.a;
+  const lose = bWins ? w.a : w.b;
+  const rateOf = (m: Metric, forB: boolean) => pct(forB ? m.b.rate : m.a.rate);
   if (v.state === "PROVEN") {
-    const parts = [
-      g1d1?.valid ? `${pts((g1d1.diffPts ?? 0) * sign)} points (24 ghante)` : null,
-      g1d7?.valid ? `${pts((g1d7.diffPts ?? 0) * sign)} (7 din)` : null,
-    ].filter(Boolean);
-    return `${winner} wale zyada asli invoice bhejte hain: G1 ${parts.join(", ")}.`;
+    const lead = g24?.valid ? g24 : g7;
+    if (!lead) return "Jawab: farq pakka hai.";
+    const other = lead === g24 && g7?.valid ? g7 : null;
+    const also = other ? ` ${windowLabel(other.window)} bhi: ${rateOf(other, bWins)} aur ${rateOf(other, !bWins)}.` : "";
+    const head = bWins ? "nahi, ulta nikla: " : "haan, ";
+    return `Jawab: ${head}${win.who} ${rateOf(lead, bWins)} ne ASLI invoice banaya (${windowLabel(lead.window)}), ${lose.who} ${rateOf(lead, !bWins)}; farq pakka hai.${also}`;
   }
-  const lead = g1d7?.valid ? g1d7 : g1d1;
-  const leadText = lead ? `G1 ${windowLabel(lead.window)} ${pts((lead.diffPts ?? 0) * sign)} points` : "G1";
-  const base = `${winner} aage hai (${leadText}), magar ye farq abhi ittefaq bhi ho sakta hai`;
-  return lead === g1d1 && g1d7 && !g1d7.valid ? `${base}; 7 din wala hisaab abhi kam data par hai.` : `${base}.`;
+  const lead = g7?.valid ? g7 : g24;
+  if (!lead) return "Jawab: abhi pata nahi.";
+  const gap = Math.abs(lead.diffPts ?? 0).toFixed(1);
+  const weak7 = lead === g24 && g7 && !g7.valid ? " 7 din wala hisaab abhi data kam hone se pakka nahi." : "";
+  return `Jawab: abhi pata nahi: ASLI invoice (${windowLabel(lead.window)}) mein ${win.who} ${rateOf(lead, bWins)}, ${lose.who} ${rateOf(lead, !bWins)}; farq ${gap} points hai magar sample chhota hai${days}.${weak7}`;
 }
 
 /** "About N more days", or why there is no such number. */
@@ -321,7 +375,7 @@ export const AD_QUESTION =
   "Ye test ad ke intezar ko chhota karta hai. 4 second wala guroh shayad zyada logon ko aage le jaye, magar shayad kam ad dikhen. Chalaya to yahan dono taraf hamesha saath dikhengi: aage nikalne wale aur kamai. Chalana hai ya nahi, ye sawal aap ka hai; page iski sifarish nahi karega.";
 
 /** What the splash-wait card will show once its numbers are agreed. */
-export const SPLASH_WAITING = ["Splash se aage gaye (dobara khulne par)", "App-open ad dikha", "Kamai fi phone (USD)", "G1 7 din"];
+export const SPLASH_WAITING = ["Splash se aage gaye (dobara khulne par)", "App-open ad dikha", "Kamai fi phone (USD)", "ASLI invoice · 7 din mein"];
 
 export function pendingLine(t: AbTest): string | null {
   const p24 = t.arms.reduce((s, a) => s + a.pending24, 0);
@@ -349,10 +403,10 @@ export function summary(tests: AbTest[]): { text: string; warn?: boolean }[] {
   const leaning = n((t) => t.verdict.state === "LEANING");
   const notStarted = n((t) => t.status === "NOT_STARTED");
   const off = n((t) => t.intendedOff);
-  if (proven) out.push({ text: `${proven} sabit` });
-  if (leaning) out.push({ text: `${leaning} aage, sabit nahi` });
+  if (proven) out.push({ text: `${proven} PAKKA` });
+  if (leaning) out.push({ text: `${leaning} RUJHAN (sabit nahi)` });
   const thin = n((t) => t.verdict.state === "NOT_ENOUGH_DATA" && t.status !== "NOT_STARTED");
-  if (thin) out.push({ text: `${thin} mein kam data` });
+  if (thin) out.push({ text: `${thin} mein DATA KAM` });
   if (notStarted) out.push({ text: `${notStarted} shuru nahi hua` });
   if (off) out.push({ text: `${off} band hona tha, chal raha hai`, warn: true });
   return out;
@@ -373,3 +427,14 @@ export function unavailableText(r: Unavailable): string {
       return "Hisaab mein galti hui. Server ke log mein [ab-tests] dekhein.";
   }
 }
+
+/** The collapsed box at the top: how every number on the page was counted. */
+export const HOW_COUNTED: string[] = [
+  "Sirf naye install hue phones gine jate hain; purane phones jo update hue, nahi (sirf splash intezar wala test is se alag hai: wo dobara khulne wale phones par hai).",
+  "Sirf release builds; debug aur test builds nahi.",
+  "Hamare apne test phones aur accounts nikaal diye gaye hain.",
+  "Har phone tab gina jata hai jab us ka poora waqt (24 ghante ya 7 din) guzar chuka ho; adhoora waqt gina nahi jata.",
+  "ASLI invoice = jis invoice ko share kiya gaya ya jis par payment darj hui. Ye mukhya paimaana hai: PAKKA ya RUJHAN ka faisla isi se hota hai.",
+  "Invoice save hua kamzor paimaana hai: save ho jana ye nahi batata ke data asli tha, kuch bhi likh kar save ho sakta hai.",
+  "PAKKA = farq ittefaq nahi ho sakta. RUJHAN (sabit nahi) = ek taraf aage hai magar ittefaq bhi ho sakta hai. DATA KAM = abhi faisle layak phones nahi (har taraf kam az kam 200 chahiye).",
+];
