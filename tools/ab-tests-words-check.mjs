@@ -11,8 +11,24 @@
  *
  * Run: `npm run check:ab-tests`
  */
+import { readFileSync } from 'node:fs';
 import {
+  AD_STRIP,
+  FUNNEL_NOTE,
   answerLine,
+  badgeWord,
+  funnelSteps,
+  jawab,
+  languageBars,
+  leadArm,
+  leakStrip,
+  metricTone,
+  moreShort,
+  pakkaChecks,
+  rateWidth,
+  ringInfo,
+  stateChip,
+  tileCounts,
   badgeText,
   barPos,
   barTone,
@@ -161,8 +177,64 @@ eq('summary pills', summary([tour, fr, translated, splash]), [
   { text: '1 PAKKA' }, { text: '2 RUJHAN (sabit nahi)' }, { text: '1 shuru nahi hua' }, { text: '1 band hona tha, chal raha hai', warn: true },
 ]);
 
+
+console.log('the pictorial page: short words and the numbers each picture draws');
+const real = base({
+  id: 'tour', intendedOff: true,
+  arms: [arm('A', 'on', 4368, 0.9113), arm('B', 'off', 425, 0.0887)],
+  metrics: [
+    metric('g1', '24h', true, prop(3959, 482), prop(399, 31), 4.4, 1.2, 6.9, 2.6, 0.009, true),
+    metric('g1', '7d', true, prop(2323, 310), prop(320, 28), 4.6, 0.8, 7.6, 2.31, 0.021, true),
+    metric('saved', '24h', false, prop(3959, 849), prop(399, 52), 8.4, 4.5, 11.6, 3.95, 0, true),
+    metric('saved', '7d', false, prop(2323, 527), prop(320, 43), 9.2, 4.8, 13.0, 3.77, 0, true),
+  ],
+  verdict: tour.verdict,
+  percent: tour.percent,
+  leak: { since: '2026-10-04T14:47:24Z', sinceSource: 'phones', armPhones: 167, perDay: 13.8, shareOfNewInstalls: 0.0478 },
+});
+eq('Sawal is one short line per test', ['tour', 'ui_fr', 'ui_translated', 'splash_wait'].map((id) => testWords(id).ask),
+  ['Tour dikhane se zyada ASLI invoice?', 'French screens se zyada ASLI invoice?', 'Apni zubaan se zyada ASLI invoice?', 'Ad intezar 6 se 4 sec: zyada log aage?']);
+eq('Jawab, proven (24 ghante)', jawab(real, '24h'), 'Haan. Tour 12.2%, Bina tour 7.8%.');
+eq('Jawab, proven (7 din) switches with the chip', jawab(real, '7d'), 'Haan. Tour 13.3%, Bina tour 8.8%.');
+eq('Jawab, leaning', jawab(fr, '24h'), 'Pakka nahi. French aage, sample chhota.');
+eq('Jawab, not started', jawab(splash, '24h'), 'Abhi pata nahi. Test shuru nahi hua.');
+eq('badge words', [badgeWord(real), badgeWord(fr), badgeWord(splash)], ['PAKKA', 'RUJHAN', 'DATA KAM']);
+eq('winner arm', [leadArm(real), leadArm(fr), leadArm(splash)], ['A', 'A', null]);
+eq('tone from the range', [metricTone(real.metrics[0]), metricTone(fr.metrics[0]), metricTone(translated.metrics[1]), metricTone(undefined)], ['good', 'mid', 'weak', 'none']);
+eq('PAKKA = both readings', pakkaChecks(real).map((c) => c.sure), [true, true]);
+eq('translated: sure in 24 ghante only, so it is not PAKKA', pakkaChecks(translated).map((c) => c.sure), [true, false]);
+eq('bars use one 0-20 % scale', [rateWidth(0.1), rateWidth(0.2), rateWidth(0.5), rateWidth(null)], [50, 100, 100, 0]);
+eq('state chip: meant to be off', stateChip(real), { text: 'Chal raha', on: true, split: null, off: true });
+eq('state chip: split', stateChip(fr).split, '50/50');
+eq('state chip: not started', stateChip(splash).on, false);
+eq('ring: proven is full', ringInfo(real).kind + ringInfo(real).frac, 'proven1');
+eq('ring: leaning counts the smaller arm over what is needed', [ringInfo(fr).have, ringInfo(fr).need, moreShort(fr)], [205, 951, '~36 din aur']);
+eq('ring: not started', ringInfo(splash).kind, 'not_started');
+eq('funnel uses only n and x of the metrics', funnelSteps(real, '24h').map((s) => [s.label, s.a.x, s.a.n, s.b.x, s.b.n]),
+  [['Phone', 3959, 3959, 399, 399], ['Invoice save', 849, 3959, 52, 399], ['ASLI invoice', 482, 3959, 31, 399]]);
+eq('funnel is labelled as separate counts, not nested', /alag ginti/.test(FUNNEL_NOTE) && /ek ke andar ek nahi/.test(FUNNEL_NOTE), true);
+eq('tour leak strip uses the endpoint number', leakStrip(real), { title: 'Band hona tha: 167 phone bina tour', parts: ['04 Oct se', 'roz ~14', '4.8% naye installs', 'App release: 20% → 0'] });
+eq('no leak strip without a leak', leakStrip(fr), null);
+eq('ad strip asks and never recommends', [AD_STRIP.title, recLine(splash)], ['Ad ka sauda: owner ka faisla', null]);
+eq('languages: biggest first, the rest folded', languageBars({ arms: [{ role: 'A', values: [{ value: 'pt', phones: 156 }, { value: 'ar', phones: 189 }, { value: 'es', phones: 19 }, { value: 'de', phones: 17 }, { value: 'id', phones: 12 }, { value: 'nl', phones: 10 }] }] })?.rows.map((r) => [r.label, r.phones]),
+  [['Arabic', 189], ['Portuguese', 156], ['Spanish', 19], ['German', 17], ['2 aur', 22]]);
+eq('languages: one value is no breakdown', languageBars(real), null);
+eq('header tiles', tileCounts([real, fr, translated, splash]), { running: 3, total: 4, proven: 1, leaning: 2, thin: 1, notStarted: 1 });
+
+console.log('the page itself: structure and words, read from the source');
+const strip = (src) => src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+const page = strip(readFileSync(new URL('../features/ab-tests/components/AbTestsPage.tsx', import.meta.url), 'utf8'));
+const vis = strip(readFileSync(new URL('../features/ab-tests/components/Visuals.tsx', import.meta.url), 'utf8'));
+const api = readFileSync(new URL('../features/ab-tests/api.ts', import.meta.url), 'utf8');
+for (const label of ['Sawal', 'Jawab', 'Behtari', 'Safar', 'Zubaanein', 'Roz ba roz', 'Agla marhala', 'Hisaab dekhein', 'Sample', 'Ittefaq ka imkaan'])
+  eq(`card has "${label}"`, vis.includes(label), true);
+eq('page has the two window chips and the iOS chip marked jald', [page.includes('WIN_CHIPS'), page.includes('jald')], [true, true]);
+eq('the only call is the one existing endpoint', (api.match(/apiRequest</g) || []).length, 1);
+eq('no jargon in the page source (G1/G2/G3/KPI/p-value)', /\bG[123]\b|KPI|p-value/.test(page + vis), false);
+eq('no bare "z" column outside the workings', />\s*z\s*</.test(page + vis), false);
+
 console.log('no jargon outside the workings');
-const visible = [HOW_COUNTED.join(' '), ...[tour, fr, translated, splash].flatMap((t) => [badgeText(t), answerLine(t), questionLine(t), moreLine(t), recLine(t) ?? '', statusText(t)])].join(' ');
+const visible = [HOW_COUNTED.join(' '), ...[tour, fr, translated, splash].flatMap((t) => [badgeText(t), answerLine(t), questionLine(t), moreLine(t), recLine(t) ?? '', statusText(t), jawab(t, '24h'), jawab(t, '7d'), testWords(t.id).ask, badgeWord(t), moreShort(t)])].join(' ');
 eq('no G1 / G2 / G3 / p-value / KPI in a visible sentence', /\bG[123]\b|p-value|KPI|\bz\b/.test(visible), false);
 
 if (failures) {

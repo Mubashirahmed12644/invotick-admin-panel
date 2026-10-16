@@ -1,87 +1,49 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
 import Navbar from "@/components/Navbar";
-import LoadingState from "@/components/LoadingState";
 import ErrorState from "@/components/ErrorState";
 import EmptyState from "@/components/EmptyState";
 import { getErrorMessage, isUnauthorizedError } from "@/lib/api";
 import { clearAccessToken } from "@/lib/auth";
 import { abTestsApi, unavailableReason } from "../api";
-import styles from "../styles/ab-tests.module.css";
-import type { AbTest, AbTestsResponse, Metric, Unavailable, WindowChoice } from "../types";
-import {
-  AD_QUESTION,
-  HOW_COUNTED,
-  SCALE,
-  SPLASH_WAITING,
-  age,
-  answerLine,
-  armLines,
-  badgeText,
-  barPos,
-  barTone,
-  countPct,
-  day,
-  dayTime,
-  diffWords,
-  fmt,
-  leakLine,
-  metricFull,
-  metricLabel,
-  metricMeaning,
-  moreLine,
-  pendingLine,
-  percentLine,
-  phonesAB,
-  pts,
-  pValue,
-  questionLine,
-  recLine,
-  remoteUnknownLine,
-  setAsideLine,
-  statusText,
-  summary,
-  testWords,
-  unavailableText,
-  weakReason,
-  windowLabel,
-} from "../words";
+import type { AbTestsResponse, Unavailable, WindowChoice } from "../types";
+import { HOW_COUNTED, WIN_CHIPS, age, day, dayTime, fmt, remoteUnknownLine, tileCounts, unavailableText, type Win } from "../words";
+import Card from "./Visuals";
+import TipLayer from "./Tip";
+import { Icon, cx, type IconName } from "./shared";
 
-/** Class names of this module; several per argument are allowed ("mrow weak"). */
-const cx = (...names: (string | false | null | undefined)[]): string =>
-  names
-    .filter((n): n is string => Boolean(n))
-    .flatMap((n) => n.split(/\s+/))
-    .map((n) => styles[n] ?? n)
-    .join(" ");
-
-const WINDOWS: { w: WindowChoice; label: string }[] = [
+/** The range the numbers are taken from (what the backend is asked); the 24 ghante / 7 din chips are separate. */
+const RANGES: { w: WindowChoice; label: string }[] = [
   { w: "since", label: "Test shuru se" },
-  { w: 7, label: "7 din" },
-  { w: 14, label: "14 din" },
-  { w: 30, label: "30 din" },
+  { w: 7, label: "Pichhle 7 din" },
+  { w: 14, label: "Pichhle 14 din" },
+  { w: 30, label: "Pichhle 30 din" },
 ];
 
+/** "Hisaab ho raha hai" is asked again after the 15 s the server asked for, a few times, then the button takes over. */
+const AUTO_RETRIES = 3;
+
 type Load =
-  | { key: string; kind: "ok"; data: AbTestsResponse }
-  | { key: string; kind: "unavailable"; reason: Unavailable }
-  | { key: string; kind: "error"; message: string };
+  | { rk: string; kind: "ok"; data: AbTestsResponse }
+  | { rk: string; kind: "unavailable"; reason: Unavailable }
+  | { rk: string; kind: "error"; message: string };
 
 /**
- * The A/B Tests page (decision 0222, phase 1): every A/B and holdout test the app runs, with its result in plain words.
- * Read only. It loads once per window, never polls, and asks again only when the server said "still computing"
- * (once, after the 15 s it asked for) or when the person presses retry.
+ * The A/B Tests page (decision 0222): every A/B and holdout test the app runs, drawn. Read only.
+ * One request per range; the 24 ghante / 7 din chips only choose which reading of the same answer every picture uses.
  */
 export default function AbTestsPage() {
   const router = useRouter();
   const platform = "Android";
-  const [win, setWin] = useState<WindowChoice>("since");
+  const [range, setRange] = useState<WindowChoice>("since");
+  const [win, setWin] = useState<Win>("24h");
   const [attempt, setAttempt] = useState(0);
   const [load, setLoad] = useState<Load | null>(null);
-  const key = `${platform}|${win}|${attempt}`;
+  const rk = `${platform}|${range}`;
+  const rootRef = useRef<HTMLDivElement>(null);
 
   const onFail = useCallback(
     (e: unknown): boolean => {
@@ -98,36 +60,39 @@ export default function AbTestsPage() {
   useEffect(() => {
     let cancelled = false;
     abTestsApi
-      .get(platform, win)
-      .then((data) => !cancelled && setLoad({ key, kind: "ok", data }))
+      .get(platform, range)
+      .then((data) => !cancelled && setLoad({ rk, kind: "ok", data }))
       .catch((e) => {
         if (cancelled || onFail(e)) return;
         const reason = unavailableReason(e);
         setLoad(
-          reason
-            ? { key, kind: "unavailable", reason }
-            : { key, kind: "error", message: getErrorMessage(e, "A/B Tests load nahi hua.") },
+          reason ? { rk, kind: "unavailable", reason } : { rk, kind: "error", message: getErrorMessage(e, "A/B Tests load nahi hua.") },
         );
       });
     return () => {
       cancelled = true;
     };
-  }, [key, win, onFail]);
+  }, [rk, range, attempt, onFail]);
 
-  // "Still computing": ask once more after the 15 s the server asked for. Not a poll: one retry, then the button.
-  const computing = load?.key === key && load.kind === "unavailable" && load.reason === "computing" && attempt === 0;
+  const current = load?.rk === rk ? load : null;
+  const computing = current?.kind === "unavailable" && current.reason === "computing" && attempt < AUTO_RETRIES;
   useEffect(() => {
     if (!computing) return;
     const t = window.setTimeout(() => setAttempt((a) => a + 1), 15_000);
     return () => window.clearTimeout(t);
-  }, [computing]);
+  }, [computing, attempt]);
 
-  const current = load?.key === key ? load : null;
-  const retry = () => setAttempt((a) => a + 1);
-  const pickWindow = (w: WindowChoice) => {
-    setWin(w);
+  /** Ask again. From an error the page goes back to its skeleton; with data on screen (stale) the data stays until the new answer. */
+  const retry = () => {
+    if (current?.kind !== "ok") setLoad(null);
+    setAttempt((a) => a + 1);
+  };
+  const pickRange = (w: WindowChoice) => {
+    setRange(w);
     setAttempt(0);
   };
+
+  const data = current?.kind === "ok" ? current.data : null;
 
   return (
     <main className="app-shell">
@@ -135,14 +100,77 @@ export default function AbTestsPage() {
       <div className="app-main">
         <Navbar title="A/B Tests" />
         <section className="content-wrap">
-          <div className={cx("root")}>
-            <div className={cx("ph1")}>
+          <div className={cx("root")} ref={rootRef}>
+            <header className={cx("top")}>
               <h1>A/B Tests</h1>
-              <span className={cx("sub")}>Har test: kis ko kya mila, aur kaun aage hai</span>
+              <Meta data={data} />
+            </header>
+
+            <div className={cx("filters")} role="toolbar" aria-label="Filters">
+              <div className={cx("fgrp")} role="group" aria-label="Platform">
+                <button type="button" className={cx("chip")} aria-pressed="true">
+                  <Icon name="phone" />
+                  Android
+                </button>
+                <button type="button" className={cx("chip")} disabled aria-pressed="false" title="Abhi kisi test mein iOS ke asli phones nahi">
+                  iOS <small>jald</small>
+                </button>
+              </div>
+              <div className={cx("fgrp")} role="group" aria-label="Waqt: har number is reading se">
+                {WIN_CHIPS.map(({ w, label }) => (
+                  <button key={w} type="button" className={cx("chip")} aria-pressed={win === w} onClick={() => setWin(w)}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <div className={cx("fgrp")}>
+                <label className={cx("chip", "rangechip")} title="Phone jo is dauran test mein aaye">
+                  <Icon name="cal" />
+                  {data ? `${day(data.range.from)} – ${day(data.range.to)}` : "Tarikh"}
+                  <select
+                    className={cx("rangesel")}
+                    aria-label="Kis dauran ke phones"
+                    value={String(range)}
+                    onChange={(e) => pickRange(e.target.value === "since" ? "since" : (Number(e.target.value) as WindowChoice))}
+                  >
+                    {RANGES.map((r) => (
+                      <option key={String(r.w)} value={String(r.w)}>
+                        {r.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
             </div>
 
-            <details className={cx("calc howbox")}>
-              <summary>Ye numbers kaise gine gaye</summary>
+            {!current && (
+              <>
+                <span className={cx("sr")} role="status">
+                  A/B tests ka hisaab aa raha hai…
+                </span>
+                <Skeleton />
+              </>
+            )}
+            {current?.kind === "error" && <ErrorState message={current.message} onRetry={retry} />}
+            {current?.kind === "unavailable" && (
+              <>
+                <div className={cx("waitBox")} role="status" aria-live="polite">
+                  <span className={cx("spin")} aria-hidden="true" />
+                  <span>{unavailableText(current.reason)}</span>
+                  <button type="button" className={cx("btn")} onClick={retry}>
+                    Dobara dekhein
+                  </button>
+                </div>
+                {current.reason === "computing" && <Skeleton />}
+              </>
+            )}
+            {data && <Answer data={data} win={win} onRetry={retry} />}
+
+            <details className={cx("calc", "howbox")}>
+              <summary>
+                <Icon name="chev" />
+                Ye numbers kaise gine gaye
+              </summary>
               <ul className={cx("howlist")}>
                 {HOW_COUNTED.map((x) => (
                   <li key={x}>{x}</li>
@@ -150,41 +178,7 @@ export default function AbTestsPage() {
               </ul>
             </details>
 
-            <div className={cx("filters")}>
-              <div className={cx("fg")} role="group" aria-label="Platform">
-                <span className={cx("flabel")}>Platform</span>
-                <button type="button" className={cx("chip")} aria-pressed="true">
-                  Android
-                </button>
-                <button type="button" className={cx("chip")} disabled title="Abhi kisi test mein iOS ke asli phones nahi">
-                  iOS · jald
-                </button>
-              </div>
-              <div className={cx("fg")} role="group" aria-label="Waqt">
-                <span className={cx("flabel")}>Waqt</span>
-                {WINDOWS.map(({ w, label }) => (
-                  <button key={String(w)} type="button" className={cx("chip")} aria-pressed={win === w} onClick={() => pickWindow(w)}>
-                    {label}
-                  </button>
-                ))}
-              </div>
-              <div className={cx("scope")}>{scopeLine(current?.kind === "ok" ? current.data : null)}</div>
-            </div>
-
-            {!current && <LoadingState message="A/B tests ka hisaab aa raha hai…" />}
-
-            {current?.kind === "error" && <ErrorState message={current.message} onRetry={retry} />}
-
-            {current?.kind === "unavailable" && (
-              <div className={cx("waitBox")} role="status" aria-live="polite">
-                <span>{unavailableText(current.reason)}</span>
-                <button type="button" className="btn" onClick={retry}>
-                  Dobara dekhein
-                </button>
-              </div>
-            )}
-
-            {current?.kind === "ok" && <Answer data={current.data} onRetry={retry} />}
+            <TipLayer scope={rootRef} />
           </div>
         </section>
       </div>
@@ -192,313 +186,97 @@ export default function AbTestsPage() {
   );
 }
 
-function scopeLine(d: AbTestsResponse | null): string {
-  const base = "Sirf release builds · hamare test phones nikale gaye · sirf naye installs · har phone tab gina jab us ka poora waqt guzar gaya";
-  if (!d) return `${base} · har 20 min naya`;
-  return `${base} · ${day(d.range.from)} se ${dayTime(d.range.to)} tak · hisaab ${dayTime(d.computedAt)} (${age(d.computedAt)}), har ${d.cacheMinutes} min naya`;
+function Meta({ data }: { data: AbTestsResponse | null }) {
+  if (!data) return <div className={cx("meta")}>Android · naye install · release</div>;
+  return (
+    <div className={cx("meta")}>
+      <span>{data.platform}</span>
+      <span>Naye install</span>
+      <span>Release</span>
+      <span>{fmt(data.population.excludedTestingDevices)} test phone nikale</span>
+      <span className={cx("num")}>
+        {dayTime(data.computedAt)} · {age(data.computedAt)}
+      </span>
+    </div>
+  );
 }
 
-function Answer({ data, onRetry }: { data: AbTestsResponse; onRetry: () => void }) {
+function Answer({ data, win, onRetry }: { data: AbTestsResponse; win: Win; onRetry: () => void }) {
   if (data.truncated) {
     return (
       <div className={cx("banner")} role="alert">
-        Is waqt mein phones itne zyada hain ke server ne gin-na rok diya (had 30,000). Adhoore numbers nahi dikhaye ja rahe:
-        chhota waqt chunein.
+        Is waqt mein phones itne zyada hain ke server ne gin-na rok diya (had 30,000). Adhoore numbers nahi dikhaye ja rahe: chhota waqt chunein.
       </div>
     );
   }
   if (!data.tests.length) return <EmptyState message="Server ki list mein abhi koi test nahi." />;
   const unknown = remoteUnknownLine(data.remoteConfig);
+  const c = tileCounts(data.tests);
+  const tiles: { cls: string; icon: IconName; n: number; label: string; sub: string }[] = [
+    { cls: "tRun", icon: "play", n: c.running, label: "Chal rahe", sub: `${c.total} mein se` },
+    { cls: "tGood", icon: "check", n: c.proven, label: "PAKKA", sub: "faisla ho gaya" },
+    { cls: "tWarn", icon: "trend", n: c.leaning, label: "RUJHAN", sub: "aage, sabit nahi" },
+    { cls: "tNeu", icon: "clock", n: c.thin, label: "DATA KAM", sub: c.notStarted ? `${c.notStarted} shuru nahi` : "intezar" },
+  ];
   return (
     <>
       {data.stale && (
         <div className={cx("banner")} role="status">
-          <span>
-            Ye pichhla hisaab hai ({dayTime(data.computedAt)}). Naya hisaab chal raha hai.
-          </span>
-          <button type="button" className="btn" onClick={onRetry}>
+          <Icon name="clock" />
+          <span>Ye pichhla hisaab hai ({dayTime(data.computedAt)}). Naya hisaab chal raha hai.</span>
+          <button type="button" className={cx("btn")} onClick={onRetry}>
             Dobara dekhein
           </button>
         </div>
       )}
-      <div className={cx("summary")}>
-        {summary(data.tests).map((s) => (
-          <span key={s.text} className={cx("sumitem", s.warn && "sumWarn")}>
-            {s.text}
-          </span>
+      {unknown && <div className={cx("banner")}>{unknown}</div>}
+      <div className={cx("tiles")}>
+        {tiles.map((t) => (
+          <div key={t.label} className={cx("tile", t.cls)}>
+            <span className={cx("tn", "num")}>
+              <Icon name={t.icon} />
+              {t.n}
+            </span>
+            <span className={cx("tl")}>{t.label}</span>
+            <span className={cx("ts")}>{t.sub}</span>
+          </div>
         ))}
       </div>
-      {unknown && <div className={cx("note")}>{unknown}</div>}
       <div className={cx("cards")}>
         {data.tests.map((t) => (
-          <Card key={t.id} t={t} />
+          <Card key={t.id} t={t} win={win} />
         ))}
       </div>
-      <div className={cx("foot")}>
-        <b>Ye test nahi hain:</b> {data.notTests.map((n, i) => (
+      <p className={cx("foot")}>
+        <b>Test nahi:</b>{" "}
+        {data.notTests.map((n, i) => (
           <span key={n}>
-            {i > 0 && ", "}
+            {i > 0 && " · "}
             <code>{n.replace(/^condition:/, "")}</code>
           </span>
         ))}
-        . In sab ki aik hi value hai, ya Remote Config ki purani condition jo kuch nahi karti. Rate-us 2 → 1 din aik setting ki
-        tabdeeli thi, test nahi. Hamare {fmt(data.population.excludedTestingDevices)} testing devices aur{" "}
-        {fmt(data.population.ourOwnListSize)} apne phones/accounts har ginti se bahar hain; is waqt mein{" "}
-        {fmt(data.population.ourOwnPhonesSetAside)} aise phones mile.
-      </div>
+        . Hamare {fmt(data.population.ourOwnListSize)} apne phones/accounts har ginti se bahar hain.
+      </p>
     </>
   );
 }
 
-function Card({ t }: { t: AbTest }) {
-  const w = testWords(t.id);
-  const badge = t.verdict.state === "PROVEN" ? "bProven" : t.verdict.state === "LEANING" ? "bLean" : "bNone";
-  const rec = recLine(t);
-  const more = moreLine(t);
-  const pending = pendingLine(t);
-  const aside = setAsideLine(t);
+/** Placeholder shapes while the first answer arrives or is being computed. */
+function Skeleton() {
   return (
-    <article className={cx("card")} aria-label={w.name}>
-      <div className={cx("chead")}>
-        <div className={cx("ctitle")}>
-          <h2>{w.name}</h2>
-          <div className={cx("what")}>{questionLine(t)}</div>
-        </div>
-        <div className={cx("pills")}>
-          <span className={cx("status", t.status === "RUNNING" && "run")}>{statusText(t)}</span>
-          {t.intendedOff && <span className={cx("status warn")}>Band hona tha</span>}
-          <span className={cx("status")}>{t.startedAt ? `${day(t.startedAt)} se` : "shuru nahi"}</span>
-        </div>
+    <div className={cx("skel")} aria-hidden="true">
+      <div className={cx("tiles")}>
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className={cx("sk", "skTile")} />
+        ))}
       </div>
-
-      <div className={cx("cleft")}>
-        <div className={cx("verdict")}>
-          <span className={cx("badge", badge)}>{badgeText(t)}</span>
-          <span className={cx("vline")}>{answerLine(t)}</span>
-          {more && <span className={cx("more")}>{more}</span>}
-        </div>
-
-        <div className={cx("arms")}>
-          {(["A", "B"] as const).map((role) => {
-            const arm = t.arms.find((a) => a.role === role);
-            if (!arm) return null;
-            const l = armLines(t, arm);
-            return (
-              <div key={role} className={cx("arm")}>
-                <span className={cx("armK")}>{role === "A" ? w.a.long : w.b.long}</span>
-                <span className={cx("armN")}>
-                  {l.n} <small>{l.small}</small>
-                </span>
-                <span className={cx("armS")}>{l.sub}</span>
-              </div>
-            );
-          })}
-        </div>
-
-        <div className={cx("fact")}>
-          <span className={cx("fk")}>Hissa kahan se aata hai</span>
-          <span>{percentLine(t)}</span>
-        </div>
-        {t.leak && (
-          <div className={cx("fact leak")}>
-            <span className={cx("fk")}>Rissav (leak)</span>
-            <span>{leakLine(t, t.leak)}</span>
-          </div>
-        )}
-        {t.touchesAds && (
-          <div className={cx("fact ask")}>
-            <span className={cx("fk")}>Ad se juda · sawal aap se</span>
-            <span>{AD_QUESTION}</span>
-          </div>
-        )}
-        {rec && (
-          <div className={cx("rec")}>
-            <span className={cx("fk")}>Sifarish</span>
-            <span>{rec}</span>
-          </div>
-        )}
-      </div>
-
-      <div className={cx("cright")}>
-        <div className={cx("mlist")}>{t.metricsBuilt ? <MetricRows t={t} /> : <Waiting />}</div>
-        {pending && <div className={cx("note")}>{pending}</div>}
-        {aside && <div className={cx("note")}>{aside}</div>}
-        {t.metricsBuilt && t.metrics.length > 0 && <Workings t={t} />}
-        {t.breakdown && t.breakdown.length > 0 && <Languages t={t} />}
-      </div>
-    </article>
-  );
-}
-
-function Waiting() {
-  return (
-    <>
-      <div className={cx("mgroup")}>Shuru hone par yahan</div>
-      {SPLASH_WAITING.map((x) => (
-        <div key={x} className={cx("mrow weak")}>
-          <span className={cx("lab")}>{x}</span>
-          <span className={cx("diff")}>—</span>
+      {[0, 1].map((i) => (
+        <div key={i} className={cx("card")}>
+          <div className={cx("sk", "skLine", "w60")} />
+          <div className={cx("sk", "skLine", "w90")} />
+          <div className={cx("sk", "skBlock")} />
         </div>
       ))}
-    </>
-  );
-}
-
-function MetricRows({ t }: { t: AbTest }) {
-  const w = testWords(t.id);
-  return (
-    <>
-      {t.metrics.map((m, i) => {
-        // A heading above the first row of each measure: its name, and one line of what it means.
-        const first = i === 0 || t.metrics[i - 1].metric !== m.metric;
-        const head = first ? (
-          <div className={cx("mgroup", m.primary && "mprimary")}>
-            <span className={cx("mname")}>{metricLabel(m)}</span>
-            {m.primary && <span className={cx("mtag")}>mukhya paimaana</span>}
-            <span className={cx("mmean")}>{metricMeaning(m)}</span>
-          </div>
-        ) : null;
-        const weak = weakReason(m);
-        const when = windowLabel(m.window);
-        return (
-          <div key={`${m.metric}-${m.window}`}>
-            {head}
-            <div className={cx("mrow", weak && "weak", m.primary && "prim")}>
-              <span className={cx("lab")}>
-                {when || metricLabel(m)}
-                {weak && <span className={cx("kam")}>{weak}</span>}
-              </span>
-              <span className={cx("diff")}>{diffWords(m.diffPts, w.a.short)}</span>
-              <span className={cx("rates")}>
-                <span>
-                  <span className={cx("armname")}>{w.a.short}: </span>
-                  <b>{countPct(m.a)}</b>
-                </span>
-                <span>
-                  <span className={cx("armname")}>{w.b.short}: </span>
-                  <b>{countPct(m.b)}</b>
-                </span>
-              </span>
-              <div className={cx("barcell")}>
-                <Bar m={m} />
-              </div>
-            </div>
-          </div>
-        );
-      })}
-      <div className={cx("scale")} aria-hidden="true">
-        <span>
-          {w.a.short} peeche · −{SCALE} points
-        </span>
-        <span>0</span>
-        <span>
-          +{SCALE} points · {w.a.short} aage
-        </span>
-      </div>
-    </>
-  );
-}
-
-function Bar({ m }: { m: Metric }) {
-  if (m.diffPts == null || m.diffLo == null || m.diffHi == null) return <div className={cx("track")} aria-hidden="true" />;
-  const left = barPos(m.diffLo);
-  const right = barPos(m.diffHi);
-  return (
-    <div className={cx("track")} role="img" aria-label={`Farq ${pts(m.diffPts)} points, range ${pts(m.diffLo)} se ${pts(m.diffHi)} points`}>
-      <span className={cx("iv", barTone(m))} style={{ left: `${left}%`, width: `${Math.max(0, right - left)}%` }} />
-      <span className={cx("zero")} />
-      <span className={cx("dot")} style={{ left: `${barPos(m.diffPts)}%` }} />
     </div>
   );
-}
-
-function Workings({ t }: { t: AbTest }) {
-  return (
-    <details className={cx("calc")}>
-      <summary>Hisaab dekhein</summary>
-      <div className={cx("calcbox")}>
-        <table className={cx("t")}>
-          <thead>
-            <tr>
-              <th>Kya</th>
-              <th className={cx("n")}>Phones A / B</th>
-              <th className={cx("n")}>Farq</th>
-              <th className={cx("n")}>Range</th>
-              <th className={cx("n")}>z</th>
-              <th className={cx("n")}>p</th>
-            </tr>
-          </thead>
-          <tbody>
-            {t.metrics.map((m) => (
-              <tr key={`${m.metric}-${m.window}`} className={cx(!m.valid && "grey")}>
-                <td>
-                  {metricFull(m)}
-                </td>
-                <td className={cx("n")}>{phonesAB(m.a, m.b)}</td>
-                <td className={cx("n")}>{pts(m.diffPts)}</td>
-                <td className={cx("n")}>
-                  {pts(m.diffLo)} se {pts(m.diffHi)}
-                </td>
-                <td className={cx("n")}>{m.z == null ? "—" : m.z.toFixed(2)}</td>
-                <td className={cx("n")}>{pValue(m.p)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        <p className={cx("note")}>
-          Har guroh ki range Wilson 95%, farq ki range Newcombe 95%, z do-guroh test. Faisla tab jab har guroh mein kam az kam 200
-          phones hon. Badge sirf ASLI invoice se tay hota hai.
-          {t.verdict.neededPerArm != null && ` Is farq ko pakka karne ke liye har guroh mein takreeban ${fmt(t.verdict.neededPerArm)} phones chahiye.`}
-        </p>
-      </div>
-    </details>
-  );
-}
-
-function Languages({ t }: { t: AbTest }) {
-  const w = testWords(t.id);
-  return (
-    <details className={cx("calc")}>
-      <summary>Zubaan war (sirf dekhne ke liye)</summary>
-      <div className={cx("calcbox")}>
-        <table className={cx("t")}>
-          <thead>
-            <tr>
-              <th>Zubaan</th>
-              <th className={cx("n")}>
-                {w.a.short} / {w.b.short}
-              </th>
-              <th className={cx("n")}>Invoice save hua · 24 ghante mein</th>
-              <th className={cx("n")}>ASLI invoice · 24 ghante mein</th>
-            </tr>
-          </thead>
-          <tbody>
-            {t.breakdown!.map((l) => {
-              const saved = l.metrics.find((m) => m.metric === "saved");
-              const g1 = l.metrics.find((m) => m.metric === "g1");
-              return (
-                <tr key={l.lang} className={cx(!l.enough && "grey")}>
-                  <td>{l.lang}</td>
-                  <td className={cx("n")}>
-                    {fmt(l.aPhones)} / {fmt(l.bPhones)}
-                  </td>
-                  <td className={cx("n")}>{l.enough && saved ? langCell(saved, w.a.short, w.b.short) : "kam phones"}</td>
-                  <td className={cx("n")}>{l.enough && g1 ? langCell(g1, w.a.short, w.b.short) : "kam phones"}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-        <p className={cx("note")}>
-          Faisla sirf poore guroh par hai (aik pehle se tay muqabla). Jis zubaan mein har taraf 100 se kam phones hon, wo parhne
-          layak nahi.
-        </p>
-      </div>
-    </details>
-  );
-}
-
-/** One language's cell: both groups as count and percent, then the gap in points. */
-function langCell(m: Metric, a: string, b: string): string {
-  return `${a} ${countPct(m.a)} · ${b} ${countPct(m.b)} · ${diffWords(m.diffPts, a)}`;
 }

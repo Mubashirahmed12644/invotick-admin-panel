@@ -1,6 +1,8 @@
-/* A/B Tests: ported from the approved mockup (kaam/research/ab-tests-page-mockup.html, owner 2026-10-16).
-   Colours are the panel's own M3 roles (app/m3.css), so light and dark follow the panel's theme toggle.
-   One page, two layouts: a container query switches the cards from stacked (phone, 390 px) to two columns. */
+/* A/B Tests, the pictorial version (approved mockup: kaam/research/ab-tests-page-visual-mockup.html, owner 2026-10-17).
+   Plain HTML/CSS plus one inline SVG ring; no chart library. Colours are the panel's own M3 roles (app/m3.css), so light
+   and dark follow the panel's theme. Arm A (blue) and arm B (orange) are the one pair that is not an M3 role: they are a
+   validated categorical pair and are never used for good/bad. Status colours always travel with an icon and a word.
+   One container query switches the page from stacked (phone, 390 px) to two columns inside each card. */
 
 .root {
   --s-lowest: var(--md-sys-color-surface-container-lowest);
@@ -16,130 +18,271 @@
   --on-primary: var(--md-sys-color-on-primary);
   --primary-c: var(--md-sys-color-primary-container);
   --on-primary-c: var(--md-sys-color-on-primary-container);
-  --error: var(--md-sys-color-error);
-  --success: var(--md-sys-color-success);
-  --warning: var(--md-sys-color-warning);
-  --warning-c: var(--md-sys-color-warning-container);
-  --on-warning-c: var(--md-sys-color-on-warning-container);
+  --good: var(--md-sys-color-success);
+  --good-c: var(--md-sys-color-success-container);
+  --on-good-c: var(--md-sys-color-on-success-container);
+  --warn: var(--md-sys-color-warning);
+  --warn-c: var(--md-sys-color-warning-container);
+  --on-warn-c: var(--md-sys-color-on-warning-container);
+  --bad: var(--md-sys-color-error);
+  --bad-c: var(--md-sys-color-error-container);
+  --on-bad-c: var(--md-sys-color-on-error-container);
+  --neu-c: var(--s-high);
+  --on-neu-c: var(--on-var);
+  --tip-bg: var(--md-sys-color-inverse-surface);
+  --tip-ink: var(--md-sys-color-inverse-on-surface);
+  --arm-a: #2a78d6;
+  --arm-b: #eb6834;
   container: pv / inline-size;
   display: grid;
-  gap: 12px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+  align-content: start;
   min-width: 0;
   color: var(--on);
   font-size: 14px;
-  line-height: 1.45;
+  line-height: 1.4;
 }
-.root h1, .root h2 { margin: 0; text-wrap: balance }
+@media (prefers-color-scheme: dark) {
+  :global(:root:not([data-theme="light"])) .root { --arm-a: #3987e5; --arm-b: #d95926 }
+}
+:global(:root[data-theme="dark"]) .root { --arm-a: #3987e5; --arm-b: #d95926 }
 
-.ph1 { display: grid; gap: 2px }
-.ph1 h1 { font-size: 22px; font-weight: 800; letter-spacing: -0.2px }
-.sub { color: var(--on-var); font-size: 12.5px }
+.root h1, .root h2 { margin: 0; text-wrap: balance }
+.num { font-variant-numeric: tabular-nums }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap }
+.root svg.i { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round }
+.hit { position: relative }
+.hit::after { content: ""; position: absolute; inset: -10px -4px }
+.root :focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; border-radius: 6px }
+
+/* header */
+.top { display: grid; gap: 4px }
+.top h1 { font-size: 24px; font-weight: 800; letter-spacing: -.3px }
+.meta { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 12px; color: var(--on-var) }
 
 /* filters */
-.filters { display: grid; gap: 6px; background: var(--s-low); border: 1px solid var(--outline-var); border-radius: 14px; padding: 10px 12px; min-width: 0 }
-.fg { display: flex; gap: 6px; align-items: center; flex-wrap: wrap }
-.flabel { font-size: 11px; color: var(--on-var); font-weight: 700; letter-spacing: .4px; text-transform: uppercase; min-width: 62px }
-.chip { border: 1px solid var(--outline-var); background: var(--s); color: var(--on); border-radius: 999px; padding: 6px 11px; font: 600 12.5px inherit; font-family: inherit; cursor: pointer; white-space: nowrap; min-height: 32px }
-.chip[aria-pressed="true"] { background: var(--primary); color: var(--on-primary); border-color: var(--primary) }
-.chip[disabled] { opacity: .5; cursor: not-allowed }
-.chip:focus-visible, .calc summary:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px }
-.scope { font-size: 11.5px; color: var(--on-var) }
+.filters { display: flex; flex-wrap: wrap; gap: 8px }
+.fgrp { display: inline-flex; gap: 4px; padding: 3px; background: var(--s-low); border: 1px solid var(--outline-var); border-radius: 999px; flex: none; max-width: 100% }
+.chip { position: relative; border: 0; background: transparent; border-radius: 999px; padding: 0 14px; min-height: 44px; font: 700 13px/1 inherit; font-family: inherit; color: var(--on-var); cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px }
+.chip[aria-pressed="true"] { background: var(--s-lowest); color: var(--on); box-shadow: 0 1px 2px rgb(0 0 0 / .08); outline: 1px solid var(--outline) }
+.chip[disabled] { cursor: not-allowed; opacity: .7 }
+.chip small { font-weight: 600; font-size: 11px }
+.rangechip { color: var(--on); font-variant-numeric: tabular-nums }
+.rangesel { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; font-size: 16px }
 
-.summary { display: flex; flex-wrap: wrap; gap: 6px; align-items: center }
-.sumitem { display: inline-flex; gap: 6px; align-items: center; font-size: 12.5px; font-weight: 700; padding: 4px 10px; border-radius: 999px; background: var(--s-low); border: 1px solid var(--outline-var) }
-.sumWarn { background: var(--warning-c); color: var(--on-warning-c); border-color: var(--warning) }
+/* status tiles */
+.tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px }
+.tile { border-radius: 16px; padding: 12px 14px; display: grid; gap: 2px; min-width: 0 }
+.tn { font-size: 30px; font-weight: 800; line-height: 1.05; display: flex; align-items: center; gap: 8px }
+.tn svg { width: 20px !important; height: 20px !important }
+.tl { font-size: 12.5px; font-weight: 700 }
+.ts { font-size: 11.5px }
+.tRun { background: var(--primary-c); color: var(--on-primary-c) }
+.tGood { background: var(--good-c); color: var(--on-good-c) }
+.tWarn { background: var(--warn-c); color: var(--on-warn-c) }
+.tNeu { background: var(--neu-c); color: var(--on-neu-c) }
+@container pv (min-width: 700px) { .tiles { grid-template-columns: repeat(4, minmax(0, 1fr)) } }
 
-.banner { border-radius: 12px; padding: 10px 12px; font-size: 12.5px; border: 1px solid var(--warning); background: var(--warning-c); color: var(--on-warning-c); display: flex; gap: 10px; align-items: center; flex-wrap: wrap }
-.waitBox { border: 1px solid var(--outline-var); background: var(--s-low); border-radius: 14px; padding: 14px; display: grid; gap: 10px; justify-items: start }
+/* banners and waiting */
+.banner { border-radius: 12px; padding: 10px 12px; font-size: 12.5px; border: 1px solid var(--warn); background: var(--warn-c); color: var(--on-warn-c); display: flex; gap: 10px; align-items: center; flex-wrap: wrap }
+.waitBox { border: 1px solid var(--outline-var); background: var(--s-low); border-radius: 14px; padding: 14px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; font-size: 13px }
+.root :global(.btn) { min-height: 44px }
+.waitBox > span:nth-child(2) { flex: 1 1 220px; min-width: 0 }
+.spin { flex: none; width: 18px; height: 18px; border-radius: 50%; border: 3px solid var(--s-highest); border-top-color: var(--primary); animation: spin 1s linear infinite }
+@keyframes spin { to { transform: rotate(360deg) } }
 
-.cards { display: grid; gap: 12px; min-width: 0 }
+/* skeletons */
+.skel { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px }
+.sk { background: linear-gradient(90deg, var(--s-high) 25%, var(--s-highest) 50%, var(--s-high) 75%); background-size: 200% 100%; animation: shimmer 1.4s linear infinite; border-radius: 10px }
+@keyframes shimmer { to { background-position: -200% 0 } }
+.skTile { height: 88px; border-radius: 16px }
+.skLine { height: 16px }
+.skBlock { height: 150px; border-radius: 14px }
+.w60 { width: 60% } .w90 { width: 90% }
 
-/* a card */
-.card { min-width: 0; background: var(--s-low); border: 1px solid var(--outline-var); border-radius: 16px; padding: 14px; display: grid; gap: 12px }
-.chead { display: grid; gap: 6px; min-width: 0 }
-.ctitle h2 { font-size: 16px; font-weight: 800; line-height: 1.3 }
-.what { font-size: 13.5px; color: var(--on); font-weight: 600; margin-top: 4px; line-height: 1.4 }
-.pills { display: flex; gap: 6px; flex-wrap: wrap }
-.status { font-size: 11.5px; font-weight: 700; padding: 2px 8px; border-radius: 6px; border: 1px solid var(--outline-var); color: var(--on-var); white-space: nowrap }
-.run::before { content: ""; display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--success); margin-right: 5px; vertical-align: 1px }
-.warn { border-color: var(--warning); color: var(--on-warning-c); background: var(--warning-c) }
-.cleft, .cright { display: grid; gap: 10px; min-width: 0; align-content: start }
+/* cards */
+.cards { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; min-width: 0 }
+.card { background: var(--s-lowest); border: 1px solid var(--outline-var); border-radius: 18px; padding: 14px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; min-width: 0; box-shadow: 0 1px 2px rgb(0 0 0 / .06) }
+.idle { background: var(--s-low); box-shadow: none; border-style: dashed; border-color: var(--outline) }
+.chead { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 10px; align-items: start }
+.chead h2 { font-size: 17px; font-weight: 800; line-height: 1.25 }
+.state { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 700; color: var(--on-var); margin-top: 4px }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--good); box-shadow: 0 0 0 3px color-mix(in oklab, var(--good) 25%, transparent); flex: none }
+.off .dot { background: transparent; border: 2px solid var(--on-var); box-shadow: none }
+.split { font-weight: 600 }
+.badge { display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: 10px; font-weight: 800; font-size: 13px; letter-spacing: .6px; white-space: nowrap }
+.badge svg { width: 18px !important; height: 18px !important }
+.bGood { background: var(--good-c); color: var(--on-good-c); outline: 1.5px solid var(--good) }
+.bWarn { background: var(--warn-c); color: var(--on-warn-c); outline: 1.5px solid var(--warn) }
+.bNeu { background: var(--neu-c); color: var(--on-neu-c); outline: 1.5px solid var(--outline-var) }
+.checks { grid-column: 1 / -1; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; font-size: 11.5px; color: var(--on-var) }
+.ck { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px 3px 7px; border-radius: 999px; border: 1px solid var(--outline-var); font-weight: 700; color: var(--on) }
+.ck svg { width: 13px !important; height: 13px !important }
+.ck.yes svg { color: var(--good) }
+.cur { border-color: var(--on) }
+.qa { display: grid; gap: 4px; font-size: 13px }
+.qa p { margin: 0; display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: 6px; align-items: baseline }
+.k { font-size: 10.5px; font-weight: 800; letter-spacing: .6px; text-transform: uppercase; color: var(--on-var) }
+.ans { font-weight: 700 }
 
-.verdict { display: grid; gap: 8px; padding: 12px; border-radius: 12px; background: var(--s-lowest); border: 1px solid var(--outline-var) }
-.badge { justify-self: start; font-size: 12px; font-weight: 800; letter-spacing: .5px; text-transform: uppercase; padding: 4px 10px; border-radius: 999px; white-space: nowrap }
-.bProven { background: var(--success); color: var(--s-lowest) }
-.bLean { background: var(--warning-c); color: var(--on-warning-c); border: 1px solid var(--warning) }
-.bNone { background: transparent; color: var(--on-var); border: 1.5px dashed var(--outline) }
-.vline { font-size: 15px; font-weight: 700; line-height: 1.35 }
-.more { font-size: 12.5px; color: var(--on-var) }
+/* strips */
+.strip { display: flex; gap: 10px; align-items: flex-start; border-radius: 12px; padding: 10px 12px; font-size: 12.5px }
+.strip svg { width: 20px !important; height: 20px !important; margin-top: 1px }
+.strip b { display: block; font-size: 13.5px }
+.sub { opacity: .92; display: flex; flex-wrap: wrap; gap: 2px 10px; margin-top: 2px }
+.sWarn { background: var(--warn-c); color: var(--on-warn-c); border: 1px solid var(--warn) }
+.sNeu { background: var(--s-high); color: var(--on); border: 1px solid var(--outline) }
 
-.arms { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px }
-.arm { background: var(--s); border-radius: 12px; padding: 9px 10px; min-width: 0; display: grid; gap: 2px }
-.armK { font-size: 10.5px; font-weight: 800; letter-spacing: .5px; text-transform: uppercase; color: var(--on-var) }
-.armN { font-size: 20px; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -.3px; overflow-wrap: anywhere }
-.armN small { font-size: 11px; font-weight: 600; color: var(--on-var); letter-spacing: 0 }
-.armS { font-size: 11.5px; color: var(--on-var); overflow-wrap: anywhere }
+/* labels */
+.lab { font-size: 11px; font-weight: 800; letter-spacing: .6px; text-transform: uppercase; color: var(--on-var); display: flex; justify-content: space-between; gap: 8px; align-items: baseline }
+.lab em { font-style: normal; text-transform: none; letter-spacing: 0; font-weight: 600 }
+.blk { display: grid; gap: 8px; min-width: 0 }
 
-/* metric rows */
-.mlist { display: grid }
-.mgroup { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; padding: 10px 0 4px; color: var(--on-var) }
-.mname { font-size: 13px; font-weight: 700; color: var(--on) }
-.mprimary .mname { font-size: 15px; font-weight: 800 }
-.mtag { font-size: 10.5px; font-weight: 800; letter-spacing: .4px; text-transform: uppercase; color: var(--primary) }
-.mmean { flex-basis: 100%; font-size: 12px; font-weight: 500; line-height: 1.35 }
-.mrow { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; padding: 8px 0; border-top: 1px solid var(--outline-var); align-items: center }
-.lab { font-weight: 700; font-size: 13px }
-.lab .w { font-weight: 500; color: var(--on-var) }
-.rates { grid-column: 1 / -1; display: grid; gap: 1px; font-size: 12.5px; color: var(--on-var); font-variant-numeric: tabular-nums; overflow-wrap: anywhere }
-.rates b { color: var(--on); font-weight: 700 }
-.prim .lab { font-weight: 800 }
-.diff { font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; font-size: 13.5px }
-.barcell { grid-column: 1 / -1 }
-.weak .rates, .weak .diff { opacity: .62 }
-.kam { font-size: 10.5px; font-weight: 800; padding: 1px 6px; border-radius: 5px; border: 1px dashed var(--outline); color: var(--on-var); margin-left: 4px; white-space: nowrap; display: inline-block }
-.track { position: relative; height: 16px; margin-top: 4px }
-.track::before { content: ""; position: absolute; left: 0; right: 0; top: 7px; height: 2px; background: var(--s-highest); border-radius: 1px }
-.zero { position: absolute; left: 50%; top: 1px; bottom: 1px; width: 1.5px; background: var(--outline) }
-.iv { position: absolute; top: 4px; height: 8px; border-radius: 4px; background: var(--outline-var) }
-.pos { background: var(--success) }
-.neg { background: var(--error) }
-.dash { background: transparent; border: 1.5px dashed var(--outline) }
-.dot { position: absolute; top: 2px; width: 12px; height: 12px; margin-left: -6px; border-radius: 50%; background: var(--on); border: 2px solid var(--s-low) }
-.scale { display: flex; justify-content: space-between; gap: 6px; font-size: 10.5px; color: var(--on-var); font-variant-numeric: tabular-nums; margin-top: 2px }
-.scale span:nth-child(2) { font-weight: 800 }
+/* hero */
+.hero { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 8px; align-items: center }
+.arm { border-radius: 14px; padding: 10px 12px 12px; background: var(--s-low); border: 2px solid transparent; display: grid; gap: 2px; min-width: 0; position: relative }
+.idle .arm { background: var(--s) }
+.win.a { border-color: var(--arm-a) } .win.b { border-color: var(--arm-b) }
+.an { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; color: var(--on-var); min-width: 0 }
+.an span:last-child { overflow-wrap: anywhere }
+.sw { width: 10px; height: 10px; border-radius: 3px; flex: none; display: inline-block }
+.sw.a { background: var(--arm-a) } .sw.b { background: var(--arm-b) }
+.big { font-size: clamp(24px, 8cqi, 38px); font-weight: 800; letter-spacing: -.5px; line-height: 1.1 }
+.nn { font-size: 11.5px; color: var(--on-var); overflow-wrap: anywhere }
+.ghostarm .big { color: var(--on-var) }
+.tag { position: absolute; top: -11px; right: 8px; display: inline-flex; align-items: center; gap: 3px; font-size: 10.5px; font-weight: 800; padding: 2px 7px; border-radius: 999px; background: var(--s-lowest); color: var(--on); border: 1.5px solid currentColor }
+.a .tag { border-color: var(--arm-a) } .b .tag { border-color: var(--arm-b) }
+.a .tag svg { color: var(--arm-a) } .b .tag svg { color: var(--arm-b) }
+.tag svg { width: 12px !important; height: 12px !important }
+.delta { display: grid; justify-items: center; padding: 8px; border-radius: 999px; min-width: 58px; text-align: center }
+.delta b { font-size: 17px; font-weight: 800; line-height: 1.1 }
+.delta small { font-size: 10.5px; font-weight: 700; letter-spacing: .3px }
+.delta svg { width: 14px !important; height: 14px !important }
+.d-good { background: var(--good-c); color: var(--on-good-c) }
+.d-mid, .d-weak, .d-none { background: var(--neu-c); color: var(--on-neu-c) }
+.d-bad { background: var(--bad-c); color: var(--on-bad-c) }
 
-/* facts */
-.fact { font-size: 12.5px; color: var(--on); background: var(--s); border-radius: 10px; padding: 8px 10px; display: grid; gap: 2px; overflow-wrap: anywhere }
-.fk { font-size: 10.5px; font-weight: 800; letter-spacing: .5px; text-transform: uppercase; color: var(--on-var) }
-.leak { background: var(--warning-c); color: var(--on-warning-c); border: 1px solid var(--warning) }
-.leak .fk { color: var(--on-warning-c) }
-.ask { background: var(--primary-c); color: var(--on-primary-c) }
-.ask .fk { color: var(--on-primary-c) }
-.rec { font-size: 13.5px; font-weight: 700; border-top: 1px solid var(--outline-var); padding-top: 10px; display: grid; gap: 3px }
-.note { font-size: 11.5px; color: var(--on-var) }
+.hb { display: grid; gap: 6px; min-height: 44px; align-content: center }
+.hb-row { display: grid; grid-template-columns: 86px minmax(0, 1fr); gap: 8px; align-items: center; min-height: 22px }
+.hb-name { font-size: 12px; font-weight: 700; color: var(--on-var); overflow-wrap: anywhere }
+.track { position: relative; height: 14px; background: var(--s); border-radius: 4px }
+.idle .track { background: var(--s-high) }
+.thin { height: 8px }
+.bar { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 0 4px 4px 0 }
+.bar.a { background: var(--arm-a) } .bar.b { background: var(--arm-b) }
+.axis { position: relative; height: 14px; font-size: 10.5px; color: var(--on-var); margin-left: 94px }
+.axis span { position: absolute; top: 0; transform: translateX(-50%); white-space: nowrap }
+.axis span:first-child { transform: none } .axis span:last-child { transform: translateX(-100%) }
+.grid-l { position: absolute; top: -2px; bottom: -2px; width: 1px; background: var(--outline-var) }
 
-/* the workings */
-.calc { font-size: 12px; color: var(--on-var) }
-.howbox { background: var(--s-low); border: 1px solid var(--outline-var); border-radius: 12px; padding: 6px 12px }
-.howlist { margin: 6px 0 8px; padding-left: 18px; display: grid; gap: 4px; font-size: 12.5px; color: var(--on); line-height: 1.4; overflow-wrap: anywhere }
-.calc summary { cursor: pointer; font-weight: 700; color: var(--primary); padding: 4px 0 }
-.calcbox { overflow-x: auto; margin-top: 6px }
-.calcbox .t { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: 12px; min-width: 460px }
-.t th { font-size: 10.5px; text-transform: uppercase; letter-spacing: .3px; color: var(--on-var); text-align: left; font-weight: 700; padding: 5px; border-bottom: 1px solid var(--outline-var) }
-.t td { padding: 5px; border-bottom: 1px solid var(--outline-var); color: var(--on) }
-.t .n { text-align: right; white-space: nowrap }
-.t .grey td { opacity: .62 }
-.foot { font-size: 12px; color: var(--on-var); background: var(--s-low); border: 1px dashed var(--outline-var); border-radius: 12px; padding: 10px 12px; overflow-wrap: anywhere }
-.foot code { font-size: .92em }
+/* Behtari */
+.iv { display: grid; gap: 4px }
+.iv-row { display: grid; gap: 3px; padding: 4px 0; min-height: 44px; align-content: center }
+.iv-lab { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; font-weight: 600; color: var(--on-var) }
+.main .iv-lab { font-weight: 800; color: var(--on); font-size: 13px }
+.iv-num { display: inline-flex; align-items: center; gap: 3px; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap }
+.iv-num.good { color: var(--good) } .iv-num.bad { color: var(--bad) } .iv-num.mid, .iv-num.weak, .iv-num.none { color: var(--on-var) }
+.iv-num svg { width: 13px !important; height: 13px !important }
+.iv-track { position: relative; height: 12px; border-radius: 6px; background: linear-gradient(to right, transparent 50%, color-mix(in oklab, var(--good) 10%, transparent) 50%) }
+.main .iv-track { height: 18px }
+.iv-zero { position: absolute; left: 50%; top: -4px; bottom: -4px; width: 2px; margin-left: -1px; background: var(--on-var); border-radius: 1px }
+.iv-bar { position: absolute; top: 2px; bottom: 2px; border-radius: 4px; min-width: 4px }
+.iv-bar.good { background: var(--good) }
+.iv-bar.bad { background: var(--bad) }
+.iv-bar.mid { background: repeating-linear-gradient(135deg, var(--on-var) 0 3px, transparent 3px 6px); outline: 1.5px solid var(--on-var); outline-offset: -1.5px }
+.iv-bar.weak, .iv-bar.none { background: transparent; outline: 1.5px dashed var(--on-var); outline-offset: -1.5px }
+.iv-dot { position: absolute; top: 50%; width: 10px; height: 10px; margin: -5px 0 0 -5px; border-radius: 50%; background: var(--on); box-shadow: 0 0 0 2px var(--s-lowest) }
+.main .iv-dot { width: 12px; height: 12px; margin: -6px 0 0 -6px }
+.iv-axis { position: relative; height: 14px; font-size: 10.5px; color: var(--on-var); font-variant-numeric: tabular-nums }
+.iv-axis span { position: absolute; transform: translateX(-50%); white-space: nowrap }
+.iv-axis span:first-child { transform: none } .iv-axis span:last-child { transform: translateX(-100%) }
+.iv-axis .z { color: var(--on); font-weight: 800 }
+.iv-ends { display: flex; justify-content: space-between; font-size: 11.5px; font-weight: 700; gap: 8px; color: var(--on) }
+.iv-ends > span { display: inline-flex; gap: 5px; align-items: center }
+.key { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 11.5px; color: var(--on-var) }
+.key span { display: inline-flex; align-items: center; gap: 5px }
+.key i { display: inline-block; width: 18px; height: 8px; border-radius: 3px }
+.key i.good { background: var(--good) }
+.key i.mid { background: repeating-linear-gradient(135deg, var(--on-var) 0 3px, transparent 3px 6px); outline: 1.5px solid var(--on-var); outline-offset: -1.5px }
 
-/* the same page on a wide screen */
+/* ring */
+.prog { display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: 12px; align-items: center; min-height: 76px }
+.ring { width: 76px; height: 76px }
+.rbg { stroke: var(--s-high) } .rfg { stroke: var(--primary) } .rfg.good { stroke: var(--good) }
+.ring text { fill: var(--on); font: 800 15px/1 inherit; font-family: inherit; font-variant-numeric: tabular-nums }
+.p1 { font-size: 15px; font-weight: 800 }
+.p2 { font-size: 12px; color: var(--on-var) }
+.p3 { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; font-weight: 800; margin-top: 4px; padding: 3px 9px; border-radius: 999px; background: var(--primary-c); color: var(--on-primary-c); width: max-content; max-width: 100% }
+.p3.good { background: var(--good-c); color: var(--on-good-c) }
+.p3.neu { background: var(--neu-c); color: var(--on-neu-c) }
+
+/* Safar */
+.fn { display: grid; gap: 4px }
+.fn-step { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 8px; align-items: center; min-height: 44px }
+.fn-lab { font-size: 12px; font-weight: 700; color: var(--on-var) }
+.fn-bars { display: grid; gap: 3px }
+.fn-row { display: grid; grid-template-columns: 16px minmax(0, 1fr) 50px; gap: 6px; align-items: center }
+.l { font-size: 10px; font-weight: 800; width: 16px; height: 16px; border-radius: 4px; display: grid; place-items: center; color: var(--on); background: var(--s-lowest) }
+.l.a { border: 2px solid var(--arm-a) } .l.b { border: 2px solid var(--arm-b) }
+.v { font-size: 11.5px; font-weight: 700; text-align: right }
+.fn .track { height: 10px }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 11.5px; font-weight: 700; color: var(--on) }
+.legend > span { display: inline-flex; align-items: center; gap: 5px }
+.fnote { font-size: 11.5px; color: var(--on-var) }
+
+/* Zubaanein */
+.langs { display: grid; gap: 2px }
+.lg { display: grid; grid-template-columns: 82px minmax(0, 1fr) 40px; gap: 8px; align-items: center; font-size: 12px; min-height: 30px }
+
+/* Roz ba roz (empty frame) */
+.spark { border: 1.5px dashed var(--outline); border-radius: 12px; padding: 10px 12px; display: grid; gap: 6px }
+.sp { width: 100%; height: 40px; display: block }
+.ph { stroke: var(--outline); stroke-width: 2; fill: none; stroke-dasharray: 3 5 }
+.next { display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; font-weight: 800; letter-spacing: .5px; padding: 2px 8px; border-radius: 999px; background: var(--neu-c); color: var(--on-neu-c); text-transform: uppercase }
+.next svg { width: 12px !important; height: 12px !important }
+.why { font-size: 11.5px; color: var(--on-var) }
+
+/* not started */
+.ghosts { display: flex; flex-wrap: wrap; gap: 6px }
+.ghost { font-size: 12px; font-weight: 600; color: var(--on-var); border: 1.5px dashed var(--outline); border-radius: 10px; padding: 8px 10px }
+
+/* Hisaab dekhein */
+.calc { font-size: 12px }
+.calc summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 13px; color: var(--primary); list-style: none }
+.calc summary::-webkit-details-marker { display: none }
+.calc summary svg { transition: transform .15s }
+.calc[open] > summary svg { transform: rotate(90deg) }
+.card .calc { border-top: 1px solid var(--outline-var); padding-top: 4px }
+.howbox { background: var(--s-low); border: 1px solid var(--outline-var); border-radius: 12px; padding: 2px 12px }
+.howlist { margin: 4px 0 10px; padding-left: 18px; display: grid; gap: 4px; font-size: 12.5px; line-height: 1.4; overflow-wrap: anywhere }
+.tbl { overflow-x: auto; border: 1px solid var(--outline-var); border-radius: 10px; margin-top: 4px }
+.tbl table { border-collapse: collapse; width: 100%; font-size: 12px; font-variant-numeric: tabular-nums; min-width: 560px }
+.tbl th, .tbl td { padding: 7px 9px; text-align: right; border-bottom: 1px solid var(--outline-var); white-space: nowrap }
+.tbl th:first-child, .tbl td:first-child { text-align: left }
+.tbl th { font-size: 10.5px; text-transform: uppercase; letter-spacing: .4px; color: var(--on-var); font-weight: 800; background: var(--s-low) }
+.tbl tr:last-child td { border-bottom: 0 }
+.kv { display: grid; gap: 6px; margin: 10px 0 0 }
+.kvrow { display: grid; grid-template-columns: 104px minmax(0, 1fr); gap: 4px 12px; font-size: 12px }
+.kvrow dt { color: var(--on-var); font-weight: 700 }
+.kvrow dd { margin: 0; overflow-wrap: anywhere }
+.note { margin: 8px 0 0; font-size: 11.5px; color: var(--on-var); overflow-wrap: anywhere }
+.sublab { margin-top: 12px }
+
+.foot { margin: 0; font-size: 11.5px; color: var(--on-var); overflow-wrap: anywhere }
+.foot code { font-size: .95em }
+
+/* card body: stacked on a phone, two columns when there is room */
+.cbody { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; min-width: 0 }
+.col { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-content: start; min-width: 0 }
 @container pv (min-width: 760px) {
-  .ph1 h1 { font-size: 26px }
-  .filters { grid-template-columns: auto auto minmax(0, 1fr); align-items: center; gap: 10px 24px }
-  .scope { justify-self: end; text-align: right; max-width: 420px }
-  .card { grid-template-columns: minmax(0, 4fr) minmax(0, 7fr); grid-template-areas: "head head" "left right"; gap: 14px 22px; padding: 18px }
-  .chead { grid-area: head }
-  .cleft { grid-area: left }
-  .cright { grid-area: right }
-  .ctitle h2 { font-size: 18px }
+  .cbody { grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 28px }
+  .card { padding: 18px 20px }
 }
+
+/* tooltip */
+.tip { position: fixed; z-index: 50; max-width: 260px; background: var(--tip-bg); color: var(--tip-ink); font-size: 12px; font-weight: 600; padding: 7px 10px; border-radius: 8px; pointer-events: none; box-shadow: 0 4px 14px rgb(0 0 0 / .25); font-variant-numeric: tabular-nums }
+.tip[hidden] { display: none }
+
+@media (prefers-reduced-motion: reduce) { .sk, .spin { animation: none } .calc summary svg { transition: none } }
+@media (forced-colors: active) { .bar, .iv-bar, .sw, .rfg { forced-color-adjust: none } }
