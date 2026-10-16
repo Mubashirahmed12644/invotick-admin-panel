@@ -76,6 +76,13 @@ const navItems: NavItem[] = [
     isActive: (pathname: string) => pathname.startsWith("/screen-map"),
   },
   {
+    // Analysis, not a health check, so a page of its own (decision 0222, phase 1: it only reports). Beside the
+    // Screen Map because the tour's holdout card lives there too.
+    label: "A/B Tests",
+    href: "/ab-tests",
+    isActive: (pathname: string) => pathname.startsWith("/ab-tests"),
+  },
+  {
     label: "Funnel Analysis",
     href: "/funnel-analysis",
     isActive: (pathname: string) => pathname.startsWith("/funnel-analysis"),
