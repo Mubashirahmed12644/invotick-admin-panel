@@ -10,7 +10,8 @@
     "check:contrast": "node tools/contrast-check.mjs",
     "check:csv": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tools/csv-check.mjs",
     "check:screen-map-nav": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tools/screen-map-nav-check.mjs",
-    "check:ab-tests": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tools/ab-tests-words-check.mjs"
+    "check:ab-tests": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tools/ab-tests-words-check.mjs",
+    "check:release-impact": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tools/release-impact-words-check.mjs"
   },
   "dependencies": {
     "@sparticuz/chromium": "^148.0.0",

@@ -83,6 +83,13 @@ const navItems: NavItem[] = [
     isActive: (pathname: string) => pathname.startsWith("/ab-tests"),
   },
   {
+    // Analysis the owner opens on purpose, like A/B Tests (decision 0228 round one, approved mockup 2026-10-19). The
+    // silence check of each feature's events stays in the Health Centre (`feature-events-arriving`), never here.
+    label: "Release Impact",
+    href: "/release-impact",
+    isActive: (pathname: string) => pathname.startsWith("/release-impact"),
+  },
+  {
     label: "Funnel Analysis",
     href: "/funnel-analysis",
     isActive: (pathname: string) => pathname.startsWith("/funnel-analysis"),
