@@ -103,6 +103,8 @@
 .tlistRow .bar { height: 100%; min-height: 34px; border-radius: 4px }
 
 /* tables */
+/* app/globals.css gives every table a min-width (680 / 620 px); these tables size to their card, and stack at phone width. */
+.root table { min-width: 0 }
 .tbl { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px }
 .tbl th, .tbl td { padding: 9px 10px; text-align: left; vertical-align: middle; border-bottom: 1px solid var(--hair) }
 .tbl thead th { font-size: 11px; font-weight: 800; letter-spacing: .5px; text-transform: uppercase; color: var(--muted); background: var(--s-low); border-bottom: 1px solid var(--line) }

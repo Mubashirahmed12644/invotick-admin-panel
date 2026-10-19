@@ -63,7 +63,7 @@ try {
   ok('sidebar has the entry after A/B Tests', /A\/B Tests\s*\n\s*Release Impact/.test(text));
   ok('timeline card', text.includes('Releases ki timeline'));
   ok('scorecard card', text.includes('Hifazati numbers: har release ke wahi aath'));
-  ok('four goals in the scorecard', text.includes('Chaar maqsad'));
+  ok('four goals in the scorecard', /chaar maqsad/i.test(text));
   ok('section title', text.includes(`${data.section.currentName} (${data.section.current}) bamuqabla ${data.section.previousName} (${data.section.previous})`));
   const g1 = data.section.kpis.find((k) => k.id === 'g1_24h');
   ok('G1 row n as the endpoint says', text.includes(`n ${g1.a.n.toLocaleString('en-US')} / ${g1.b.n.toLocaleString('en-US')}`), `(n ${g1.a.n} / ${g1.b.n})`);

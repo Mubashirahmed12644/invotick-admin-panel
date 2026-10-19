@@ -122,8 +122,8 @@ export interface LadderStep {
 }
 
 export interface Ladder {
-  nA: number;
-  nB: number;
+  firstOpensA: number;
+  firstOpensB: number;
   steps: LadderStep[];
 }
 

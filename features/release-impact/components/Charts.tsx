@@ -73,10 +73,11 @@ const B = "var(--arm-b)";
 export function BalanceChart({ b, nameA, nameB }: { b: Balance; nameA: string; nameB: string }) {
   const W = 560, H = 230, l = 40, r = 84, t = 18, bot = 32, pw = W - l - r, ph = H - t - bot;
   const shares = b.days.map((d) => (d.a + d.b > 0 ? (d.a / (d.a + d.b)) * 100 : 0));
-  const top = Math.max(30, Math.ceil((Math.max(b.rolloutPercent ?? 0, ...shares) + 5) / 10) * 10);
+  // A share axis: 0-30 % while the shares are near a staged rollout, else 0-100 %, always round ticks.
+  const top = Math.max(b.rolloutPercent ?? 0, ...shares) + 5 <= 30 ? 30 : 100;
   const y = lin(0, top, t + ph, t);
   const bw = pw / Math.max(1, b.days.length);
-  const ticks = [0, top / 3, (2 * top) / 3, top].map((v) => Math.round(v));
+  const ticks = top === 30 ? [0, 10, 20, 30] : [0, 25, 50, 75, 100];
   const total = b.a + b.b;
   return (
     <Figure
@@ -142,7 +143,7 @@ const STEP_NAMES: Record<string, string> = {
 export function FunnelChart({ ladder, nameA, nameB }: { ladder: Ladder; nameA: string; nameB: string }) {
   const W = 560, l = 12, r = 112, pw = W - l - r, bh = 15, blk = 62, H = ladder.steps.length * blk + 26;
   const x = lin(0, 100, l, l + pw);
-  const ns = [ladder.nA, ladder.nB];
+  const ns = [ladder.firstOpensA, ladder.firstOpensB];
   const names = [nameA, nameB];
   const rows: (string | number)[][] = ladder.steps.flatMap((st, i) =>
     [st.a, st.b].map((cnt, k) => {
@@ -159,7 +160,7 @@ export function FunnelChart({ ladder, nameA, nameB }: { ladder: Ladder; nameA: s
       note="Sirf wo phone jin ke 24 ghante poore hue. 'ASLI invoice' = share ya payment, G1."
       table={<TableView head={["Qadam", "Build", "Phones", "Hissa", "95 % hadd"]} rows={rows} />}
     >
-      {ladder.nA + ladder.nB === 0 ? (
+      {ladder.firstOpensA + ladder.firstOpensB === 0 ? (
         <div className={cx("empty")}>Abhi kisi naye install ke 24 ghante poore nahi hue.</div>
       ) : (
         <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Naye installs ki seedhi, ${nameA} aur ${nameB}`}>
@@ -174,7 +175,7 @@ export function FunnelChart({ ladder, nameA, nameB }: { ladder: Ladder; nameA: s
             return (
               <g key={st.key}>
                 <text className={cx("tInk")} x={l} y={y0 + 11}>{STEP_NAMES[st.key]}</text>
-                <text x={x(100)} y={y0 + 11} textAnchor="end" style={MUTED}>{`n ${fmt(ladder.nA)} · ${fmt(ladder.nB)}`}</text>
+                <text x={x(100)} y={y0 + 11} textAnchor="end" style={MUTED}>{`n ${fmt(ladder.firstOpensA)} · ${fmt(ladder.firstOpensB)}`}</text>
                 {[
                   [st.a, ns[0], "fA", nameA],
                   [st.b, ns[1], "fB", nameB],
@@ -333,10 +334,14 @@ export function TimelineChart({ tl, releases }: { tl: Timeline; releases: Releas
     return tl.series.map((se) => (s += se.byDay[i]));
   });
   const last = N - 1;
+  // Labels only for builds on today's phones; pushed apart, then pulled back up if they ran past the axis.
   const labels = tl.series
     .map((se, k) => ({ k, key: se.key, y: (y(cum[last]?.[k] ?? 0) + y(k ? cum[last]?.[k - 1] ?? 0 : 0)) / 2, share: tl.totals[last] ? (se.byDay[last] / tl.totals[last]) * 100 : 0 }))
+    .filter((lb) => lb.share >= 0.5)
     .sort((a, b) => a.y - b.y);
   for (let i = 1; i < labels.length; i++) if (labels[i].y - labels[i - 1].y < 15) labels[i].y = labels[i - 1].y + 15;
+  const over = labels.length ? labels[labels.length - 1].y - (t + ph - 4) : 0;
+  if (over > 0) labels.forEach((lb) => (lb.y -= over));
   return (
     <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Roz kitne phone kis version par, ${day(tl.days[0])} se ${day(tl.days[last])}`}>
       {[0, ymax / 2, ymax].map((v) => (
@@ -373,7 +378,8 @@ export function TimelineChart({ tl, releases }: { tl: Timeline; releases: Releas
           </g>
         );
       })}
-      {tl.days.map((d, i) => (i % 7 === 0 ? <text key={d} x={x(i)} y={H - 10} textAnchor="middle" style={MUTED}>{day(d)}</text> : null))}
+      {tl.days.map((d, i) => (i % 7 === 0 && last - i >= 3 ? <text key={d} x={x(i)} y={H - 10} textAnchor="middle" style={MUTED}>{day(d)}</text> : null))}
+      <text x={x(last)} y={H - 10} textAnchor="end" style={{ fill: "var(--ink-2)", fontSize: 11, fontWeight: 700 }}>{`aaj ${day(tl.days[last])}`}</text>
     </svg>
   );
 }
