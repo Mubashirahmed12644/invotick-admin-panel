@@ -16,6 +16,7 @@ import {
   secondInvoiceResult,
   secondInvoiceRowWords,
   unavailableText,
+  weeksText,
 } from "../words";
 import { CohortChart, FunnelChart } from "./Charts";
 import { KpiTable } from "./KpiTable";
@@ -202,7 +203,7 @@ function Plan({ data }: { data: SecondInvoiceResponse }) {
           ? "Kitne hafte: abhi andaza nahi (kisi guroh mein naye phone nahi)"
           : p.weeksMore === 0
             ? `Dono guroh mein ${fmt(p.neededPerArm)} phone poore`
-            : `+4 pt pakka dekhne mein takreeban ${p.weeksMore} hafte aur (${fmt(p.neededPerArm)} phone har guroh)`}
+            : `${weeksText(p.weeksMore, "+4 pt pakka dekhne")} (${fmt(p.neededPerArm)} phone har guroh)`}
       </span>
       <span>{`Guroh nahi mila: ${fmt(data.population.unassigned)} · hamare apne nikale: ${fmt(data.population.ours)} · 7 din baqi: ${fmt(data.population.pending7)}`}</span>
     </div>

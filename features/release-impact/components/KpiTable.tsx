@@ -68,7 +68,7 @@ export function KpiRow({ k, nameA, nameB, wordsFor = rowWords }: { k: Kpi; nameA
           <span className={cx("nn")}>{intervalText(k)}</span>
         </span>
       </td>
-      <td data-l="Ginti (n)">
+      <td className={cx("ginti")} data-l="Ginti (n)">
         {k.status === "pending" ? (
           <span className={cx("nn")}>{minText(k)}</span>
         ) : (
@@ -80,7 +80,9 @@ export function KpiRow({ k, nameA, nameB, wordsFor = rowWords }: { k: Kpi; nameA
       </td>
       <td data-l="Halat">
         <StatusPill s={k.status} />
-        {k.status === "thin" && k.daysToMin != null && <span className={cx("nn")}>{`takreeban ${k.daysToMin} din aur`}</span>}
+        {k.status === "thin" && k.daysToMin != null && (
+          <span className={cx("nn")}>{k.daysToMin > 365 ? "aaj ki raftaar par ek saal se zyada" : `takreeban ${k.daysToMin} din aur`}</span>
+        )}
         {k.id === "sync_defects" && <span className={cx("nn")}>had tay nahi (plan mein nahi)</span>}
         {k.status === "pending" && <span className={cx("nn")}>chhota naya table + aap ki ijazat</span>}
       </td>

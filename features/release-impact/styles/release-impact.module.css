@@ -36,6 +36,8 @@
   --ser3: #1baf7a;
   --ser4: #eda100;
   --ser0: #a9a8a2;
+  --ser5: #8a5cd6;
+  --ser6: #c2588f;
   --shadow: 0 1px 2px rgb(0 0 0 / .06), 0 1px 3px rgb(0 0 0 / .04);
   container: pg / inline-size;
   display: grid;
@@ -48,9 +50,9 @@
   line-height: 1.4;
 }
 @media (prefers-color-scheme: dark) {
-  :global(:root:not([data-theme="light"])) .root { --arm-a: #3987e5; --arm-b: #d95926; --ser3: #199e70; --ser4: #c98500; --ser0: #6a6a66; --shadow: 0 1px 2px rgb(0 0 0 / .4) }
+  :global(:root:not([data-theme="light"])) .root { --arm-a: #3987e5; --arm-b: #d95926; --ser3: #199e70; --ser4: #c98500; --ser0: #6a6a66; --ser5: #9b72e0; --ser6: #d06a9f; --shadow: 0 1px 2px rgb(0 0 0 / .4) }
 }
-:global(:root[data-theme="dark"]) .root { --arm-a: #3987e5; --arm-b: #d95926; --ser3: #199e70; --ser4: #c98500; --ser0: #6a6a66; --shadow: 0 1px 2px rgb(0 0 0 / .4) }
+:global(:root[data-theme="dark"]) .root { --arm-a: #3987e5; --arm-b: #d95926; --ser3: #199e70; --ser4: #c98500; --ser0: #6a6a66; --ser5: #9b72e0; --ser6: #d06a9f; --shadow: 0 1px 2px rgb(0 0 0 / .4) }
 
 .root h1, .root h2, .root h3, .root h4, .root p { margin: 0 }
 .num, .root td, .root th { font-variant-numeric: tabular-nums }
@@ -87,7 +89,7 @@
 .tlWide { display: block }
 .tlWide svg { width: 100%; height: auto; display: block }
 .tlList { display: none }
-.rels { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px }
+.rels { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px }
 .rel { border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; display: grid; gap: 3px; background: var(--card); min-width: 0 }
 .rel.sel { outline: 2px solid var(--arm-a); outline-offset: -1px; background: var(--s-low) }
 .rel.plan { border-style: dashed; background: transparent }
@@ -106,7 +108,9 @@
 /* app/globals.css gives every table a min-width (680 / 620 px); these tables size to their card, and stack at phone width. */
 .root table { min-width: 0 }
 .tbl { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px }
-.tbl th, .tbl td { padding: 9px 10px; text-align: left; vertical-align: middle; border-bottom: 1px solid var(--hair) }
+/* app/globals.css sets th to nowrap; here every cell wraps (a phone cut the group headers and row meanings). */
+.tbl th, .tbl td { padding: 9px 10px; text-align: left; vertical-align: middle; border-bottom: 1px solid var(--hair); white-space: normal }
+.tbl td.ginti { min-width: 150px }
 .tbl thead th { font-size: 11px; font-weight: 800; letter-spacing: .5px; text-transform: uppercase; color: var(--muted); background: var(--s-low); border-bottom: 1px solid var(--line) }
 .tbl thead th:first-child { border-top-left-radius: 10px }
 .tbl thead th:last-child { border-top-right-radius: 10px }

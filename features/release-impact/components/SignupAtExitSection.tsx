@@ -16,6 +16,7 @@ import {
   signupResult,
   signupRowWords,
   unavailableText,
+  weeksText,
 } from "../words";
 import { KpiTable } from "./KpiTable";
 import { Icon, cx } from "./shared";
@@ -122,7 +123,7 @@ export default function SignupAtExitSection({ range, onFail }: { range: RangeCho
                 ? "Kitne hafte: abhi andaza nahi"
                 : data.plan.weeksMore === 0
                   ? "Planned ginti poori"
-                  : `+3 pt pakka dekhne mein takreeban ${data.plan.weeksMore} hafte aur (${fmt(data.plan.neededInvited)} dawat · ${fmt(data.plan.neededHoldout)} holdout)`}
+                  : `${weeksText(data.plan.weeksMore, "+3 pt pakka dekhne")} (${fmt(data.plan.neededInvited)} dawat · ${fmt(data.plan.neededHoldout)} holdout)`}
             </span>
             <span>{`Hamare apne nikale: ${fmt(data.population.ours)} · 1.5.4 ya purane: ${fmt(data.population.olderBuild)} · do baar guroh: ${fmt(data.population.dealtTwice)} · 14 din baqi: ${fmt(data.population.pending14)}`}</span>
           </div>

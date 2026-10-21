@@ -142,7 +142,7 @@ export const ROW_WORDS: Record<string, RowWords> = {
 };
 
 export function rowWords(id: string): RowWords {
-  return ROW_WORDS[id] ?? { name: id, mean: "" };
+  return ROW_WORDS[id] ?? SIGNUP_ROW_WORDS[id] ?? { name: id, mean: "" };
 }
 
 /** The KPI table's groups, in the order the section shows them (0229: the four goals beside the G1 rows). */
@@ -166,8 +166,10 @@ export function minText(k: Kpi): string {
       ? "phones har taraf"
       : k.id === "splash_pass"
         ? "cold starts har taraf"
-        : k.id === "paywall_net_viewer"
+        : k.id === "paywall_net_viewer" || k.id === "premium_net_phone"
           ? "kharidar har taraf"
+          : k.id === "invoices_per_phone"
+            ? "phones har taraf"
           : k.kind === "money"
             ? "phone-din + 50 phones"
             : "phones har taraf";
@@ -240,7 +242,7 @@ export function recommendationWords(r: ReleaseImpactResponse): { title: string; 
     case "WAIT":
       return {
         title: `Sifarish (${at}): WAIT.`,
-        body: `${names}: ginti abhi kam${rec.days != null ? `, takreeban ${rec.days} din aur` : ""}. Koi hifazati number toota nahi, koi switch band karne ki zaroorat nahi.`,
+        body: `${names}: ginti abhi kam${rec.days != null ? (rec.days > 365 ? ", aaj ki raftaar par ek saal se zyada" : `, takreeban ${rec.days} din aur`) : ""}. Koi hifazati number toota nahi, koi switch band karne ki zaroorat nahi.`,
         tone: "neu",
       };
     case "ITERATE":
@@ -325,6 +327,7 @@ export function secondInvoiceResult(r: import("./types").SecondInvoiceResponse):
   if (r.state === "not_started") return "Abhi koi phone nudge ke kisi guroh mein nahi aaya: koi number nahi.";
   const k = r.kpis.find((x) => x.id === "second_7d");
   if (!k || k.a?.n == null) return "Abhi koi number nahi.";
+  if (!k.a.n && !k.b?.n) return "Abhi kisi phone ke 7 din poore nahi hue: koi number nahi.";
   const head = `${pct(k.a.value)} bamuqabla ${pct(k.b?.value)} (n ${fmt(k.a.n)} · ${fmt(k.b?.n)})`;
   if (k.status === "thin") return `${head}: ginti kam, dhundla. Faisla nahi.`;
   return `${head}: farq ${diffText(k)}, hadd ${intervalText(k)}: ${ROW_STATUS[k.status].word}.`;
@@ -372,7 +375,13 @@ export function signupResult(r: import("./types").SignupInviteResponse): string 
   if (r.state === "not_started") return "Is waqt mein kisi guest phone ko dawat ka guroh nahi mila: koi number nahi.";
   const k = r.kpis.find((x) => x.id === "signup_14d");
   if (!k || k.a?.n == null) return "Abhi koi number nahi.";
+  if (!k.a.n && !k.b?.n) return "Abhi kisi phone ke 14 din poore nahi hue: koi number nahi.";
   const head = `${pct(k.a.value)} bamuqabla ${pct(k.b?.value)} (n ${fmt(k.a.n)} · ${fmt(k.b?.n)})`;
   if (k.status === "thin") return `${head}: ginti kam, dhundla. Faisla nahi.`;
   return `${head}: farq ${diffText(k)}, hadd ${intervalText(k)}: ${ROW_STATUS[k.status].word}.`;
+}
+
+/** "takreeban N hafte aur", or plainly more than a year at today's pace. */
+export function weeksText(weeks: number, what: string): string {
+  return weeks > 52 ? `${what}: aaj ki raftaar par ek saal se zyada` : `${what} mein takreeban ${weeks} hafte aur`;
 }

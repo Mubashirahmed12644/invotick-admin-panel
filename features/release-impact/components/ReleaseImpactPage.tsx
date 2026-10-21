@@ -332,7 +332,7 @@ function TimelineCard({ data }: { data: ReleaseImpactResponse }) {
               <div key={se.key} className={cx("tlistRow")}>
                 <span className={cx("bar")} style={{ background: seriesColour(se.key) }} />
                 <div>
-                  <b>{rel ? label(rel.name, rel.code) : se.key === "older" ? "Pichli (1.4.9 aur pehle)" : se.key}</b>
+                  <b>{rel ? label(rel.name, rel.code) : se.key === "older" ? "Pichli (1.4.9 aur pehle)" : se.key === "other" ? "Naye build (list mein abhi nahi)" : se.key}</b>
                   {rel && <div className={cx("small", "mut")}>{`${day(rel.productionAt)}${rel.dateUncertain ? " ?" : ""} · ${rolloutText(rel)}`}</div>}
                 </div>
                 <span className={cx("num", "small")}>

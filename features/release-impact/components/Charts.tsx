@@ -324,6 +324,8 @@ const SERIES_COLOURS: Record<string, string> = {
   "1.5.1": "var(--ser3)",
   "1.5.2": "var(--arm-b)",
   "1.5.3": "var(--arm-a)",
+  "1.5.4": "var(--ser5)",
+  other: "var(--ser6)",
 };
 export const seriesColour = (key: string) => SERIES_COLOURS[key] ?? "var(--ser0)";
 
@@ -365,7 +367,7 @@ export function TimelineChart({ tl, releases }: { tl: Timeline; releases: Releas
       {labels.map((lb) => (
         <g key={lb.key}>
           <rect x={x(last) + 8} y={lb.y - 4} width={9} height={9} rx={2} style={{ fill: seriesColour(lb.key) }} />
-          <text className={cx("tInk")} x={x(last) + 22} y={lb.y + 5}>{`${lb.key === "older" ? "pichli" : lb.key} · ${lb.share.toFixed(0)} %`}</text>
+          <text className={cx("tInk")} x={x(last) + 22} y={lb.y + 5}>{`${lb.key === "older" ? "pichli" : lb.key === "other" ? "naye build" : lb.key} · ${lb.share.toFixed(0)} %`}</text>
         </g>
       ))}
       {releases.map((rel, i) => {
