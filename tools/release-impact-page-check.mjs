@@ -71,6 +71,23 @@ try {
   ok('Play rows say source baqi, no number', text.includes('Play ka source baqi'));
   ok('balance first opens as the endpoint says', text.includes(`${data.section.balance.a.toLocaleString('en-US')} / ${(data.section.balance.a + data.section.balance.b).toLocaleString('en-US')} pehli baar khulne`));
   ok('no ad removal advice anywhere', !/ad hata/i.test(text.split("koi 'ad hata dein' ka mashwara nahi").join('')));
+
+  // Round 2: the "Doosri invoice" section (decision 0227), in whichever state its own endpoint is in.
+  const r2 = await fetch(`${API}/v1/webpanel/release-impact/second-invoice?platform=Android`, { headers: { Authorization: `Bearer ${token}` } });
+  ok('second-invoice endpoint answers 200', r2.status === 200, `(HTTP ${r2.status})`);
+  const si = (await r2.json()).data;
+  ok('second-invoice section on the page', text.includes('Doosri invoice: teen nudge, ek holdout'));
+  ok('the closed "Doosri invoice" card is gone (the section replaced it)', !text.includes('1.5.4 abhi cut nahi hui. Nudges ke saath hi banega'));
+  if (si.state === 'not_started') {
+    ok('not started: the honest state, no number', text.includes('1.5.4 abhi ship nahi hui') && text.includes('ABHI SHURU NAHI'));
+    ok('not started: no per-arm table', !text.includes('Har nudge ke qadam'));
+  } else {
+    ok('running: the arms as the endpoint says', text.includes(`Guroh: ${si.holdout.on.toLocaleString('en-US')} nudge ke saath · ${si.holdout.off.toLocaleString('en-US')} control`));
+    const k = si.kpis.find((x) => x.id === 'second_7d');
+    ok('running: primary n as the endpoint says', text.includes(`n ${k.a.n.toLocaleString('en-US')} / ${k.b.n.toLocaleString('en-US')}`), `(n ${k.a.n} / ${k.b.n})`);
+    ok('running: mechanism shown', text.includes('Har nudge ke qadam'));
+  }
+  ok(`second-invoice state seen: ${si.state}`, true);
   await page.screenshot({ path: `${outDir}/release-impact-desktop.png`, fullPage: true });
 
   await page.setViewport({ width: 390, height: 844, isMobile: true });

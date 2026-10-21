@@ -133,6 +133,10 @@ export function BalanceChart({ b, nameA, nameB }: { b: Balance; nameA: string; n
 }
 
 const STEP_NAMES: Record<string, string> = {
+  first_invoice: "Pehli invoice banayi",
+  first_share_24h: "Pehli invoice share ki (24 ghante)",
+  second_24h: "Doosri invoice, 24 ghante mein",
+  second_7d: "Doosri invoice, 7 din mein",
   first_open: "Pehli baar khola",
   started: "Invoice shuru ki",
   saved: "Invoice save ki",
@@ -140,7 +144,7 @@ const STEP_NAMES: Record<string, string> = {
 };
 
 /** New installs, first 24 hours: on which step did each build lose people? Whisker = 95 % Wilson. */
-export function FunnelChart({ ladder, nameA, nameB }: { ladder: Ladder; nameA: string; nameB: string }) {
+export function FunnelChart({ ladder, nameA, nameB, text }: { ladder: Ladder; nameA: string; nameB: string; text?: { title: string; idea: string; note: string; empty: string } }) {
   const W = 560, l = 12, r = 112, pw = W - l - r, bh = 15, blk = 62, H = ladder.steps.length * blk + 26;
   const x = lin(0, 100, l, l + pw);
   const ns = [ladder.firstOpensA, ladder.firstOpensB];
@@ -154,14 +158,14 @@ export function FunnelChart({ ladder, nameA, nameB }: { ladder: Ladder; nameA: s
   );
   return (
     <Figure
-      title="Seedhi: naye installs, 24 ghante mein"
-      idea="Sawal: pehli baar khulne wale kis qadam par zyada ruk gaye? Whisker = 95 % hadd."
+      title={text?.title ?? "Seedhi: naye installs, 24 ghante mein"}
+      idea={text?.idea ?? "Sawal: pehli baar khulne wale kis qadam par zyada ruk gaye? Whisker = 95 % hadd."}
       legend={<Legend items={[{ c: A, t: nameA }, { c: B, t: nameB }]} />}
-      note="Sirf wo phone jin ke 24 ghante poore hue. 'ASLI invoice' = share ya payment, G1."
+      note={text?.note ?? "Sirf wo phone jin ke 24 ghante poore hue. 'ASLI invoice' = share ya payment, G1."}
       table={<TableView head={["Qadam", "Build", "Phones", "Hissa", "95 % hadd"]} rows={rows} />}
     >
       {ladder.firstOpensA + ladder.firstOpensB === 0 ? (
-        <div className={cx("empty")}>Abhi kisi naye install ke 24 ghante poore nahi hue.</div>
+        <div className={cx("empty")}>{text?.empty ?? "Abhi kisi naye install ke 24 ghante poore nahi hue."}</div>
       ) : (
         <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Naye installs ki seedhi, ${nameA} aur ${nameB}`}>
           {[0, 25, 50, 75, 100].map((v) => (
@@ -175,7 +179,7 @@ export function FunnelChart({ ladder, nameA, nameB }: { ladder: Ladder; nameA: s
             return (
               <g key={st.key}>
                 <text className={cx("tInk")} x={l} y={y0 + 11}>{STEP_NAMES[st.key]}</text>
-                <text x={x(100)} y={y0 + 11} textAnchor="end" style={MUTED}>{`n ${fmt(ladder.firstOpensA)} · ${fmt(ladder.firstOpensB)}`}</text>
+                <text x={x(100)} y={y0 + 11} textAnchor="end" style={MUTED}>{`n ${fmt(ns[0])} · ${fmt(ns[1])}`}</text>
                 {[
                   [st.a, ns[0], "fA", nameA],
                   [st.b, ns[1], "fB", nameB],
@@ -210,12 +214,13 @@ export function FunnelChart({ ladder, nameA, nameB }: { ladder: Ladder; nameA: s
 }
 
 /** Of the new installs whose first week finished, how many had come back by day N? Shaded band = 95 %. */
-export function CohortChart({ points, nameA, nameB }: { points: CurvePoint[]; nameA: string; nameB: string }) {
+export function CohortChart({ points, nameA, nameB, text }: { points: CurvePoint[]; nameA: string; nameB: string; text?: { title: string; idea: string; note: string; empty: string } }) {
   const W = 560, H = 250, l = 44, r = 150, t = 24, bot = 38, pw = W - l - r, ph = H - t - bot;
   const nA = points[0]?.a.n ?? 0, nB = points[0]?.b.n ?? 0;
   const max = Math.max(10, ...points.flatMap((p) => [p.a.hi ?? 0, p.b.hi ?? 0]));
   const ymax = Math.ceil(max / 10) * 10;
-  const x = lin(2, 7, l + 8, l + pw), y = lin(0, ymax, t + ph, t);
+  const d0 = points[0]?.day ?? 2, d1 = points[points.length - 1]?.day ?? 7;
+  const x = lin(d0, d1, l + 8, l + pw), y = lin(0, ymax, t + ph, t);
   const band = (side: "a" | "b") =>
     points.map((p) => `${x(p.day)},${y(p[side].hi ?? 0)}`).concat(points.slice().reverse().map((p) => `${x(p.day)},${y(p[side].lo ?? 0)}`)).join(" ");
   const line = (side: "a" | "b") => points.map((p, i) => `${i ? "L" : "M"}${x(p.day)},${y(p[side].value ?? 0)}`).join(" ");
@@ -223,10 +228,10 @@ export function CohortChart({ points, nameA, nameB }: { points: CurvePoint[]; na
   const thinA = nA < 200, thinB = nB < 200;
   return (
     <Figure
-      title="Wapas aane ka silsila (naye installs)"
-      idea="Sawal: install ke baad din 2 se 7 tak kitne phone dobara aaye? Shaded patti = 95 % hadd."
+      title={text?.title ?? "Wapas aane ka silsila (naye installs)"}
+      idea={text?.idea ?? "Sawal: install ke baad din 2 se 7 tak kitne phone dobara aaye? Shaded patti = 95 % hadd."}
       legend={<Legend items={[{ c: A, t: `${nameA} · n ${fmt(nA)}`, line: true }, { c: B, t: `${nameB} · n ${fmt(nB)}`, line: true }]} />}
-      note={`Sirf wo phone gine gaye jin ke 7 din poore hue; baqi 'intezar' mein.${thinA || thinB ? " 200 phones se kam wali taraf dhundli (data kam)." : ""}`}
+      note={`${text?.note ?? "Sirf wo phone gine gaye jin ke 7 din poore hue; baqi 'intezar' mein."}${thinA || thinB ? " 200 phones se kam wali taraf dhundli (data kam)." : ""}`}
       table={
         <TableView
           head={["Din", nameA, "n", nameB, "n"]}
@@ -235,7 +240,7 @@ export function CohortChart({ points, nameA, nameB }: { points: CurvePoint[]; na
       }
     >
       {nA + nB === 0 ? (
-        <div className={cx("empty")}>Abhi kisi naye install ke 7 din poore nahi hue.</div>
+        <div className={cx("empty")}>{text?.empty ?? "Abhi kisi naye install ke 7 din poore nahi hue."}</div>
       ) : (
         <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Naye installs jo din 2 se 7 mein wapas aaye, cumulative">
           {[0, ymax / 2, ymax].map((v) => (
@@ -251,8 +256,8 @@ export function CohortChart({ points, nameA, nameB }: { points: CurvePoint[]; na
           {points.map((p) => (
             <text key={p.day} x={x(p.day)} y={H - 20} textAnchor="middle" style={MUTED}>{`din ${p.day}`}</text>
           ))}
-          {last && nA > 0 && <text className={cx("tInk")} x={x(7) + 10} y={y(last.a.value ?? 0) + 4}>{`${nameA.split(" ")[0]} ${pct(last.a.value)}`}</text>}
-          {last && nB > 0 && <text className={cx("tInk")} x={x(7) + 10} y={y(last.b.value ?? 0) + 18}>{`${nameB.split(" ")[0]} ${pct(last.b.value)}`}</text>}
+          {last && nA > 0 && <text className={cx("tInk")} x={x(d1) + 10} y={y(last.a.value ?? 0) + 4}>{`${nameA.split(" ")[0]} ${pct(last.a.value)}`}</text>}
+          {last && nB > 0 && <text className={cx("tInk")} x={x(d1) + 10} y={y(last.b.value ?? 0) + 18}>{`${nameB.split(" ")[0]} ${pct(last.b.value)}`}</text>}
         </svg>
       )}
     </Figure>

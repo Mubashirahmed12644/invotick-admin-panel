@@ -112,6 +112,11 @@ export interface RowWords {
 }
 
 export const ROW_WORDS: Record<string, RowWords> = {
+  second_7d: { name: "7 din mein doosri invoice", mean: "pehli invoice banane wale sab phone, poori 7 din ki khidki (primary, 0228)" },
+  second_7d_sharers: { name: "7 din mein doosri invoice: sirf share karne wale", mean: "jinhon ne pehli invoice 24 ghante mein share ki (mockup ka number)" },
+  second_24h: { name: "24 ghante mein doosri invoice", mean: "72 % doosri invoice pehle hi din banti hain" },
+  first_share_24h: { name: "Pehla share, 24 ghante", mean: "card share ke baad aata hai: ye nudge wale guroh mein kam nahi hona chahiye" },
+  duplicate_number: { name: "Do invoice ka ek hi number", mean: "ci_save_validation_failed field=invoice_number; target 0" },
   g1_24h: { name: "ASLI invoice, 24 ghante mein", mean: "naye installs: share ya payment (G1)" },
   g1_7d: { name: "ASLI invoice, 7 din mein", mean: "sirf wo phone jin ke 7 din poore hue" },
   pdf_24h: { name: "PDF bheja, 24 ghante mein", mean: "G1 ki alag line (0228): invoice ka PDF save hua" },
@@ -138,6 +143,7 @@ export function rowWords(id: string): RowWords {
 
 /** The KPI table's groups, in the order the section shows them (0229: the four goals beside the G1 rows). */
 export const GROUPS: { key: string; title: string; sub: string }[] = [
+  { key: "primary", title: "Primary", sub: "random: 'is ne kiya' likh sakte hain" },
   { key: "g1", title: "Pehli invoice (G1)", sub: "naye installs" },
   { key: "engagement", title: "Maqsad 1 · Engagement", sub: "app kitna istemal hua" },
   { key: "uninstall", title: "Maqsad 2 · Uninstall", sub: "kam behtar" },
@@ -173,6 +179,8 @@ export function breachWords(key: string | null): string {
   switch (key) {
     case null:
       return "";
+    case "nudges_holdout_percent":
+      return "Band karne ke liye: Remote Config nudges_holdout_percent = 100 (sab phone control mein, teeno nudge band).";
     case "halt_staged_rollout":
       return "Aap ka kaam: Play Console mein staged rollout rok dein (koi Remote Config switch nahi).";
     case "question_owner":
@@ -265,3 +273,52 @@ export const HOW_COUNTED: string[] = [
   "Hifazati number tab toota jab poori 95 % hadd had ke buri taraf: galtiyan +50 %, din 2-7 wapsi −2 pt, ad ki kamai −3 %, ASLI invoice −1.5 pt, splash −2 pt.",
   "Ad ki kamai hamare apne ad_impression_value se (USD); AdMob ki apni kamai: source baqi. Play ke ANR, crash aur uninstall: source baqi.",
 ];
+
+// ── round 2: the "Doosri invoice" section (decision 0227) ──
+
+/** The same goal rows, read from the first invoice instead of the first open. */
+export const SECOND_INVOICE_ROW_WORDS: Record<string, RowWords> = {
+  active_days: { name: "Hafte mein kitne din app khola", mean: "pehli invoice ke baad 7 din, fi phone (engagement)" },
+  gone_14d: { name: "Pehli invoice ke baad 14 din mein phir nahi aaye", mean: "uninstall ka andaza (proxy), Play ka number nahi; kam behtar" },
+  return_2_7: { name: "Din 2 se 7 mein wapas aaye", mean: "pehli invoice ke baad, sirf poori khidki wale" },
+  return_d7: { name: "Din 7 par wapas aaye", mean: "pehli invoice ke saatwen din" },
+  return_d30: { name: "Din 30 par wapas aaye", mean: "pehli invoice ke tees din baad" },
+  ltv_phone_day: { name: "LTV: kamai fi phone-din", mean: "pehli invoice ke 7 din: ad + premium, USD; kharidar saath" },
+  ad_phone_day: { name: "Ad ki kamai fi phone-din", mean: "pehli invoice ke 7 din, dono guroh (koi gate nahi badla)" },
+};
+
+export function secondInvoiceRowWords(id: string): RowWords {
+  return SECOND_INVOICE_ROW_WORDS[id] ?? rowWords(id);
+}
+
+export const MECHANISM_WORDS: Record<string, { nudge: string; name: string }> = {
+  card_shown: { nudge: "A", name: "card dikha (pehle share ke baad)" },
+  card_pressed: { nudge: "A", name: "card dabaya" },
+  card_copy_saved: { nudge: "A", name: "card se copy save hui (origin=repeat)" },
+  repeat_opened: { nudge: "B", name: "list par Repeat dabaya (khula)" },
+  repeat_failed: { nudge: "B", name: "Repeat nakaam (fi Repeat dabana)" },
+  optin_shown: { nudge: "C", name: "reminder ka sawal dikha" },
+  optin_on: { nudge: "C", name: "Remind me" },
+  permission_denied: { nudge: "C", name: "notification ki ijazat nahi mili" },
+  reminder_shared: { nudge: "C", name: "reminder bheja (purpose=reminder)" },
+  reminder_stopped: { nudge: "C", name: "reminders band kiye" },
+  second_repeat_origin: { nudge: "A+B", name: "doosri invoice copy se bani" },
+};
+
+export const SECOND_INVOICE_BADGE: Record<string, { word: string; small: string; cls: string; icon: "check" | "warn" | "x" | "clock" | "eq" }> = {
+  not_started: { word: "ABHI SHURU NAHI", small: "1.5.4 ship nahi hui", cls: "thin", icon: "clock" },
+  thin: { word: "DATA KAM HAI", small: "Not enough data", cls: "thin", icon: "clock" },
+  better: { word: "BEHTAR", small: "Better", cls: "better", icon: "check" },
+  worse: { word: "BURA", small: "Worse", cls: "worse", icon: "x" },
+  plain: { word: "KOI SAAF FARQ NAHI", small: "No clear difference", cls: "status-clear", icon: "eq" },
+};
+
+/** The "Nateeja" line of the section, from codes. */
+export function secondInvoiceResult(r: import("./types").SecondInvoiceResponse): string {
+  if (r.state === "not_started") return "Abhi koi phone nudge ke kisi guroh mein nahi aaya: koi number nahi.";
+  const k = r.kpis.find((x) => x.id === "second_7d");
+  if (!k || k.a?.n == null) return "Abhi koi number nahi.";
+  const head = `${pct(k.a.value)} bamuqabla ${pct(k.b?.value)} (n ${fmt(k.a.n)} · ${fmt(k.b?.n)})`;
+  if (k.status === "thin") return `${head}: ginti kam, dhundla. Faisla nahi.`;
+  return `${head}: farq ${diffText(k)}, hadd ${intervalText(k)}: ${ROW_STATUS[k.status].word}.`;
+}

@@ -208,3 +208,51 @@ export type RangeChoice = "since" | 7 | 14 | 30;
 
 /** Which G1 reading the scorecard and the "Nateeja" line use. */
 export type Win = "24h" | "7d";
+
+// ── round 2: the "Doosri invoice" section (decision 0227; backend SecondInvoiceReport.Response) ──
+
+export interface SecondInvoiceStep {
+  key: "first_invoice" | "first_share_24h" | "second_24h" | "second_7d";
+  on: number;
+  off: number;
+}
+
+export interface SecondInvoiceCurvePoint {
+  day: number;
+  on: Cell;
+  off: Cell;
+}
+
+export interface MechanismStep {
+  key: string;
+  x: number;
+  n: number;
+}
+
+export interface Hours {
+  median: number | null;
+  p75: number | null;
+  n: number;
+}
+
+export interface SecondInvoiceResponse {
+  state: "not_started" | "running";
+  platform: string;
+  range: { from: string; to: string };
+  computedAt: string;
+  stale: boolean;
+  truncated: boolean;
+  holdout: { on: number; off: number; percentSources: Record<string, number>; holdoutPercents: Record<string, number>; firstDealAt: string | null };
+  population: { firstInvoices: number; assigned: number; unassigned: number; ours: number; pending7: number };
+  verdict: { badge: "not_started" | "thin" | "better" | "worse" | "plain"; breached: string[]; switches: string[] };
+  recommendation: Recommendation | null;
+  readDates: ReadDate[];
+  plan: { neededPerArm: number | null; perWeekOn: number; perWeekOff: number; weeksMore: number | null };
+  kpis: Kpi[];
+  funnel: { firstInvoiceOn: number; firstInvoiceOff: number; steps: SecondInvoiceStep[] };
+  curve: SecondInvoiceCurvePoint[];
+  mechanism: MechanismStep[];
+  offArmNudgePhones: number;
+  shareToSecond: Record<"on" | "off", Hours>;
+  repeatAmountsUnchanged: MechanismStep;
+}

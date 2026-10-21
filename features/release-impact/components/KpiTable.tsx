@@ -1,6 +1,6 @@
 import { Fragment } from "react";
 import type { Kpi } from "../types";
-import { GROUPS, cellCount, cellValue, diffText, intervalText, minText, pendingNote, rowWords } from "../words";
+import { GROUPS, cellCount, cellValue, diffText, intervalText, minText, pendingNote, rowWords, type RowWords } from "../words";
 import { StatusPill, cx } from "./shared";
 
 /**
@@ -45,8 +45,8 @@ function Value({ k, side }: { k: Kpi; side: "a" | "b" }) {
   );
 }
 
-export function KpiRow({ k, nameA, nameB }: { k: Kpi; nameA: string; nameB: string }) {
-  const w = rowWords(k.id);
+export function KpiRow({ k, nameA, nameB, wordsFor = rowWords }: { k: Kpi; nameA: string; nameB: string; wordsFor?: (id: string) => RowWords }) {
+  const w = wordsFor(k.id);
   return (
     <tr className={cx(`k-${k.status}`)}>
       <th scope="row">
@@ -89,7 +89,7 @@ export function KpiRow({ k, nameA, nameB }: { k: Kpi; nameA: string; nameB: stri
 }
 
 /** The section's KPI table, grouped as 0229 asks: G1, the four goals, then the guardrails left. */
-export function KpiTable({ kpis, nameA, nameB, only }: { kpis: Kpi[]; nameA: string; nameB: string; only?: string[] }) {
+export function KpiTable({ kpis, nameA, nameB, only, wordsFor }: { kpis: Kpi[]; nameA: string; nameB: string; only?: string[]; wordsFor?: (id: string) => RowWords }) {
   const groups = GROUPS.filter((g) => !only || only.includes(g.key));
   return (
     <div className={cx("tblwrap")}>
@@ -117,7 +117,7 @@ export function KpiTable({ kpis, nameA, nameB, only }: { kpis: Kpi[]; nameA: str
                   </th>
                 </tr>
                 {rows.map((k) => (
-                  <KpiRow key={k.id} k={k} nameA={nameA} nameB={nameB} />
+                  <KpiRow key={k.id} k={k} nameA={nameA} nameB={nameB} wordsFor={wordsFor} />
                 ))}
               </Fragment>
             );

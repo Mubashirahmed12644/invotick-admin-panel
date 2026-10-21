@@ -28,6 +28,7 @@ import {
 } from "../words";
 import { BalanceChart, CohortChart, DailyChart, FunnelChart, TimelineChart, seriesColour } from "./Charts";
 import { KpiTable } from "./KpiTable";
+import SecondInvoiceSection from "./SecondInvoiceSection";
 import { Icon, StatusPill, cx } from "./shared";
 
 const RANGES: { r: RangeChoice; label: string }[] = [
@@ -209,7 +210,7 @@ export default function ReleaseImpactPage() {
                 {current.reason === "computing" && <Skeleton />}
               </>
             )}
-            {data && <Answer data={data} win={win} onRetry={retry} />}
+            {data && <Answer data={data} win={win} onRetry={retry} range={range} onFail={onFail} />}
 
             <details className={cx("howbox")}>
               <summary>
@@ -273,7 +274,7 @@ function Meta({ data }: { data: ReleaseImpactResponse | null }) {
 
 const label = (name: string, code: number) => `${name} (${code})`;
 
-function Answer({ data, win, onRetry }: { data: ReleaseImpactResponse; win: Win; onRetry: () => void }) {
+function Answer({ data, win, onRetry, range, onFail }: { data: ReleaseImpactResponse; win: Win; onRetry: () => void; range: RangeChoice; onFail: (e: unknown) => boolean }) {
   if (data.truncated) {
     return (
       <div className={cx("strip", "warn")} role="alert">
@@ -298,6 +299,7 @@ function Answer({ data, win, onRetry }: { data: ReleaseImpactResponse; win: Win;
       <TimelineCard data={data} />
       <ScorecardCard data={data} win={win} />
       <SectionCard data={data} win={win} />
+      <SecondInvoiceSection range={range} onFail={onFail} />
       <OtherSections />
     </>
   );
@@ -720,14 +722,6 @@ const OTHER: { rel: string; name: string; state: "notbuilt" | "source" | "waits"
     why: "Play ke crash/ANR version-wise: chhota naya table aur aap ki ijazat chahiye. Jab tak nahi, hamare apne prev_exit aur galti ke clusters.",
     will: "Version-wise crash aur ANR ki lakeer, naye / gaye clusters ki fehrist, 'theek hua' wale qadam jo 7 din baad bhi report ho to laal.",
     cmp: "staged 117 bamuqabla 116 (Play ke rates version-wise hain)",
-  },
-  {
-    rel: "1.5.4 (taiyari)",
-    name: "Doosri invoice",
-    state: "waits",
-    why: "1.5.4 abhi cut nahi hui. Nudges ke saath hi banega (naye events, holdout, test).",
-    will: "Pehla share → card → dabaya → doosri invoice, nudge ke saath bamuqabla bina; wapsi ka silsila (24 ghante, din 7, din 30); 'kitne hafte aur'.",
-    cmp: "random holdout (hamara apna): 'is ne kiya' likh sakte hain",
   },
   {
     rel: "1.5.0 · 1.5.1",

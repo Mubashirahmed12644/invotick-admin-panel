@@ -14,6 +14,9 @@ import {
   intervalText,
   recommendationWords,
   resultLine,
+  secondInvoiceResult,
+  secondInvoiceRowWords,
+  MECHANISM_WORDS,
   sg,
 } from '../features/release-impact/words.ts';
 
@@ -28,7 +31,8 @@ const yes = (name, cond) => eq(name, Boolean(cond), true);
 
 // Every row the backend sends (ReleaseImpactReport.kpis) has a name and a meaning.
 const IDS = ['g1_24h', 'g1_7d', 'pdf_24h', 'active_days', 'real_action_7d', 'uninstall_play', 'gone_14d', 'return_2_7', 'return_d7',
-  'return_d30', 'ltv_phone_day', 'ad_phone_day', 'paywall_net_viewer', 'anr', 'crash', 'errors_seen', 'sync_defects', 'splash_pass'];
+  'return_d30', 'ltv_phone_day', 'ad_phone_day', 'paywall_net_viewer', 'anr', 'crash', 'errors_seen', 'sync_defects', 'splash_pass',
+  'second_7d', 'second_7d_sharers', 'second_24h', 'first_share_24h', 'duplicate_number'];
 for (const id of IDS) yes(`words for ${id}`, ROW_WORDS[id]?.name && ROW_WORDS[id]?.mean);
 
 eq('a real minus sign', sg(-4), '−4.0');
@@ -61,6 +65,14 @@ const line = resultLine(base(null, [
   { id: 'crash', status: 'pending' },
 ]), 'g1_24h');
 eq('result line, thin and pending', line, 'koi toota nahi. ASLI invoice, 24 ghante mein: data kam (n 60 · 60). 2 ka source baqi (Play).');
+
+// Round 2 (decision 0227).
+for (const k of ['card_shown', 'card_pressed', 'card_copy_saved', 'repeat_opened', 'repeat_failed', 'optin_shown', 'optin_on',
+  'permission_denied', 'reminder_shared', 'reminder_stopped', 'second_repeat_origin']) yes(`mechanism words for ${k}`, MECHANISM_WORDS[k]?.name);
+yes('goal rows read from the first invoice', secondInvoiceRowWords('return_2_7').mean.includes('pehli invoice'));
+eq('the holdout switch is 100, never false', breachWords('nudges_holdout_percent'), 'Band karne ke liye: Remote Config nudges_holdout_percent = 100 (sab phone control mein, teeno nudge band).');
+const ns = secondInvoiceResult({ state: 'not_started', kpis: [] });
+yes('not started says no number', ns.includes('koi number nahi') && !/[0-9]/.test(ns));
 
 if (failed) {
   console.log(`\n${failed} check(s) failed`);

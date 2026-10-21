@@ -141,6 +141,7 @@
 .badge { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 12px; font-weight: 800; font-size: 14px; letter-spacing: .5px; white-space: nowrap }
 .badge svg.i { width: 20px; height: 20px }
 .badge small { display: block; font-weight: 600; font-size: 10.5px; letter-spacing: .3px; text-transform: none; opacity: .9; margin-top: 1px }
+.badge.better { background: var(--good-c); color: var(--on-good-c); outline: 1.5px solid var(--good) }
 .badge.worse { background: var(--bad-c); color: var(--on-bad-c); outline: 1.5px solid var(--bad) }
 .badge.thin { background: transparent; color: var(--muted); outline: 1.5px dashed var(--muted) }
 .badge.status-clear { background: var(--neu-c); color: var(--on-neu-c); outline: 1.5px solid var(--muted) }
@@ -158,6 +159,7 @@
 .kinds { display: flex; flex-wrap: wrap; gap: 8px }
 .kind { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 800; padding: 4px 10px; border-radius: 999px; border: 1.5px solid var(--line); background: var(--card) }
 .kind.stage { border-color: var(--arm-a); color: var(--ink) }
+.kind.rand { border-color: var(--good); color: var(--on-good-c); background: var(--good-c) }
 .kind.assoc { border-color: var(--warn); color: var(--on-warn-c); background: var(--warn-c) }
 .kind svg.i { width: 14px; height: 14px }
 .exp { display: grid; gap: 4px; background: var(--s-low); border-radius: 12px; padding: 10px 12px; font-size: 13px }
@@ -209,6 +211,11 @@ details.fold summary { cursor: pointer; font-weight: 800; color: var(--ink-2) }
 .wk { stroke: var(--ink); stroke-width: 1.6; fill: none }
 .empty { font-size: 12.5px; color: var(--muted); padding: 18px 4px; text-align: center }
 
+/* bars of the mechanism and the time between steps */
+.pbar { display: grid; grid-template-columns: 170px minmax(0, 1fr) 110px; gap: 8px; align-items: center; font-size: 12.5px; padding: 3px 0 }
+.pbar .tr { height: 12px; background: var(--s-high); border-radius: 4px; position: relative }
+.pbar .tr i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 0 4px 4px 0; background: var(--arm-a) }
+
 /* collapsed sections */
 .cols { display: grid; gap: 10px }
 .col { border: 1px solid var(--line); border-radius: 16px; background: var(--card); padding: 12px 14px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 14px; align-items: start }
@@ -241,6 +248,8 @@ details.fold summary { cursor: pointer; font-weight: 800; color: var(--ink-2) }
   .charts { grid-template-columns: minmax(0, 1fr) }
 }
 @container pg (max-width: 640px) {
+  .pbar { grid-template-columns: minmax(0, 1fr) 110px }
+  .pbar .tr { grid-column: 1 / -1; order: 3 }
   .tlWide { display: none }
   .tlList { display: block }
   .rels { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: 210px; overflow-x: auto; padding-bottom: 6px }
