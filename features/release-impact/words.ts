@@ -32,6 +32,8 @@ export function cellValue(unit: Kpi["unit"], c: Cell | null | undefined): string
       return `${c.value.toFixed(2)} din`;
     case "usd":
       return usd(c.value);
+    case "count":
+      return c.value.toFixed(2);
   }
 }
 
@@ -45,6 +47,8 @@ export function usd(v: number | null | undefined): string {
 export function cellCount(k: Pick<Kpi, "unit" | "kind" | "id">, c: Cell | null | undefined): string {
   if (!c) return "";
   if (k.kind === "money") {
+    if (k.id === "invoices_per_phone") return `${fmt(c.n)} phones`;
+    if (k.id === "premium_net_phone") return `${fmt(c.n)} phones · ${fmt(c.extra?.buyers ?? 0)} kharidar`;
     if (k.id === "paywall_net_viewer") return `${fmt(c.n)} viewers · ${fmt(c.extra?.buyers ?? 0)} kharidar`;
     const buyers = c.extra?.buyers;
     return `${fmt(c.n)} phone-din${buyers != null ? ` · ${fmt(buyers)} kharidar` : ""}`;
@@ -145,6 +149,7 @@ export function rowWords(id: string): RowWords {
 export const GROUPS: { key: string; title: string; sub: string }[] = [
   { key: "primary", title: "Primary", sub: "random: 'is ne kiya' likh sakte hain" },
   { key: "g1", title: "Pehli invoice (G1)", sub: "naye installs" },
+  { key: "stay", title: "Hifazat · App mein rehna", sub: "exit ki tasdeeq gire to log tang hue" },
   { key: "engagement", title: "Maqsad 1 · Engagement", sub: "app kitna istemal hua" },
   { key: "uninstall", title: "Maqsad 2 · Uninstall", sub: "kam behtar" },
   { key: "retention", title: "Maqsad 3 · Retention", sub: "din 2-7 hifazati number bhi hai" },
@@ -179,6 +184,8 @@ export function breachWords(key: string | null): string {
   switch (key) {
     case null:
       return "";
+    case "signup_exit_invite_enabled":
+      return "Band karne ke liye: Remote Config signup_exit_invite_enabled = false (exit dialog purana ho jata hai).";
     case "nudges_holdout_percent":
       return "Band karne ke liye: Remote Config nudges_holdout_percent = 100 (sab phone control mein, teeno nudge band).";
     case "halt_staged_rollout":
@@ -317,6 +324,53 @@ export const SECOND_INVOICE_BADGE: Record<string, { word: string; small: string;
 export function secondInvoiceResult(r: import("./types").SecondInvoiceResponse): string {
   if (r.state === "not_started") return "Abhi koi phone nudge ke kisi guroh mein nahi aaya: koi number nahi.";
   const k = r.kpis.find((x) => x.id === "second_7d");
+  if (!k || k.a?.n == null) return "Abhi koi number nahi.";
+  const head = `${pct(k.a.value)} bamuqabla ${pct(k.b?.value)} (n ${fmt(k.a.n)} · ${fmt(k.b?.n)})`;
+  if (k.status === "thin") return `${head}: ginti kam, dhundla. Faisla nahi.`;
+  return `${head}: farq ${diffText(k)}, hadd ${intervalText(k)}: ${ROW_STATUS[k.status].word}.`;
+}
+
+// ── round 3: the "Signup at exit" section (decision 0232) ──
+
+export const SIGNUP_ROW_WORDS: Record<string, RowWords> = {
+  signup_14d: { name: "14 din mein account banaya ya sign in kiya", mean: "eligible guest phones, poori 14 din ki khidki (primary, 0232)" },
+  signup_7d: { name: "7 din mein account", mean: "parhne ki tareekh, faisla nahi" },
+  signup_1d: { name: "24 ghante mein account", mean: "parhne ki tareekh, faisla nahi" },
+  exit_confirmed: { name: "Exit ki tasdeeq (exit dialog par)", mean: "app_exit_confirmed bamuqabla app_exit_cancelled; −3 pt se zyada girna = tang karna" },
+  invoices_per_phone: { name: "Invoices fi phone, 14 din", mean: "eligible hone ke baad; −5 % had (G1)" },
+  shared_14d: { name: "Share karne wale phones, 14 din", mean: "confirmed share (reminder ka nahi); −5 % had (G1)" },
+  paywall_seen: { name: "Paywall dekhne wale phones, 14 din", mean: "premium_scr; −3 % had" },
+  premium_net_phone: { name: "Premium net kamai fi phone, 14 din", mean: "USD, store fee ke baad; 10 kharidar se kam: kabhi laal nahi" },
+  merge_failed: { name: "Guest ka kaam account mein na juda", mean: "sign-in galti ya merge nakaam; target 0, koi bhi izafa = bura" },
+  errors_seen_phones: { name: "Galti dekhne wale phones, 14 din", mean: "error_shown; +50 % had" },
+  gone_14d: { name: "Eligible hone ke baad 14 din mein phir nahi aaye", mean: "uninstall ka andaza (proxy); +2 pt had; kam behtar" },
+  active_days: { name: "14 din mein kitne din app khola", mean: "eligible hone ke baad, fi phone (engagement)" },
+  return_d7_signed: { name: "Din 7 par wapas: account wale bamuqabla bina account", mean: "sirf bayan, faisla nahi (dono guroh milakar)" },
+  return_d30_signed: { name: "Din 30 par wapas: account wale bamuqabla bina account", mean: "sirf bayan, faisla nahi" },
+  ltv_phone_day: { name: "LTV: kamai fi phone-din, 14 din", mean: "ad + premium, USD; kharidar saath" },
+  ad_phone_day: { name: "Ad ki kamai fi phone-din, 14 din", mean: "sab formats, dono guroh; −3 % had" },
+};
+
+export function signupRowWords(id: string): RowWords {
+  return SIGNUP_ROW_WORDS[id] ?? rowWords(id);
+}
+
+export const SIGNUP_MECHANISM_WORDS: Record<string, string> = {
+  invite_shown: "Exit par dawat dikhi",
+  signin_pressed: "Google ya email dabaya",
+  signin_done: "Sign-in poora hua",
+  work_joined: "Guest ka kaam account mein juda (guest_data_merged)",
+  stay_pressed: "Stay dabaya",
+  exit_pressed: "Exit dabaya",
+  cancelled: "Sign-in beech mein chhoda",
+  error: "Sign-in mein galti",
+};
+
+export const SIGNUP_LEVEL_WORDS: Record<string, string> = { at_risk: "At risk", better: "Better", safe: "Safe", unknown: "maloom nahi" };
+
+export function signupResult(r: import("./types").SignupInviteResponse): string {
+  if (r.state === "not_started") return "Is waqt mein kisi guest phone ko dawat ka guroh nahi mila: koi number nahi.";
+  const k = r.kpis.find((x) => x.id === "signup_14d");
   if (!k || k.a?.n == null) return "Abhi koi number nahi.";
   const head = `${pct(k.a.value)} bamuqabla ${pct(k.b?.value)} (n ${fmt(k.a.n)} · ${fmt(k.b?.n)})`;
   if (k.status === "thin") return `${head}: ginti kam, dhundla. Faisla nahi.`;

@@ -1,5 +1,5 @@
 import { ApiError, api, apiRequest } from "@/lib/api";
-import type { RangeChoice, ReleaseImpactResponse, SecondInvoiceResponse, Unavailable } from "./types";
+import type { RangeChoice, ReleaseImpactResponse, SecondInvoiceResponse, SignupInviteResponse, Unavailable } from "./types";
 
 const BASE = "/v1/webpanel/release-impact";
 
@@ -20,6 +20,12 @@ export const releaseImpactApi = {
   secondInvoice(r: RangeChoice) {
     const q = r === "since" ? "?platform=Android" : rangeQuery(r);
     return apiRequest<SecondInvoiceResponse>(`${BASE}/second-invoice${q}`, { expectedStatuses: [503] });
+  },
+
+  /** The "Signup at exit" section (decision 0232): its own read and cache; the last 30 days unless a range is picked. */
+  signupAtExit(r: RangeChoice) {
+    const q = r === "since" ? "?platform=Android" : rangeQuery(r);
+    return apiRequest<SignupInviteResponse>(`${BASE}/signup-at-exit${q}`, { expectedStatuses: [503] });
   },
 
   /** The Health Centre's silence check for feature events, for the one strip this page shows (never a copy of the card). */

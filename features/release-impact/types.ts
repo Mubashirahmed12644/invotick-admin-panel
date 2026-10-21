@@ -61,7 +61,7 @@ export interface Kpi {
   dir: number;
   tol: number | null;
   diffUnit: "pp" | "pct" | "days";
-  unit: "percent" | "per1000" | "days" | "usd";
+  unit: "percent" | "per1000" | "days" | "usd" | "count";
   a: Cell | null;
   b: Cell | null;
   diff: number | null;
@@ -255,4 +255,27 @@ export interface SecondInvoiceResponse {
   offArmNudgePhones: number;
   shareToSecond: Record<"on" | "off", Hours>;
   repeatAmountsUnchanged: MechanismStep;
+}
+
+// ── round 3: the "Signup at exit" section (decision 0232; backend SignupInviteReport.Response) ──
+
+export interface SignupInviteResponse {
+  state: "not_started" | "running";
+  platform: string;
+  range: { from: string; to: string };
+  computedAt: string;
+  stale: boolean;
+  truncated: boolean;
+  population: { dealt: number; invited: number; holdout: number; paying: number; ours: number; olderBuild: number; dealtTwice: number; pending14: number };
+  verdict: { badge: "not_started" | "thin" | "better" | "worse" | "plain"; breached: string[]; switches: string[] };
+  recommendation: Recommendation | null;
+  readDates: ReadDate[];
+  plan: { neededHoldout: number | null; neededInvited: number | null; perWeekInvited: number; perWeekHoldout: number; weeksMore: number | null };
+  kpis: Kpi[];
+  mechanism: MechanismStep[];
+  shownByLevel: Record<string, number>;
+  capViolations: MechanismStep;
+  holdoutShownPhones: number;
+  paying: MechanismStep;
+  signupsGone7: MechanismStep;
 }

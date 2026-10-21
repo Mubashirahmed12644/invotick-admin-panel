@@ -17,6 +17,9 @@ import {
   secondInvoiceResult,
   secondInvoiceRowWords,
   MECHANISM_WORDS,
+  SIGNUP_MECHANISM_WORDS,
+  signupResult,
+  signupRowWords,
   sg,
 } from '../features/release-impact/words.ts';
 
@@ -73,6 +76,16 @@ yes('goal rows read from the first invoice', secondInvoiceRowWords('return_2_7')
 eq('the holdout switch is 100, never false', breachWords('nudges_holdout_percent'), 'Band karne ke liye: Remote Config nudges_holdout_percent = 100 (sab phone control mein, teeno nudge band).');
 const ns = secondInvoiceResult({ state: 'not_started', kpis: [] });
 yes('not started says no number', ns.includes('koi number nahi') && !/[0-9]/.test(ns));
+
+// Round 3 (decision 0232).
+for (const id of ['signup_14d', 'signup_7d', 'signup_1d', 'exit_confirmed', 'invoices_per_phone', 'shared_14d', 'paywall_seen', 'premium_net_phone',
+  'merge_failed', 'errors_seen_phones', 'gone_14d', 'active_days', 'return_d7_signed', 'return_d30_signed', 'ltv_phone_day', 'ad_phone_day']) {
+  yes(`signup words for ${id}`, signupRowWords(id).name && signupRowWords(id).mean);
+}
+for (const k of ['invite_shown', 'signin_pressed', 'signin_done', 'work_joined', 'stay_pressed', 'exit_pressed', 'cancelled', 'error']) yes(`signup step ${k}`, SIGNUP_MECHANISM_WORDS[k]);
+eq('the signup switch', breachWords('signup_exit_invite_enabled'), 'Band karne ke liye: Remote Config signup_exit_invite_enabled = false (exit dialog purana ho jata hai).');
+const sn = signupResult({ state: 'not_started', kpis: [] });
+yes('signup not started says no number', sn.includes('koi number nahi') && !/[0-9]/.test(sn));
 
 if (failed) {
   console.log(`\n${failed} check(s) failed`);

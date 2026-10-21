@@ -277,7 +277,7 @@ function Running({ data }: { data: SecondInvoiceResponse }) {
           }}
         />
       </div>
-      <KpiTable kpis={data.kpis} nameA={ON} nameB={OFF} wordsFor={secondInvoiceRowWords} />
+      <KpiTable kpis={data.kpis} nameA={ON} nameB={OFF} wordsFor={secondInvoiceRowWords} subFor={(g) => (g === "g1" ? "pehli invoice ke baad" : undefined)} />
       <div className={cx("charts")}>
         <figure className={cx("cc")}>
           <header>

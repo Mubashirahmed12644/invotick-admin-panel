@@ -88,6 +88,19 @@ try {
     ok('running: mechanism shown', text.includes('Har nudge ke qadam'));
   }
   ok(`second-invoice state seen: ${si.state}`, true);
+
+  // Round 3: the "Signup at exit" section (decision 0232).
+  const r3 = await fetch(`${API}/v1/webpanel/release-impact/signup-at-exit?platform=Android`, { headers: { Authorization: `Bearer ${token}` } });
+  ok('signup-at-exit endpoint answers 200', r3.status === 200, `(HTTP ${r3.status})`);
+  const su = (await r3.json()).data;
+  ok('signup-at-exit section on the page', text.includes('Signup at exit: dawat aur Account safety'));
+  if (su.state === 'not_started') {
+    ok('signup not started: the honest state, no number', text.includes('1.5.5 abhi ship nahi hui') && !text.includes('Dawat ke qadam'));
+  } else {
+    ok('signup running: the arms as the endpoint says', text.includes(`Guroh: ${su.population.invited.toLocaleString('en-US')} dawat · ${su.population.holdout.toLocaleString('en-US')} holdout`));
+    ok('signup running: the steps shown', text.includes('Dawat ke qadam'));
+  }
+  ok(`signup-at-exit state seen: ${su.state}`, true);
   await page.screenshot({ path: `${outDir}/release-impact-desktop.png`, fullPage: true });
 
   await page.setViewport({ width: 390, height: 844, isMobile: true });

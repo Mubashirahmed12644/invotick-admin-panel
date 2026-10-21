@@ -89,7 +89,7 @@ export function KpiRow({ k, nameA, nameB, wordsFor = rowWords }: { k: Kpi; nameA
 }
 
 /** The section's KPI table, grouped as 0229 asks: G1, the four goals, then the guardrails left. */
-export function KpiTable({ kpis, nameA, nameB, only, wordsFor }: { kpis: Kpi[]; nameA: string; nameB: string; only?: string[]; wordsFor?: (id: string) => RowWords }) {
+export function KpiTable({ kpis, nameA, nameB, only, wordsFor, subFor }: { kpis: Kpi[]; nameA: string; nameB: string; only?: string[]; wordsFor?: (id: string) => RowWords; subFor?: (group: string) => string | undefined }) {
   const groups = GROUPS.filter((g) => !only || only.includes(g.key));
   return (
     <div className={cx("tblwrap")}>
@@ -113,7 +113,7 @@ export function KpiTable({ kpis, nameA, nameB, only, wordsFor }: { kpis: Kpi[]; 
                 <tr className={cx("grp")}>
                   <th colSpan={6}>
                     {g.title}
-                    {g.sub && <span>{g.sub}</span>}
+                    {(subFor?.(g.key) ?? g.sub) && <span>{subFor?.(g.key) ?? g.sub}</span>}
                   </th>
                 </tr>
                 {rows.map((k) => (

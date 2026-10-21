@@ -29,6 +29,7 @@ import {
 import { BalanceChart, CohortChart, DailyChart, FunnelChart, TimelineChart, seriesColour } from "./Charts";
 import { KpiTable } from "./KpiTable";
 import SecondInvoiceSection from "./SecondInvoiceSection";
+import SignupAtExitSection from "./SignupAtExitSection";
 import { Icon, StatusPill, cx } from "./shared";
 
 const RANGES: { r: RangeChoice; label: string }[] = [
@@ -300,6 +301,7 @@ function Answer({ data, win, onRetry, range, onFail }: { data: ReleaseImpactResp
       <ScorecardCard data={data} win={win} />
       <SectionCard data={data} win={win} />
       <SecondInvoiceSection range={range} onFail={onFail} />
+      <SignupAtExitSection range={range} onFail={onFail} />
       <OtherSections />
     </>
   );

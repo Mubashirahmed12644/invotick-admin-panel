@@ -259,7 +259,7 @@ details.fold summary { cursor: pointer; font-weight: 800; color: var(--ink-2) }
   .exp p { grid-template-columns: minmax(0, 1fr); gap: 0 }
   .col { grid-template-columns: minmax(0, 1fr) }
   .tbl.stack thead { display: none }
-  .tbl.stack, .tbl.stack tbody, .tbl.stack tr, .tbl.stack th, .tbl.stack td { display: block; width: 100% }
+  .tbl.stack, .tbl.stack tbody, .tbl.stack tr, .tbl.stack th, .tbl.stack td { display: block; width: 100%; box-sizing: border-box }
   .tbl.stack tr { border: 1px solid var(--line); border-radius: 12px; margin-bottom: 8px; padding: 6px 4px; background: var(--card) }
   .tbl.stack tr.grp { border: 0; padding: 0; background: transparent; margin-bottom: 4px; margin-top: 6px }
   .tbl.stack tr.grp th { border-radius: 8px }
