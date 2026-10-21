@@ -365,7 +365,7 @@ export function signupRowWords(id: string): RowWords {
 export const SIGNUP_MECHANISM_WORDS: Record<string, string> = {
   invite_shown: "Exit par dawat dikhi",
   signin_pressed: "Google ya email dabaya",
-  signin_done: "Sign-in poora hua (Google khud batata hai; email: dabane ke baad account bana)",
+  signin_done: "Sign-in poora (email: baad mein account bana)",
   work_joined: "Guest ka kaam account mein juda (guest_data_merged)",
   stay_pressed: "Stay dabaya",
   exit_pressed: "Exit dabaya",

@@ -27,8 +27,8 @@ import { Icon, cx } from "./shared";
 
 type Load = { rk: string; kind: "ok"; data: FirstGateResponse } | { rk: string; kind: "unavailable"; reason: Unavailable } | { rk: string; kind: "error"; message: string };
 
-const ON = "Move (save pehle, ad dashboard par)";
-const OFF = "Show (ad save se pehle, aaj jaisa)";
+const ON = "Move (ad baad mein)";
+const OFF = "Show (aaj jaisa)";
 
 /**
  * The "First invoice gate" section (decision 0233; registry 158), round 4 of the Release Impact page. Its own read and
@@ -199,7 +199,7 @@ export default function FirstInvoiceGateSection({ range, onFail }: { range: Rang
           <b>Switch:</b> <code>first_invoice_gate_move_percent</code> (0 = sab phone par dialog save se pehle, aaj jaisa; test 20). Ad unit, premium ka darwaza aur
           baqi har ad wahi.
           <ul>
-            <li>Ad ki kamai ka girna khud ba khud &quot;BURA&quot; nahi: wo qeemat hai, sawal aap se. Ye panel gate ya ad hataane ka mashwara kabhi nahi deta.</li>
+            <li>Ad ki kamai ka girna khud ba khud &quot;BURA&quot; nahi: wo qeemat hai, sawal aap se. Ye panel kabhi gate, ad ya paywall hataane ka mashwara nahi deta.</li>
             <li>&quot;Ad dekhein&quot; dabana ad dikhne ka saboot nahi (no-fill bhi flow khatam karta hai); asli kamai ad_impression_value se.</li>
             <li>Play ke crash, ANR aur uninstall: source baqi; uninstall ki jagah andaza.</li>
           </ul>
@@ -321,7 +321,7 @@ function Running({ data }: { data: FirstGateResponse }) {
   return (
     <>
       <PriceBlock data={data} />
-      <KpiTable kpis={data.kpis} nameA={ON} nameB={OFF} wordsFor={gateRowWords} subFor={(g) => (g === "primary" ? "pehli baar khulne se; 24 ghante faisla, 7 din parhne ki tareekh" : undefined)} />
+      <KpiTable kpis={data.kpis} nameA={ON} nameB={OFF} wordsFor={gateRowWords} subFor={(g) => (g === "primary" ? "pehli baar khulne se; 24 ghante faisla, 7 din parhne ki tareekh" : g === "ltv" ? "qeemat ka number: rang nahi, faisla aap ka" : undefined)} />
       <div className={cx("charts")}>
         <figure className={cx("cc")}>
           <header>
