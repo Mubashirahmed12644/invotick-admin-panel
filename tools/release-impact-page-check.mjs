@@ -79,7 +79,7 @@ try {
   ok('second-invoice section on the page', text.includes('Doosri invoice: teen nudge, ek holdout'));
   ok('the closed "Doosri invoice" card is gone (the section replaced it)', !text.includes('1.5.4 abhi cut nahi hui. Nudges ke saath hi banega'));
   if (si.state === 'not_started') {
-    ok('not started: the honest state, no number', text.includes('1.5.4 abhi ship nahi hui') && text.includes('ABHI SHURU NAHI'));
+    ok('not started: the honest state, no number', text.includes('Is waqt mein kisi phone ko nudge ka guroh nahi mila') && text.includes('ABHI SHURU NAHI'));
     ok('not started: no per-arm table', !text.includes('Har nudge ke qadam'));
   } else {
     ok('running: the arms as the endpoint says', text.includes(`Guroh: ${si.holdout.on.toLocaleString('en-US')} nudge ke saath · ${si.holdout.off.toLocaleString('en-US')} control`));

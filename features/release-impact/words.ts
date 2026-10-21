@@ -306,7 +306,7 @@ export const MECHANISM_WORDS: Record<string, { nudge: string; name: string }> = 
 };
 
 export const SECOND_INVOICE_BADGE: Record<string, { word: string; small: string; cls: string; icon: "check" | "warn" | "x" | "clock" | "eq" }> = {
-  not_started: { word: "ABHI SHURU NAHI", small: "1.5.4 ship nahi hui", cls: "thin", icon: "clock" },
+  not_started: { word: "ABHI SHURU NAHI", small: "is waqt mein koi guroh nahi", cls: "thin", icon: "clock" },
   thin: { word: "DATA KAM HAI", small: "Not enough data", cls: "thin", icon: "clock" },
   better: { word: "BEHTAR", small: "Better", cls: "better", icon: "check" },
   worse: { word: "BURA", small: "Worse", cls: "worse", icon: "x" },

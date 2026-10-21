@@ -75,7 +75,7 @@ export default function SecondInvoiceSection({ range, onFail }: { range: RangeCh
               </span>
               <span>
                 <Icon name="cal" />
-                <b>1.5.4</b> (taiyari)
+                <b>1.5.4</b> (118) · 21 Oct · 99 %
               </span>
               {data && (
                 <span>
@@ -177,10 +177,10 @@ function NotStarted({ data }: { data: SecondInvoiceResponse }) {
         <Icon name="clock" />
         abhi data nahi
       </span>
-      <h3>1.5.4 abhi ship nahi hui: kisi phone ko nudge ka guroh nahi mila</h3>
+      <h3>Is waqt mein kisi phone ko nudge ka guroh nahi mila</h3>
       <p>
-        Is waqt mein koi <code>nudges_assigned</code> row nahi aayi, is liye koi number nahi dikhaya ja raha. Pehla phone aate hi section khud bhar jata hai.{" "}
-        <b>Zero ko &quot;theek&quot; nahi likha jata.</b>
+        Is waqt mein koi <code>nudges_assigned</code> row nahi aayi, is liye koi number nahi dikhaya ja raha. 1.5.4 se pehle ke waqt mein ye theek hai; 1.5.4
+        ke phones ke waqt mein ye khamoshi hai: Health Centre ki <code>feature-events-arriving</code> check dekhein. <b>Zero ko &quot;theek&quot; nahi likha jata.</b>
       </p>
       <p className={cx("small", "mut")}>
         {`Is waqt ${fmt(data.population.firstInvoices)} phones ne pehli invoice banayi (sab bina guroh${data.population.ours ? `, ${fmt(data.population.ours)} hamare apne nikale` : ""}). `}
