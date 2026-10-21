@@ -21,6 +21,11 @@ import {
   signupResult,
   signupRowWords,
   sg,
+  GATE_OUTCOME_WORDS,
+  gatePriceSentence,
+  gateRecommendationWords,
+  gateResult,
+  gateRowWords,
 } from '../features/release-impact/words.ts';
 
 let failed = 0;
@@ -86,6 +91,30 @@ for (const k of ['invite_shown', 'signin_pressed', 'signin_done', 'work_joined',
 eq('the signup switch', breachWords('signup_exit_invite_enabled'), 'Band karne ke liye: Remote Config signup_exit_invite_enabled = false (exit dialog purana ho jata hai).');
 const sn = signupResult({ state: 'not_started', kpis: [] });
 yes('signup not started says no number', sn.includes('koi number nahi') && !/[0-9]/.test(sn));
+
+// Round 4 (decision 0233): the price is a question, never a verdict, and nothing says "remove the gate".
+for (const id of ['g1_24h', 'created_24h', 'g1_7d', 'created_7d', 'return_d2_7', 'return_d7', 'errors_seen_phones', 'paywall_seen_7d',
+  'premium_door_7d', 'buyers_7d', 'active_days', 'gone_14d', 'return_d30', 'ltv_phone_7d']) {
+  yes(`gate words for ${id}`, gateRowWords(id).name && gateRowWords(id).mean);
+}
+for (const k of ['shown', 'ad_watched', 'premium_tapped', 'dismissed', 'not_reached']) yes(`gate outcome ${k}`, GATE_OUTCOME_WORDS[k]);
+eq('the gate switch is 0, never false', breachWords('first_invoice_gate_move_percent'),
+  'Wapas karne ke liye: Remote Config first_invoice_gate_move_percent = 0 (dialog phir save se pehle; ad wahi rehta hai, band nahi hota).');
+const price = { horizonDays: 7, phonesMove: 400, phonesShow: 1600, adPhonesMove: 400, adPhonesShow: 1600, usdPer1000Move: 20, usdPer1000Show: 30,
+  usdDiffPer1000: -10, usdDiffLo: -11.1, usdDiffHi: -8.9, capUsd: 0.04, sharesPer1000Move: 150, sharesPer1000Show: 90, extraSharesPer1000: 60,
+  extraSharesLo: 25, extraSharesHi: 100.5, movedSeen: 300, movedOwed: 400, thin: false };
+const ps = gatePriceSentence(price);
+eq('the price sentence', ps, 'Move wale guroh ne har 1,000 naye phones par pehle 7 din mein ad se $10.00 kam kamaya (hadd −$11.10 se −$8.90) aur 60.0 pehle share zyada paaye (hadd +25.0 se +100.5). Kya ye sauda aap ko qubool hai? Faisla aap ka.');
+yes('the price is a question to the owner', ps.includes('?') && ps.includes('Faisla aap ka'));
+yes('the price never says remove', !/hata|remove|band kar/i.test(ps));
+yes('a thin price makes no sentence of meaning', gatePriceSentence({ ...price, thin: true }).startsWith('Qeemat abhi dhundli'));
+const gr = (code, rows = ['g1_24h'], switches = []) => gateRecommendationWords({ recommendation: { code, at: '7d', rows, switches, days: 12 } });
+yes('gate ITERATE is the owner question', gr('ITERATE').title.includes('aap se sawal') && gr('ITERATE').body.includes('faisla aap ka'));
+yes('gate ITERATE never proposes removing an ad', gr('ITERATE').body.includes('koi ad ya paywall hataane ka mashwara nahi') && !gr('ITERATE').body.includes('KEEP'));
+yes('gate ROLL_BACK names the key = 0', gr('ROLL_BACK', ['return_d7'], ['first_invoice_gate_move_percent']).body.includes('first_invoice_gate_move_percent = 0'));
+yes('gate WAIT says the days', gr('WAIT').body.includes('takreeban 12 din aur'));
+const gn = gateResult({ state: 'not_started', kpis: [] });
+yes('gate not started says no number', gn.includes('koi number nahi') && !/[0-9]/.test(gn));
 
 if (failed) {
   console.log(`\n${failed} check(s) failed`);

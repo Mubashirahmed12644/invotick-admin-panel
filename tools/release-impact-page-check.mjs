@@ -101,6 +101,20 @@ try {
     ok('signup running: the steps shown', text.includes('Dawat ke qadam'));
   }
   ok(`signup-at-exit state seen: ${su.state}`, true);
+
+  // Round 4: the "First invoice gate" section (decision 0233).
+  const r4 = await fetch(`${API}/v1/webpanel/release-impact/first-invoice-gate?platform=Android`, { headers: { Authorization: `Bearer ${token}` } });
+  ok('first-invoice-gate endpoint answers 200', r4.status === 200, `(HTTP ${r4.status})`);
+  const fg = (await r4.json()).data;
+  ok('first-invoice-gate section on the page', text.includes('Pehli invoice ka gate: ad save ke baad dashboard par'));
+  if (fg.state === 'not_started') {
+    ok('gate not started: the honest state, no number', text.includes('Gate ka test abhi shuru nahi') && !text.includes('Aap se sawal:'));
+  } else {
+    ok('gate running: the arms as the endpoint says', text.includes(`Guroh: ${fg.population.move.toLocaleString('en-US')} move · ${fg.population.show.toLocaleString('en-US')} show`));
+    ok('gate running: the price is printed as a question', text.includes('Aap se sawal:') && text.includes('Qeemat: har 1,000 naye phones par'));
+  }
+  ok('the page never tells the owner to remove the gate', !/gate hata dein|remove the gate/i.test(text));
+  ok(`first-invoice-gate state seen: ${fg.state}`, true);
   await page.screenshot({ path: `${outDir}/release-impact-desktop.png`, fullPage: true });
 
   await page.setViewport({ width: 390, height: 844, isMobile: true });

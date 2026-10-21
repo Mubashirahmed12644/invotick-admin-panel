@@ -50,6 +50,7 @@ export function cellCount(k: Pick<Kpi, "unit" | "kind" | "id">, c: Cell | null |
     if (k.id === "invoices_per_phone") return `${fmt(c.n)} phones`;
     if (k.id === "premium_net_phone") return `${fmt(c.n)} phones · ${fmt(c.extra?.buyers ?? 0)} kharidar`;
     if (k.id === "paywall_net_viewer") return `${fmt(c.n)} viewers · ${fmt(c.extra?.buyers ?? 0)} kharidar`;
+    if (k.id === "ltv_phone_7d") return `${fmt(c.n)} phones · ${fmt(c.extra?.buyers ?? 0)} kharidar`;
     const buyers = c.extra?.buyers;
     return `${fmt(c.n)} phone-din${buyers != null ? ` · ${fmt(buyers)} kharidar` : ""}`;
   }
@@ -154,6 +155,7 @@ export const GROUPS: { key: string; title: string; sub: string }[] = [
   { key: "uninstall", title: "Maqsad 2 · Uninstall", sub: "kam behtar" },
   { key: "retention", title: "Maqsad 3 · Retention", sub: "din 2-7 hifazati number bhi hai" },
   { key: "ltv", title: "Maqsad 4 · LTV", sub: "ad aur paywall: hifazati number bhi, dono taraf hamesha" },
+  { key: "premium", title: "Hifazat · Premium", sub: "paywall aur kharidar" },
   { key: "trust", title: "Hifazat · Bharosa (G3)", sub: "crash, ANR, galti, sync" },
   { key: "speed", title: "Hifazat · Raftaar", sub: "" },
 ];
@@ -168,7 +170,7 @@ export function minText(k: Kpi): string {
         ? "cold starts har taraf"
         : k.id === "paywall_net_viewer" || k.id === "premium_net_phone"
           ? "kharidar har taraf"
-          : k.id === "invoices_per_phone"
+          : k.id === "invoices_per_phone" || k.id === "ltv_phone_7d"
             ? "phones har taraf"
           : k.kind === "money"
             ? "phone-din + 50 phones"
@@ -190,6 +192,8 @@ export function breachWords(key: string | null): string {
       return "Band karne ke liye: Remote Config signup_exit_invite_enabled = false (exit dialog purana ho jata hai).";
     case "nudges_holdout_percent":
       return "Band karne ke liye: Remote Config nudges_holdout_percent = 100 (sab phone control mein, teeno nudge band).";
+    case "first_invoice_gate_move_percent":
+      return "Wapas karne ke liye: Remote Config first_invoice_gate_move_percent = 0 (dialog phir save se pehle; ad wahi rehta hai, band nahi hota).";
     case "halt_staged_rollout":
       return "Aap ka kaam: Play Console mein staged rollout rok dein (koi Remote Config switch nahi).";
     case "question_owner":
@@ -384,4 +388,109 @@ export function signupResult(r: import("./types").SignupInviteResponse): string 
 /** "takreeban N hafte aur", or plainly more than a year at today's pace. */
 export function weeksText(weeks: number, what: string): string {
   return weeks > 52 ? `${what}: aaj ki raftaar par ek saal se zyada` : `${what} mein takreeban ${weeks} hafte aur`;
+}
+
+// ── round 4: the "First invoice gate" section (decision 0233) ──
+
+export const GATE_ROW_WORDS: Record<string, RowWords> = {
+  g1_24h: { name: "ASLI invoice, 24 ghante mein", mean: "pehli baar khulne se: share (reminder nahi) ya payment (primary, 0233)" },
+  created_24h: { name: "Invoice bani, 24 ghante mein", mean: "pehli baar khulne se; plan isi par (18 % se +4 pt)" },
+  g1_7d: { name: "ASLI invoice, 7 din mein", mean: "parhne ki tareekh, faisla nahi" },
+  created_7d: { name: "Invoice bani, 7 din mein", mean: "parhne ki tareekh, faisla nahi" },
+  return_d2_7: { name: "Din 2 se 7 mein wapas aaye", mean: "−2 pt had" },
+  return_d7: { name: "Din 7 par wapas aaye", mean: "−2 pt had" },
+  errors_seen_phones: { name: "Galti dekhne wale phones, 7 din", mean: "error_shown; +50 % had" },
+  paywall_seen_7d: { name: "Paywall dekhne wale phones, 7 din", mean: "har darwaze se; 0233 mein had tay nahi: zyada se zyada peela" },
+  premium_door_7d: { name: "Dialog se \"Go premium\" dabane wale, 7 din", mean: "dono jagah (save se pehle ya dashboard par); had tay nahi" },
+  buyers_7d: { name: "Kharidar, 7 din", mean: "10 kharidar se kam: kabhi laal nahi; had tay nahi" },
+  active_days: { name: "Pehle 7 din mein kitne din app khola", mean: "naye phones, fi phone (engagement)" },
+  gone_14d: { name: "Aaye aur 14 din mein phir nahi aaye", mean: "uninstall ka andaza (proxy); kam behtar" },
+  return_d30: { name: "Din 30 par wapas aaye", mean: "naye phones, tees din poore hone wale" },
+  ltv_phone_7d: { name: "LTV: kamai fi naya phone, 7 din", mean: "ad + premium, USD; qeemat ka number: rang nahi, faisla aap ka" },
+};
+
+export function gateRowWords(id: string): RowWords {
+  return GATE_ROW_WORDS[id] ?? rowWords(id);
+}
+
+export const GATE_OUTCOME_WORDS: Record<string, string> = {
+  shown: "Dikha, koi chunao nahi pahuncha",
+  ad_watched: "\"Ad dekhein\" dabaya (ad ka flow khatam; ad dikhna zaroori nahi)",
+  premium_tapped: "\"Go premium\" dabaya",
+  dismissed: "Band kiya (cross, back ya bahar)",
+  not_reached: "Kabhi nahi dikha",
+  other: "Na-maloom outcome (data ki galti)",
+};
+
+export const GATE_REASON_WORDS: Record<string, string> = {
+  left_app: "save ke baad app band (dashboard tak nahi aaye)",
+  premium: "tab tak premium",
+  gate_off: "saved_invoice_inter_enable band",
+};
+
+export const GATE_POSITION_WORDS: Record<string, string> = {
+  before_save: "Save se pehle",
+  after_save_dashboard: "Save ke baad, dashboard par",
+  none: "Jagah nahi likhi (estimate / share gate)",
+};
+
+/** The "Nateeja" line of the section, from codes. */
+export function gateResult(r: import("./types").FirstGateResponse): string {
+  if (r.state === "not_started") return "Is waqt mein kisi naye phone ko gate ka guroh nahi mila: koi number nahi.";
+  const k = r.kpis.find((x) => x.id === "g1_24h");
+  if (!k || k.a?.n == null) return "Abhi koi number nahi.";
+  if (!k.a.n && !k.b?.n) return "Abhi kisi phone ke 24 ghante poore nahi hue: koi number nahi.";
+  const head = `${pct(k.a.value)} bamuqabla ${pct(k.b?.value)} (n ${fmt(k.a.n)} · ${fmt(k.b?.n)})`;
+  if (k.status === "thin") return `${head}: ginti kam, dhundla. Faisla nahi.`;
+  return `${head}: farq ${diffText(k)}, hadd ${intervalText(k)}: ${ROW_STATUS[k.status].word}.`;
+}
+
+/** Signed dollars: "+$1.20", "−$10.00". */
+export function usdSigned(v: number | null | undefined): string {
+  if (v == null) return "—";
+  return `${v > 0.0005 ? "+" : v < -0.0005 ? "−" : ""}$${Math.abs(v).toFixed(2)}`;
+}
+
+/**
+ * The price as the owner reads it (0233): ad money and first shares per 1,000 new phones, side by side, and a question.
+ * Never a verdict, never "remove the gate".
+ */
+export function gatePriceSentence(p: import("./types").FirstGatePrice): string {
+  if (p.thin || p.usdDiffPer1000 == null || p.extraSharesPer1000 == null) {
+    return `Qeemat abhi dhundli: ${fmt(p.phonesMove)} · ${fmt(p.phonesShow)} phones jin ke 7 din poore, ${fmt(p.adPhonesMove)} · ${fmt(p.adPhonesShow)} ad wale. Dono taraf 200 phone aur 50 ad wale phone hon to jumla banega.`;
+  }
+  const money = p.usdDiffPer1000 < 0 ? `$${Math.abs(p.usdDiffPer1000).toFixed(2)} kam` : `$${p.usdDiffPer1000.toFixed(2)} zyada`;
+  const shares = p.extraSharesPer1000 < 0 ? `${Math.abs(p.extraSharesPer1000).toFixed(1)} pehle share kam` : `${p.extraSharesPer1000.toFixed(1)} pehle share zyada`;
+  return (
+    `Move wale guroh ne har 1,000 naye phones par pehle ${p.horizonDays} din mein ad se ${money} kamaya (hadd ${usdSigned(p.usdDiffLo)} se ${usdSigned(p.usdDiffHi)}) ` +
+    `aur ${shares} paaye (hadd ${sg(p.extraSharesLo)} se ${sg(p.extraSharesHi)}). Kya ye sauda aap ko qubool hai? Faisla aap ka.`
+  );
+}
+
+/** The section's recommendation: ITERATE here is the price question to the owner (0233 "Verdict handling"), never KEEP. */
+export function gateRecommendationWords(r: import("./types").FirstGateResponse): { title: string; body: string; tone: "neu" | "bad" | "warn" } | null {
+  const rec = r.recommendation;
+  if (!rec) return null;
+  const at = rec.at === "24h" ? "24 ghante" : rec.at === "7d" ? "din 7" : rec.at === "14d" ? "din 14" : "din 30";
+  const names = rec.rows.map((id) => gateRowWords(id).name).join(", ");
+  switch (rec.code) {
+    case "WAIT":
+      return {
+        title: `Sifarish (${at}): WAIT.`,
+        body: `${names}: ginti abhi kam${rec.days != null ? (rec.days > 365 ? ", aaj ki raftaar par ek saal se zyada" : `, takreeban ${rec.days} din aur`) : ""}. Koi hifazati number toota nahi.`,
+        tone: "neu",
+      };
+    case "ROLL_BACK":
+      return {
+        title: `Sifarish (${at}): ROLL BACK.`,
+        body: `${rec.rows.map((id) => gateRowWords(id).name).join(", ")}: poori 95 % hadd hifazati had ke buri taraf. ${rec.switches.map(breachWords).join(" ")}`,
+        tone: "bad",
+      };
+    default:
+      return {
+        title: `Sifarish (${at}): ITERATE, aap se sawal.`,
+        body: `${names} ka nateeja aur qeemat upar saath saath hain. Koi hifazati had nahi tooti. Gate ki jagah ka faisla aap ka: koi ad ya paywall hataane ka mashwara nahi.`,
+        tone: "warn",
+      };
+  }
 }

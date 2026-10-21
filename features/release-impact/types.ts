@@ -148,7 +148,7 @@ export interface SegmentRow {
 }
 
 export interface ReadDate {
-  label: "24h" | "7d" | "30d";
+  label: "24h" | "7d" | "14d" | "30d";
   at: string;
   state: "done" | "now" | "next";
 }
@@ -278,4 +278,70 @@ export interface SignupInviteResponse {
   holdoutShownPhones: number;
   paying: MechanismStep;
   signupsGone7: MechanismStep;
+}
+
+// ── round 4: the "First invoice gate" section (decision 0233; backend FirstGateReport.Response) ──
+
+export interface FirstGatePrice {
+  horizonDays: number;
+  phonesMove: number;
+  phonesShow: number;
+  adPhonesMove: number;
+  adPhonesShow: number;
+  usdPer1000Move: number | null;
+  usdPer1000Show: number | null;
+  usdDiffPer1000: number | null;
+  usdDiffLo: number | null;
+  usdDiffHi: number | null;
+  capUsd: number | null;
+  sharesPer1000Move: number | null;
+  sharesPer1000Show: number | null;
+  extraSharesPer1000: number | null;
+  extraSharesLo: number | null;
+  extraSharesHi: number | null;
+  movedSeen: number;
+  movedOwed: number;
+  thin: boolean;
+}
+
+export interface FirstGateDialogRow {
+  arm: "move" | "show";
+  position: "before_save" | "after_save_dashboard" | "none";
+  shown: number;
+  watchAd: number;
+  premium: number;
+  dismissed: number;
+}
+
+export interface FirstGateResponse {
+  state: "not_started" | "running";
+  platform: string;
+  range: { from: string; to: string };
+  computedAt: string;
+  stale: boolean;
+  truncated: boolean;
+  population: { newPhones: number; dealt: number; move: number; show: number; unassigned: number; ours: number; olderBuild: number; pending24: number };
+  integrity: {
+    badArm: number;
+    badArmValues: string[];
+    armChanged: number;
+    dealtTwice: number;
+    savedBeforeDeal: number;
+    gateArmMismatch: number;
+    gateArmRows: number;
+    movedOnShow: number;
+    afterSaveOnShow: number;
+    dealtNotNew: number;
+    percentNotRemote: number;
+  };
+  balance: { expectedPercent: number | null; move: number; total: number; lo: number | null; hi: number | null; status: "ok" | "off" | "thin" | "unknown" };
+  verdict: { badge: "not_started" | "thin" | "better" | "worse" | "plain"; breached: string[]; switches: string[] };
+  recommendation: Recommendation | null;
+  readDates: ReadDate[];
+  plan: { neededMove: number | null; perWeekMove: number; perWeekShow: number; weeksMore: number | null };
+  kpis: Kpi[];
+  price: FirstGatePrice;
+  dialog: FirstGateDialogRow[];
+  movedResults: Record<string, number>;
+  notReachedReasons: Record<string, number>;
 }
