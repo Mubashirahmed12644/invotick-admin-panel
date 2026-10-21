@@ -197,7 +197,7 @@ export default function SignupAtExitSection({ range, onFail }: { range: RangeCho
           <code>signup_invite_cap_exits</code>, <code>signup_invite_cap_per_week</code>. Holdout ka code-default 20, 0 nahi.
           <ul>
             <li>Dawat kabhi invoice banane, kharidne ya ad ke beech nahi aati (0231): ye panel bhi aisa koi mashwara nahi deta.</li>
-            <li>Premium guests holdout se bahar hain (bohat kam): unki apni qatar, faisle mein nahi.</li>
+            <li>Premium guests (deal par paying=true) dono gurohon se bahar hain, chahe bucket ne koi bhi guroh diya ho: unki apni qatar, faisle mein nahi.</li>
             <li>Play ke crash, ANR aur uninstall: source baqi; uninstall ki jagah andaza.</li>
           </ul>
         </div>
