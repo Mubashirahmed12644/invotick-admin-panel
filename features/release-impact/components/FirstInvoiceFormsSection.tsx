@@ -220,8 +220,20 @@ function DataErrors({ data }: { data: FirstFormsResponse }) {
   );
 }
 
+/** Below 200 phones a side nothing on the card is a result: the counts are shown, and said to be counts. */
+const MIN_PHONES = 200;
+
+function thinNote(n: number): string {
+  return n < MIN_PHONES ? ` Abhi ${fmt(n)} phone: ye sirf ginti hai, nateeja nahi (${fmt(MIN_PHONES)} par parhein).` : "";
+}
+
 function ComparisonBlock({ c }: { c: FormsComparison }) {
   const rec = formsRecommendationWords(c);
+  const g1 = c.kpis.find((k) => k.id === "g1_24h");
+  // With few phones every guardrail reads "data kam": show the G1 rows and keep the rest one tap away.
+  const thin = Math.min(g1?.a?.n ?? 0, g1?.b?.n ?? 0) < MIN_PHONES && c.verdict.breached.length === 0;
+  const [all, setAll] = useState(false);
+  const hasPrice = c.adUsdPer1000Variant != null || c.adUsdPer1000Control != null;
   const nameA = FORMS_ARM_WORDS[c.key] ?? c.key;
   const nameB = FORMS_ARM_WORDS[c.control] ?? c.control;
   return (
@@ -262,9 +274,20 @@ function ComparisonBlock({ c }: { c: FormsComparison }) {
         </div>
       )}
       <p className={cx("small")}>
-        {`Qeemat (rang nahi): ad ki kamai fi 1,000 naye phones, 7 din: ${c.adUsdPer1000Variant == null ? "—" : `$${c.adUsdPer1000Variant.toFixed(2)}`} bamuqabla ${c.adUsdPer1000Control == null ? "—" : `$${c.adUsdPer1000Control.toFixed(2)}`}, farq ${usdSigned(c.adUsdDiffPer1000)}${c.adUsdDiffLo == null ? "" : ` (hadd ${usdSigned(c.adUsdDiffLo)} se ${usdSigned(c.adUsdDiffHi)})`}.`}
+        {hasPrice
+          ? `Qeemat (rang nahi): ad ki kamai fi 1,000 naye phones, 7 din: ${c.adUsdPer1000Variant == null ? "—" : `$${c.adUsdPer1000Variant.toFixed(2)}`} bamuqabla ${c.adUsdPer1000Control == null ? "—" : `$${c.adUsdPer1000Control.toFixed(2)}`}, farq ${usdSigned(c.adUsdDiffPer1000)}${c.adUsdDiffLo == null ? "" : ` (hadd ${usdSigned(c.adUsdDiffLo)} se ${usdSigned(c.adUsdDiffHi)})`}.`
+          : "Qeemat (rang nahi): abhi kisi phone ke 7 din poore nahi, ad ki kamai ka muqabla baad mein."}
       </p>
+      {thin && (
+        <div className={cx("small")} style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+          <span>{`Dono taraf ${fmt(MIN_PHONES)} phone hone tak sirf G1 ki qataarain; baqi hifazati number sab "data kam" hain.`}</span>
+          <button type="button" className={cx("btn")} onClick={() => setAll((v) => !v)} aria-expanded={all}>
+            {all ? "Sirf G1 dikhayein" : "Sab qataarain dikhayein"}
+          </button>
+        </div>
+      )}
       <KpiTable
+        only={thin && !all ? ["primary"] : undefined}
         kpis={c.kpis}
         nameA={c.key === "preview_first" ? "Preview pehle" : `Order ${c.key.slice(-1).toUpperCase()}`}
         nameB={c.control === "today" ? "Aaj jaisa" : "Control"}
@@ -294,7 +317,7 @@ function Running({ data }: { data: FirstFormsResponse }) {
             <header>
               <h4>{`Raasta: ${FORMS_ARM_WORDS[f.arm] ?? f.arm}`}</h4>
             </header>
-            <div className={cx("idea")}>{`Guroh milne ke 24 ghante mein, phones mein (rows nahi). Shuru: ${fmt(f.dealt24)} phone.`}</div>
+            <div className={cx("idea")}>{`Guroh milne ke 24 ghante mein, phones mein (rows nahi). Shuru: ${fmt(f.dealt24)} phone.${thinNote(f.dealt24)}`}</div>
             {f.steps.map((s) => (
               <Bar key={s.key} label={s.tab ? `Tab ${s.key.slice(-1)}: ${FORMS_TAB_WORDS[s.tab] ?? s.tab}` : (FORMS_STEP_WORDS[s.key] ?? s.key)} m={{ key: s.key, x: s.phones, n: f.dealt24 }} />
             ))}
@@ -305,7 +328,7 @@ function Running({ data }: { data: FirstFormsResponse }) {
             <header>
               <h4>Har tab: kitne pahunche, kitne aage gaye, kitna waqt</h4>
             </header>
-            <div className={cx("idea")}>Aage = agla tab ya Create invoice ka poora hona. Waqt = tab dikhne se agle qadam tak (median).</div>
+            <div className={cx("idea")}>{`Aage = agla tab ya Create invoice ka poora hona. Waqt = tab dikhne se agle qadam tak (median).${thinNote(Math.max(...data.tabs.map((t) => t.reached)))}`}</div>
             {data.tabs.map((t) => (
               <Bar
                 key={`${t.arm}-${t.step}`}
@@ -341,7 +364,7 @@ function Running({ data }: { data: FirstFormsResponse }) {
             <header>
               <h4>Preview pehle: kya hua</h4>
             </header>
-            <div className={cx("idea")}>{`Preview pehle wale ${fmt(p.dealt24)} phone (24 ghante). Save, Add item, Edit ek chunao hain; swipe aur bahar tap = bina chunao chhoda.`}</div>
+            <div className={cx("idea")}>{`Preview pehle wale ${fmt(p.dealt24)} phone (24 ghante). Save, Add item, Edit ek chunao hain; swipe aur bahar tap = bina chunao chhoda.${thinNote(p.dealt24)}`}</div>
             <Bar label="Preview khud khula" m={{ key: "shown", x: p.shownPhones, n: p.dealt24 }} />
             <Bar label="Save dabaya" m={{ key: "save", x: p.savePhones, n: p.shownPhones }} />
             <Bar label="Add item dabaya" m={{ key: "add", x: p.addItemPhones, n: p.shownPhones }} />
@@ -359,7 +382,7 @@ function Running({ data }: { data: FirstFormsResponse }) {
             <header>
               <h4>Dono switch saath: ASLI invoice 24 ghante</h4>
             </header>
-            <div className={cx("idea")}>Har khana: forms guroh × preview guroh. Sirf bayan; faisla upar ke muqablon se.</div>
+            <div className={cx("idea")}>{`Har khana: forms guroh × preview guroh. Sirf bayan; faisla upar ke muqablon se.${thinNote(Math.min(...data.crossTab.map((x) => x.phones)))}`}</div>
             {data.crossTab.map((x) => (
               <Bar key={`${x.forms}-${x.post}`} label={`${FORMS_ARM_WORDS[x.forms]?.split(":")[0] ?? x.forms} × ${FORMS_ARM_WORDS[x.post] ?? x.post}`} m={{ key: x.forms, x: x.g1, n: x.phones }} />
             ))}
