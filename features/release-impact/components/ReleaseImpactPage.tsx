@@ -28,6 +28,7 @@ import {
 } from "../words";
 import { BalanceChart, CohortChart, DailyChart, FunnelChart, TimelineChart, seriesColour } from "./Charts";
 import { KpiTable } from "./KpiTable";
+import FirstInvoiceFormsSection from "./FirstInvoiceFormsSection";
 import FirstInvoiceGateSection from "./FirstInvoiceGateSection";
 import SecondInvoiceSection from "./SecondInvoiceSection";
 import SignupAtExitSection from "./SignupAtExitSection";
@@ -304,6 +305,7 @@ function Answer({ data, win, onRetry, range, onFail }: { data: ReleaseImpactResp
       <SecondInvoiceSection range={range} onFail={onFail} />
       <SignupAtExitSection range={range} onFail={onFail} />
       <FirstInvoiceGateSection range={range} onFail={onFail} />
+      <FirstInvoiceFormsSection range={range} onFail={onFail} />
       <OtherSections />
     </>
   );

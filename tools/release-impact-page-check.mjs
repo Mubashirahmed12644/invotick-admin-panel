@@ -115,6 +115,21 @@ try {
   }
   ok('the page never tells the owner to remove the gate', !/gate hata dein|remove the gate/i.test(text));
   ok(`first-invoice-gate state seen: ${fg.state}`, true);
+
+  // Round 5: the "First invoice forms" section (decision 0234).
+  const r5 = await fetch(`${API}/v1/webpanel/release-impact/first-invoice-forms?platform=Android`, { headers: { Authorization: `Bearer ${token}` } });
+  ok('first-invoice-forms endpoint answers 200', r5.status === 200, `(HTTP ${r5.status})`);
+  const ff = (await r5.json()).data;
+  ok('first-invoice-forms section on the page', text.includes('Pehli invoice ke forms: tabs aur preview pehle'));
+  if (ff.state === 'not_started') {
+    ok('forms not started: the honest state, no number', text.includes('Forms ka test abhi shuru nahi') && !text.includes('Raasta: '));
+  } else {
+    const a = ff.population.forms.order_a ?? 0;
+    ok('forms running: the arms as the endpoint says', a === 0 || text.includes(`Order A: item, business, client ${a.toLocaleString('en-US')}`));
+    ok('forms running: each comparison is shown', ff.comparisons.every((c) => text.includes(c.key === 'preview_first' ? 'Preview pehle bamuqabla Aaj jaisa' : `bamuqabla Control (aaj ki teen sheets)`)));
+    ok('forms running: the road is counted in phones', ff.funnels.length === 0 || text.includes('Raasta: '));
+  }
+  ok(`first-invoice-forms state seen: ${ff.state}`, true);
   await page.screenshot({ path: `${outDir}/release-impact-desktop.png`, fullPage: true });
 
   await page.setViewport({ width: 390, height: 844, isMobile: true });

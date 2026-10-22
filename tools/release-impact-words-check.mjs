@@ -26,6 +26,11 @@ import {
   gateRecommendationWords,
   gateResult,
   gateRowWords,
+  FORMS_STEP_WORDS,
+  formsRecommendationWords,
+  formsResult,
+  formsRowWords,
+  msText,
 } from '../features/release-impact/words.ts';
 
 let failed = 0;
@@ -115,6 +120,21 @@ yes('gate ROLL_BACK names the key = 0', gr('ROLL_BACK', ['return_d7'], ['first_i
 yes('gate WAIT says the days', gr('WAIT').body.includes('takreeban 12 din aur'));
 const gn = gateResult({ state: 'not_started', kpis: [] });
 yes('gate not started says no number', gn.includes('koi number nahi') && !/[0-9]/.test(gn));
+
+// Round 5 (decision 0234).
+for (const id of ['g1_24h', 'created_24h', 'g1_7d', 'created_7d', 'time_to_invoice', 'return_d2_7', 'errors_seen_phones', 'paywall_seen_7d', 'buyers_7d',
+  'active_days', 'gone_14d', 'return_d30', 'ltv_phone_7d']) yes(`forms words for ${id}`, formsRowWords(id).name && formsRowWords(id).mean);
+for (const k of ['typed', 'create_pressed', 'completed', 'save_pressed', 'invoice_created', 'g1']) yes(`forms step ${k}`, FORMS_STEP_WORDS[k]);
+eq('the forms switch goes back to control, never false', breachWords('first_forms_order'),
+  'Band karne ke liye: Remote Config first_forms_order = control (jo phone abhi pehli invoice tak nahi pahunche, aaj ki sheets par wapas).');
+eq('the post switch goes back to today', breachWords('first_invoice_post_arm'), 'Band karne ke liye: Remote Config first_invoice_post_arm = today (preview khud nahi khulta, aaj jaisa).');
+const fr = (code, switches = []) => formsRecommendationWords({ recommendation: { code, at: '24h', rows: ['g1_24h'], switches, days: 9 } });
+yes('forms ROLL_BACK names first_forms_order = control', fr('ROLL_BACK', ['first_forms_order']).body.includes('first_forms_order = control'));
+yes('forms WAIT says the days', fr('WAIT').body.includes('takreeban 9 din aur'));
+const red = formsResult({ kpis: [{ id: 'g1_24h', status: 'red', diff: -9, lo: -12.8, hi: -5.4, diffUnit: 'pp', a: { value: 3, n: 400 }, b: { value: 12, n: 400 } }] });
+yes('a G1 fall past -2 points is said as a breach', red.includes('toot') && red.includes('−9.0 pt'));
+eq('ms as seconds', msText(1050), '1.1 s');
+eq('ms as minutes', msText(300000), '5.0 min');
 
 if (failed) {
   console.log(`\n${failed} check(s) failed`);

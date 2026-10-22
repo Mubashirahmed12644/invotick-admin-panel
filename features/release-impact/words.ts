@@ -34,6 +34,8 @@ export function cellValue(unit: Kpi["unit"], c: Cell | null | undefined): string
       return usd(c.value);
     case "count":
       return c.value.toFixed(2);
+    case "minutes":
+      return `${c.value.toFixed(1)} min`;
   }
 }
 
@@ -54,7 +56,7 @@ export function cellCount(k: Pick<Kpi, "unit" | "kind" | "id">, c: Cell | null |
     const buyers = c.extra?.buyers;
     return `${fmt(c.n)} phone-din${buyers != null ? ` · ${fmt(buyers)} kharidar` : ""}`;
   }
-  if (k.kind === "mean") return `${fmt(c.n)} phones`;
+  if (k.kind === "mean" || k.kind === "median") return `${fmt(c.n)} phones`;
   return `${fmt(c.x)} / ${fmt(c.n)}`;
 }
 
@@ -192,6 +194,10 @@ export function breachWords(key: string | null): string {
       return "Band karne ke liye: Remote Config signup_exit_invite_enabled = false (exit dialog purana ho jata hai).";
     case "nudges_holdout_percent":
       return "Band karne ke liye: Remote Config nudges_holdout_percent = 100 (sab phone control mein, teeno nudge band).";
+    case "first_forms_order":
+      return "Band karne ke liye: Remote Config first_forms_order = control (jo phone abhi pehli invoice tak nahi pahunche, aaj ki sheets par wapas).";
+    case "first_invoice_post_arm":
+      return "Band karne ke liye: Remote Config first_invoice_post_arm = today (preview khud nahi khulta, aaj jaisa).";
     case "first_invoice_gate_move_percent":
       return "Wapas karne ke liye: Remote Config first_invoice_gate_move_percent = 0 (dialog phir save se pehle; ad wahi rehta hai, band nahi hota).";
     case "halt_staged_rollout":
@@ -493,4 +499,87 @@ export function gateRecommendationWords(r: import("./types").FirstGateResponse):
         tone: "warn",
       };
   }
+}
+
+// ── round 5: the "First invoice forms" section (decision 0234) ──
+
+export const FORMS_ARM_WORDS: Record<string, string> = {
+  control: "Control (aaj ki teen sheets)",
+  order_a: "Order A: item, business, client",
+  order_b: "Order B: business, item, client",
+  order_c: "Order C: business, client, item",
+  today: "Aaj jaisa",
+  preview_first: "Preview pehle",
+  none: "guroh nahi",
+};
+
+export const FORMS_TAB_WORDS: Record<string, string> = { item: "Item", business: "Business", client: "Client" };
+
+export const FORMS_STEP_WORDS: Record<string, string> = {
+  typed: "Kuch likha (pehla harf)",
+  create_pressed: "Create invoice dabaya",
+  completed: "Teeno likhe gaye (completed)",
+  save_pressed: "Save dabaya",
+  invoice_created: "Invoice bani, 24 ghante",
+  g1: "ASLI invoice (share ya payment), 24 ghante",
+};
+
+export const FORMS_ROW_WORDS: Record<string, RowWords> = {
+  g1_24h: { name: "ASLI invoice, 24 ghante mein", mean: "pehli baar khulne se: share (reminder nahi) ya payment (primary, 0234); −2 pt se zyada girna = toot" },
+  created_24h: { name: "Invoice bani, 24 ghante mein", mean: "pehli baar khulne se (plan: 18 % se +4 pt)" },
+  g1_7d: { name: "ASLI invoice, 7 din mein", mean: "parhne ki tareekh, faisla nahi" },
+  created_7d: { name: "Invoice bani, 7 din mein", mean: "parhne ki tareekh, faisla nahi" },
+  time_to_invoice: { name: "Pehli baar khulne se invoice tak (median)", mean: "+20 % had; median ki hadd nahi, is liye zyada se zyada peela" },
+  return_d2_7: { name: "Din 2 se 7 mein wapas aaye", mean: "uninstall ka andaza; −2 pt had" },
+  errors_seen_phones: { name: "Galti dekhne wale phones, 7 din", mean: "error_shown; +50 % had" },
+  paywall_seen_7d: { name: "Paywall dekhne wale phones, 7 din", mean: "0234 mein had tay nahi: zyada se zyada peela" },
+  buyers_7d: { name: "Kharidar, 7 din", mean: "10 kharidar se kam: kabhi laal nahi" },
+  active_days: { name: "Pehle 7 din mein kitne din app khola", mean: "naye phones, fi phone (engagement)" },
+  gone_14d: { name: "Aaye aur 14 din mein phir nahi aaye", mean: "uninstall ka andaza (proxy); kam behtar" },
+  return_d30: { name: "Din 30 par wapas aaye", mean: "naye phones, tees din poore hone wale" },
+  ltv_phone_7d: { name: "LTV: kamai fi naya phone, 7 din", mean: "ad + premium, USD; sirf bayan, rang nahi" },
+};
+
+export function formsRowWords(id: string): RowWords {
+  return FORMS_ROW_WORDS[id] ?? rowWords(id);
+}
+
+/** One comparison's "Nateeja" line, from codes; G1 only. */
+export function formsResult(c: import("./types").FormsComparison): string {
+  const k = c.kpis.find((x) => x.id === "g1_24h");
+  if (!k || k.a?.n == null) return "Abhi koi number nahi.";
+  if (!k.a.n && !k.b?.n) return "Abhi kisi phone ke 24 ghante poore nahi hue: koi number nahi.";
+  const head = `${pct(k.a.value)} bamuqabla ${pct(k.b?.value)} (n ${fmt(k.a.n)} · ${fmt(k.b?.n)})`;
+  if (k.status === "thin") return `${head}: ginti kam, dhundla. Faisla nahi.`;
+  if (k.status === "red") return `${head}: farq ${diffText(k)}, hadd ${intervalText(k)}: G1 −2 pt se zyada gira, toot.`;
+  return `${head}: farq ${diffText(k)}, hadd ${intervalText(k)}: ${ROW_STATUS[k.status].word}.`;
+}
+
+export function formsRecommendationWords(c: import("./types").FormsComparison): { title: string; body: string; tone: "neu" | "bad" | "warn" } | null {
+  const rec = c.recommendation;
+  if (!rec) return null;
+  const at = rec.at === "24h" ? "24 ghante" : rec.at === "7d" ? "din 7" : rec.at === "14d" ? "din 14" : "din 30";
+  const names = rec.rows.map((id) => formsRowWords(id).name).join(", ");
+  switch (rec.code) {
+    case "KEEP":
+      return { title: `Sifarish (${at}): KEEP.`, body: "Koi hifazati number nahi toota. Agla order ya poora rollout aap ka faisla hai.", tone: "neu" };
+    case "WAIT":
+      return {
+        title: `Sifarish (${at}): WAIT.`,
+        body: `${names}: ginti abhi kam${rec.days != null ? (rec.days > 365 ? ", aaj ki raftaar par ek saal se zyada" : `, takreeban ${rec.days} din aur`) : ""}. Koi hifazati number toota nahi.`,
+        tone: "neu",
+      };
+    case "ITERATE":
+      return { title: `Sifarish (${at}): ITERATE, aap se sawal.`, body: `${names} neeche gaya, koi hifazati had nahi tooti. Kya ye qeemat qubool hai? Koi ad ya paywall hataane ka mashwara nahi.`, tone: "warn" };
+    case "ROLL_BACK":
+      return { title: `Sifarish (${at}): ROLL BACK.`, body: `${names}: poori 95 % hadd had ke buri taraf. ${rec.switches.map(breachWords).join(" ")}`, tone: "bad" };
+  }
+}
+
+/** "1.2 s", "45 s", "3.5 min". */
+export function msText(ms: number | null | undefined): string {
+  if (ms == null) return "—";
+  if (ms < 10_000) return `${(ms / 1000).toFixed(1)} s`;
+  if (ms < 120_000) return `${Math.round(ms / 1000)} s`;
+  return `${(ms / 60_000).toFixed(1)} min`;
 }

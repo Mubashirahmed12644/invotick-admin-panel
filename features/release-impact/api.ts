@@ -1,5 +1,5 @@
 import { ApiError, api, apiRequest } from "@/lib/api";
-import type { FirstGateResponse, RangeChoice, ReleaseImpactResponse, SecondInvoiceResponse, SignupInviteResponse, Unavailable } from "./types";
+import type { FirstFormsResponse, FirstGateResponse, RangeChoice, ReleaseImpactResponse, SecondInvoiceResponse, SignupInviteResponse, Unavailable } from "./types";
 
 const BASE = "/v1/webpanel/release-impact";
 
@@ -32,6 +32,12 @@ export const releaseImpactApi = {
   firstInvoiceGate(r: RangeChoice) {
     const q = r === "since" ? "?platform=Android" : rangeQuery(r);
     return apiRequest<FirstGateResponse>(`${BASE}/first-invoice-gate${q}`, { expectedStatuses: [503] });
+  },
+
+  /** The "First invoice forms" section (decision 0234): its own read and cache; the last 30 days unless a range is picked. */
+  firstInvoiceForms(r: RangeChoice) {
+    const q = r === "since" ? "?platform=Android" : rangeQuery(r);
+    return apiRequest<FirstFormsResponse>(`${BASE}/first-invoice-forms${q}`, { expectedStatuses: [503] });
   },
 
   /** The Health Centre's silence check for feature events, for the one strip this page shows (never a copy of the card). */

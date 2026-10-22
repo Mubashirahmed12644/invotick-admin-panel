@@ -57,11 +57,11 @@ export interface Cell {
 export interface Kpi {
   id: string;
   group: string;
-  kind: "prop" | "rate" | "mean" | "money" | "pending";
+  kind: "prop" | "rate" | "mean" | "money" | "pending" | "median";
   dir: number;
   tol: number | null;
   diffUnit: "pp" | "pct" | "days";
-  unit: "percent" | "per1000" | "days" | "usd" | "count";
+  unit: "percent" | "per1000" | "days" | "usd" | "count" | "minutes";
   a: Cell | null;
   b: Cell | null;
   diff: number | null;
@@ -344,4 +344,74 @@ export interface FirstGateResponse {
   dialog: FirstGateDialogRow[];
   movedResults: Record<string, number>;
   notReachedReasons: Record<string, number>;
+}
+
+// ── round 5: the "First invoice forms" section (decision 0234; backend FirstFormsReport.Response) ──
+
+export interface FormsComparison {
+  key: "order_a" | "order_b" | "order_c" | "preview_first";
+  control: "control" | "today";
+  switch: string;
+  windowFrom: string | null;
+  windowTo: string | null;
+  variantPhones: number;
+  controlPhones: number;
+  verdict: { badge: "thin" | "better" | "worse" | "plain"; breached: string[]; switches: string[] };
+  recommendation: Recommendation | null;
+  readDates: ReadDate[];
+  plan: { neededPerArm: number | null; perWeekVariant: number; perWeekControl: number; weeksMore: number | null };
+  kpis: Kpi[];
+  adUsdPer1000Variant: number | null;
+  adUsdPer1000Control: number | null;
+  adUsdDiffPer1000: number | null;
+  adUsdDiffLo: number | null;
+  adUsdDiffHi: number | null;
+}
+
+export interface FormsStep {
+  key: string;
+  tab: string | null;
+  phones: number;
+}
+
+export interface FirstFormsResponse {
+  state: "not_started" | "running";
+  platform: string;
+  range: { from: string; to: string };
+  computedAt: string;
+  stale: boolean;
+  truncated: boolean;
+  population: {
+    newPhones: number;
+    forms: Record<string, number>;
+    post: Record<string, number>;
+    formsUnassigned: number;
+    postUnassigned: number;
+    ours: number;
+    olderBuild: number;
+    pending24: number;
+  };
+  integrity: { badFormsArm: number; badPostArm: number; badValues: string[]; switchNotOk: number; percentNotRemote: number; dealtTwice: number; stampMismatch: number; stampRows: number };
+  comparisons: FormsComparison[];
+  funnels: { arm: string; dealt24: number; steps: FormsStep[] }[];
+  tabs: { arm: string; step: number; tab: string; reached: number; passed: number; medianMs: number | null; timedPhones: number }[];
+  refusals: { arm: string; tab: string; field: string; rows: number; phones: number }[];
+  closes: { arm: string; tab: string; method: string; phones: number; withInput: number }[];
+  msInFormsMedian: Record<string, number>;
+  preview: {
+    dealt24: number;
+    shownPhones: number;
+    openings: Record<string, number>;
+    savePhones: number;
+    addItemPhones: number;
+    editPhones: number;
+    closeSwipePhones: number;
+    closeScrimPhones: number;
+    savedInvoicePhones: number;
+    msSinceCompleteP50: number | null;
+    msSinceCompleteN: number;
+    speed: "ok" | "slow" | "thin";
+    openToPreviewMedianMs: number | null;
+  };
+  crossTab: { forms: string; post: string; phones: number; g1: number }[];
 }
